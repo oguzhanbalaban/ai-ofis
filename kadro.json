@@ -1,0 +1,242 @@
+{
+    "surum":  1,
+    "aciklama":  "Ekibin kadrosu. Yerleşik rollerin (lider, gelistirici, denetci, sistem, ag) araçları ayarlar.json \u003e roller içinde; diğerlerinin araçları burada (araclar). İK yeni çalışanları bu dosyaya ekler. yetki: oku | yaz (korumalı alan) | tam (sandbox\u0027sız).",
+    "uyeler":  [
+                   {
+                       "anahtar":  "lider",
+                       "ad":  "Lider",
+                       "departman":  "Yönetim",
+                       "yerlesik":  true,
+                       "uzman_isi":  false,
+                       "yetki":  "oku",
+                       "uzmanlik":  "İşleri planlar, doğru çalışana yönlendirir, son kabul/ret kararını verir; gerektiğinde İK\u0027dan işe alım ister.",
+                       "ise_alinma":  null,
+                       "ise_alan":  null
+                   },
+                   {
+                       "anahtar":  "mimar",
+                       "ad":  "Yazılım Mimarı",
+                       "departman":  "Yönetim",
+                       "uzman_isi":  true,
+                       "yetki":  "yaz",
+                       "renk":  "#475569",
+                       "renk_koyu":  "#a7b4c6",
+                       "uzmanlik":  "Sistem ve uygulama mimarisi, bileşen/veri modeli/API tasarımı, teknoloji seçimi ve mimari karar kayıtları (ADR), kod tabanı mimari incelemesi, yazılım görevlerinde mimari ek inceleme.",
+                       "istem":  "istemler\\kadro\\mimar.md",
+                       "faaliyet_metni":  "Mimariyi tasarlıyor",
+                       "araclar":  [
+                                       {
+                                           "arac":  "claude",
+                                           "model":  "opus"
+                                       },
+                                       {
+                                           "arac":  "codex",
+                                           "model":  "gpt-6.1-sol",
+                                           "efor":  "high"
+                                       }
+                                   ],
+                       "ise_alinma":  null,
+                       "ise_alan":  null
+                   },
+                   {
+                       "anahtar":  "gelistirici",
+                       "ad":  "Geliştirici",
+                       "departman":  "Yazılım",
+                       "yerlesik":  true,
+                       "uzman_isi":  false,
+                       "yetki":  "yaz",
+                       "uzmanlik":  "Yazılım görevlerinde kodu yazar (görevin git dalında).",
+                       "ise_alinma":  null,
+                       "ise_alan":  null
+                   },
+                   {
+                       "anahtar":  "denetci",
+                       "ad":  "Denetçi",
+                       "departman":  "Yazılım",
+                       "yerlesik":  true,
+                       "uzman_isi":  false,
+                       "yetki":  "oku",
+                       "uzmanlik":  "Yazılım görevlerinde bağımsız kod incelemesi yapar.",
+                       "ise_alinma":  null,
+                       "ise_alan":  null
+                   },
+                   {
+                       "anahtar":  "sistem",
+                       "ad":  "Sistem Yöneticisi",
+                       "departman":  "Altyapı ve güvenlik",
+                       "yerlesik":  true,
+                       "uzman_isi":  false,
+                       "yetki":  "tam",
+                       "uzmanlik":  "Sunucular, işletim sistemleri, servisler, yazılım kurulumu, VM ve veritabanı sunucusu işleri (sunucu/kurulum talepleri).",
+                       "ise_alinma":  null,
+                       "ise_alan":  null
+                   },
+                   {
+                       "anahtar":  "ag",
+                       "ad":  "Network",
+                       "departman":  "Altyapı ve güvenlik",
+                       "yerlesik":  true,
+                       "uzman_isi":  false,
+                       "yetki":  "tam",
+                       "uzmanlik":  "IP/DNS, VMware ağları, port, güvenlik duvarı kuralları ve makineler arası bağlantı (sunucu/kurulum talepleri).",
+                       "ise_alinma":  null,
+                       "ise_alan":  null
+                   },
+                   {
+                       "anahtar":  "guvenlik",
+                       "ad":  "Siber Güvenlik Uzmanı",
+                       "departman":  "Altyapı ve güvenlik",
+                       "uzman_isi":  true,
+                       "yetki":  "tam",
+                       "renk":  "#b91c1c",
+                       "renk_koyu":  "#f87171",
+                       "uzmanlik":  "Kod güvenlik incelemesi (OWASP, gizli bilgi, girdi doğrulama, yetkilendirme, bağımlılık açıkları), kullanıcının kendi bilgisayarı ve laboratuvar VM\u0027lerinin güvenlik denetimi, sertleştirme önerileri ve risk raporları; yazılım görevlerinde güvenlik ek incelemesi.",
+                       "istem":  "istemler\\kadro\\guvenlik.md",
+                       "faaliyet_metni":  "Güvenlik incelemesi yapıyor",
+                       "araclar":  [
+                                       {
+                                           "arac":  "codex",
+                                           "model":  "gpt-6.1-sol",
+                                           "efor":  "high"
+                                       },
+                                       {
+                                           "arac":  "claude",
+                                           "model":  "sonnet"
+                                       }
+                                   ],
+                       "ise_alinma":  null,
+                       "ise_alan":  null
+                   },
+                   {
+                       "anahtar":  "tasarimci-ui",
+                       "ad":  "UI/UX Tasarımcısı",
+                       "departman":  "Tasarım",
+                       "uzman_isi":  true,
+                       "yetki":  "yaz",
+                       "renk":  "#db2777",
+                       "renk_koyu":  "#f472b6",
+                       "uzmanlik":  "Web siteleri, mobil ve masaüstü uygulama arayüzleri, panolar; kullanıcı akışı, tel kafes, yüksek doğruluklu ekran tasarımı, tıklanabilir HTML/CSS prototip, tasarım sistemi (renk, tipografi, bileşenler), erişilebilirlik.",
+                       "istem":  "istemler\\kadro\\tasarimci-ui.md",
+                       "faaliyet_metni":  "Arayüz tasarlıyor",
+                       "araclar":  [
+                                       {
+                                           "arac":  "codex",
+                                           "model":  "gpt-6.1-sol",
+                                           "efor":  "high"
+                                       },
+                                       {
+                                           "arac":  "claude",
+                                           "model":  "sonnet"
+                                       }
+                                   ],
+                       "ise_alinma":  null,
+                       "ise_alan":  null
+                   },
+                   {
+                       "anahtar":  "tasarimci-grafik",
+                       "ad":  "Grafik Tasarımcı ve İllüstratör",
+                       "departman":  "Tasarım",
+                       "uzman_isi":  true,
+                       "yetki":  "yaz",
+                       "renk":  "#b45309",
+                       "renk_koyu":  "#fbbf24",
+                       "uzmanlik":  "Oyun karakterleri ve konsept sanatı, illüstrasyon, logo ve marka kimliği, ikon setleri, sprite ve oyun varlıkları, afiş ve sosyal medya görselleri; görsel üretim aracı (raster), SVG (vektör) ve Python/Pillow ile çalışır.",
+                       "istem":  "istemler\\kadro\\tasarimci-grafik.md",
+                       "faaliyet_metni":  "Çiziyor",
+                       "araclar":  [
+                                       {
+                                           "arac":  "codex",
+                                           "model":  "gpt-6.1-sol",
+                                           "efor":  "high"
+                                       },
+                                       {
+                                           "arac":  "codex",
+                                           "model":  "gpt-6-astra",
+                                           "efor":  "high"
+                                       },
+                                       {
+                                           "arac":  "claude",
+                                           "model":  "sonnet"
+                                       }
+                                   ],
+                       "ise_alinma":  null,
+                       "ise_alan":  null
+                   },
+                   {
+                       "anahtar":  "ik",
+                       "ad":  "İnsan Kaynakları",
+                       "departman":  "İK ve iletişim",
+                       "uzman_isi":  true,
+                       "yetki":  "oku",
+                       "renk":  "#4d7c0f",
+                       "renk_koyu":  "#a3e635",
+                       "uzmanlik":  "Gelen işi yapabilecek çalışan yoksa doğru profili tanımlar, yeni yapay zeka çalışanını işe alır (rolü, talimatı, yetkisi, araçları), ekibe ve lidere tanıtır; mevcut biri yapabiliyorsa onu önerir.",
+                       "istem":  "istemler\\kadro\\ik.md",
+                       "faaliyet_metni":  "İşe alım yapıyor",
+                       "araclar":  [
+                                       {
+                                           "arac":  "claude",
+                                           "model":  "sonnet"
+                                       },
+                                       {
+                                           "arac":  "codex",
+                                           "model":  "gpt-6.1-sol",
+                                           "efor":  "high"
+                                       }
+                                   ],
+                       "ise_alinma":  null,
+                       "ise_alan":  null
+                   },
+                   {
+                       "anahtar":  "iletisim",
+                       "ad":  "Haberleşme ve Koordinasyon",
+                       "departman":  "İK ve iletişim",
+                       "uzman_isi":  true,
+                       "yetki":  "yaz",
+                       "renk":  "#a21caf",
+                       "renk_koyu":  "#e879f9",
+                       "uzmanlik":  "Gelen kutusunu okur ve özetler, e-posta yazar ve gönderir, masaüstü/telefon bildirimi gönderir, ekip işlerinin durumunu derleyip raporlar, yazışma ve takvim koordinasyonu yapar.",
+                       "istem":  "istemler\\kadro\\iletisim.md",
+                       "faaliyet_metni":  "Yazışıyor",
+                       "araclar":  [
+                                       {
+                                           "arac":  "claude",
+                                           "model":  "sonnet"
+                                       },
+                                       {
+                                           "arac":  "codex",
+                                           "model":  "gpt-6-astra",
+                                           "efor":  "high"
+                                       }
+                                   ],
+                       "ise_alinma":  null,
+                       "ise_alan":  null
+                   },
+                   {
+                       "anahtar":  "ses-tasarimci",
+                       "ad":  "Ses ve Müzik Tasarımcısı",
+                       "departman":  "Tasarım",
+                       "uzman_isi":  true,
+                       "yetki":  "yaz",
+                       "renk":  "#7B4FA6",
+                       "renk_koyu":  "#7B4FA6",
+                       "uzmanlik":  "Oyun projeleri için ses efekti listeleri ve tarifleri, müzik brifleri, ses tasarım belgeleri üretir; Python (wave, numpy, scipy) ile WAV formatında programatik ses efektleri oluşturur.",
+                       "istem":  "istemler\\kadro\\ses-tasarimci.md",
+                       "faaliyet_metni":  "Ses efekti tasarlıyor",
+                       "araclar":  [
+                                       {
+                                           "arac":  "codex",
+                                           "model":  "gpt-6.1-sol",
+                                           "efor":  "high"
+                                       },
+                                       {
+                                           "arac":  "claude",
+                                           "model":  "sonnet"
+                                       }
+                                   ],
+                       "tanisma":  "Merhaba, ben Ses ve Müzik Tasarımcısıyım. Oyun projeleriniz için ses efekti tarifleri, müzik brifleri ve ses tasarım belgeleri hazırlıyor; Python ile WAV formatında programatik ses efektleri üretiyorum. Bana bir ses ihtiyacını veya müzik konseptini tanımlayan bir görev atayın, gerekli belge ve dosyaları teslim edeyim.",
+                       "ise_alinma":  null,
+                       "ise_alan":  null
+                   }
+               ]
+}

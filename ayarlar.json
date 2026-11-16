@@ -1,0 +1,156 @@
+{
+    "surum":  1,
+    "dongu":  {
+                  "bos_bekleme_sn":  300,
+                  "adim_arasi_sn":  10,
+                  "hata_bekleme_dk":  10,
+                  "max_adim_denemesi":  4,
+                  "bekci_dk":  12,
+                  "calisma_saatleri":  "00:00-24:00"
+              },
+    "zaman_asimi_dk":  {
+                           "claude":  25,
+                           "codex":  45,
+                           "gemini":  20,
+                           "dogrulama":  15,
+                           "altyapi":  240
+                       },
+    "gunluk_sinir":  {
+                         "claude":  40,
+                         "codex":  60,
+                         "gemini":  40
+                     },
+    "claude":  {
+                   "exe":  "C:\\Users\\\u003cKULLANICI\u003e\\.local\\bin\\claude.exe",
+                   "kullanim_dosyasi":  "",
+                   "kullanim_dosyasi_gecerlilik_saat":  3,
+                   "min_kalan_yuzde":  30
+               },
+    "roller":  {
+                   "lider":  [
+                                 {
+                                     "arac":  "claude",
+                                     "model":  "opus"
+                                 },
+                                 {
+                                     "arac":  "codex",
+                                     "model":  "gpt-6.1-sol",
+                                     "efor":  "high"
+                                 }
+                             ],
+                   "gelistirici":  [
+                                       {
+                                           "arac":  "codex",
+                                           "model":  "gpt-6.1-sol",
+                                           "efor":  "high"
+                                       },
+                                       {
+                                           "arac":  "codex",
+                                           "model":  "gpt-6-astra",
+                                           "efor":  "high"
+                                       },
+                                       {
+                                           "arac":  "claude",
+                                           "model":  "sonnet"
+                                       }
+                                   ],
+                   "denetci":  [
+                                   {
+                                       "arac":  "claude",
+                                       "model":  "sonnet"
+                                   },
+                                   {
+                                       "arac":  "codex",
+                                       "model":  "gpt-6-astra",
+                                       "efor":  "high"
+                                   }
+                               ],
+                   "sistem":  [
+                                  {
+                                      "arac":  "codex",
+                                      "model":  "gpt-6.1-sol",
+                                      "efor":  "high"
+                                  },
+                                  {
+                                      "arac":  "claude",
+                                      "model":  "sonnet"
+                                  },
+                                  {
+                                      "arac":  "codex",
+                                      "model":  "gpt-6-astra",
+                                      "efor":  "high"
+                                  }
+                              ],
+                   "ag":  [
+                              {
+                                  "arac":  "claude",
+                                  "model":  "sonnet"
+                              },
+                              {
+                                  "arac":  "codex",
+                                  "model":  "gpt-6-astra",
+                                  "efor":  "high"
+                              },
+                              {
+                                  "arac":  "codex",
+                                  "model":  "gpt-6.1-sol",
+                                  "efor":  "high"
+                              }
+                          ]
+               },
+    "gorev":  {
+                  "max_tur":  3,
+                  "max_degisen_dosya":  60,
+                  "diff_karakter_siniri":  80000,
+                  "lider_kabul":  true
+              },
+    "korunan_desenler":  [
+                             ".env",
+                             ".env.*",
+                             "*.pfx",
+                             "*.p12",
+                             "*.key",
+                             "*.pem",
+                             "id_rsa*",
+                             "*.kdbx"
+                         ],
+    "ik":  {
+               "tam_yetki_verebilir":  true,
+               "gunluk_ise_alim_siniri":  3
+           },
+    "iletisim":  {
+                     "gunluk_eposta_siniri":  30
+                 },
+    "altyapi":  {
+                    "vmrun":  "",
+                    "baglanti_bilgileri":  "",
+                    "makineler":  [
+
+                                  ],
+                    "kurallar":  [
+                                     "Yalnızca kullanıcının tanımladığı makinelerde ve açıkça istediği görev kapsamında çalış.",
+                                     "Ana makinenin güvenlik ayarlarını değiştirme; yönetici yetkisi isteyen adımları raporla.",
+                                     "VM kapatmadan önce etkin oturumları kontrol et; açıkça istenmedikçe oturumu kesme. Yumuşak kapatmayı tercih et.",
+                                     "Geri alınamaz işlemler için talepte açık yetki ve önceden yedek gerekir.",
+                                     "Parolaları rapora, bildirime veya kalıcı betiğe yazma; bağlantı bilgilerini yalnızca çalışma anında oku.",
+                                     "Ekip betiklerine ve diğer görevlerin dosyalarına dokunma.",
+                                     "İndirmelerde resmi kaynakları kullan; kaynak ve dosya bilgisini raporla."
+                                 ],
+                    "ipuclari":  [
+
+                                 ]
+                },
+    "bildirim":  {
+                     "masaustu":  true,
+                     "telefon":  {
+                                     "kanal":  "ntfy",
+                                     "ntfy_sunucu":  "https://ntfy.sh",
+                                     "ntfy_konu":  ""
+                                 },
+                     "ayni_bildirim_arasi_dk":  60,
+                     "ozet_saatleri":  [
+                                           "12:30",
+                                           "18:30"
+                                       ]
+                 }
+}
