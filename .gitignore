@@ -1,0 +1,27 @@
+# Kişisel yapılandırma (dağıtılan JSON dosyaları yalnızca şablondur)
+*.yerel.json
+*.yerel.json.*
+durum/
+gunluk/
+raporlar/
+calisma/
+gorevler/
+*.bak
+*.tmp
+eposta.json
+**/BAGLANTI-BILGILERI.md
+.env
+.env.*
+*.key
+*.pem
+*.pfx
+*.p12
+ofis/ofis.ico
+ofis/ofis.log
+ofis/sunucu.json
+ofis/simge-*.png
+ofis/uzak.json
+DURDUR
+.test-calisma/
+dagitim/
+__pycache__/
