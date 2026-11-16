@@ -164,7 +164,12 @@ try {
     Ayarlari-Yukle
     Dogrula ($Ayar.roller.lider[0].arac -eq 'gemini') 'Çalışma motoru yerel araç seçimini okuyor'
     Dogrula ((Codex-Exe) -eq $script:sahteExe -and (Gemini-Exe) -eq $script:sahteExe) 'Değiştirilebilir Codex ve Gemini yolları'
-    Json-Yaz ([pscustomobject]@{ projeler = @([pscustomobject]@{ ad = 'test'; klasor = $kaynak; temel_dal = ''; dogrulama = @() }) }) (Join-Path $paket 'projeler.json')
+    # Kaynak klasör git deposu olmayabilir (ZIP'ten açılmış kurulum): test projesi için geçici depo aç.
+    $testDepo = Join-Path $calisma 'test-deposu'
+    New-Item -ItemType Directory -Path $testDepo -Force | Out-Null
+    & git init -q -- $testDepo | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Test deposu oluşturulamadı (git init).' }
+    Json-Yaz ([pscustomobject]@{ projeler = @([pscustomobject]@{ ad = 'test'; klasor = $testDepo; temel_dal = ''; dogrulama = @() }) }) (Join-Path $paket 'projeler.json')
     Dogrula ((Json (Join-Path $paket 'projeler.json')).projeler.Count -eq 0 -and (Projeleri-Yukle).projeler.Count -eq 1) 'Yeni proje yazımı kişisel dosyaya yönleniyor'
     $jsonFonksiyon = $panelAst.Find({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Json-Oku' }, $true)
     Invoke-Expression $jsonFonksiyon.Extent.Text
@@ -181,9 +186,15 @@ try {
     Dogrula ($cikti -match 'Görev eklendi') 'gorev-ekle.ps1 test görevi oluşturdu'
     $cikti = AltSurec (Join-Path $paket 'durum.ps1')
     Dogrula ($cikti -match '0001-paket-testi' -and (Test-Path -LiteralPath (Join-Path $paket 'raporlar\son-rapor.html'))) 'durum.ps1 görevi ve HTML raporu gösterdi'
+    # .gitignore kurallarını geçici depoda sına; kaynak klasörün git deposu olması gerekmez.
+    $ignoreDepo = Join-Path $calisma 'ignore-deposu'
+    New-Item -ItemType Directory -Path $ignoreDepo -Force | Out-Null
+    & git init -q -- $ignoreDepo | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Geçici depo oluşturulamadı (git init).' }
+    Copy-Item -LiteralPath (Join-Path $kaynak '.gitignore') -Destination $ignoreDepo
     $izin = @('durum/a.json','gunluk/a.log','raporlar/a.html','calisma/a','gorevler/0001/gorev.md','ayarlar.yerel.json','kadro.yerel.json','projeler.yerel.json','ayarlar.yerel.json.bak','eposta.json','BAGLANTI-BILGILERI.md','ofis/uzak.json','ofis/sunucu.json')
     foreach ($yol in $izin) {
-        $null = & git -C $kaynak check-ignore --quiet -- $yol
+        $null = & git -C $ignoreDepo check-ignore --quiet -- $yol
         Dogrula ($LASTEXITCODE -eq 0) "$yol Git dışında"
     }
     [IO.File]::WriteAllText((Join-Path $paket 'ozel-not.md'), 'Kullanıcı dosyası; arşive alınmamalı.')

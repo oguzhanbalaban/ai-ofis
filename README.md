@@ -13,22 +13,28 @@ Windows için kişisel yapay zeka ofisi kurulum paketi. Görevleri lider, geliş
 ## Kurulum
 
 1. Git ve kullanacağınız AI aracını kurup hesabınıza giriş yapın. Sihirbaz bunları indirmez ve model erişimini çevrimiçi doğrulamaz.
-2. PowerShell'de depoyu kalıcı bir klasöre indirin:
+2. PowerShell'de depoyu kalıcı bir klasöre indirin ve sihirbazı başlatın:
 
    ```powershell
    git clone https://github.com/oguzhanbalaban/deneme-proje.git ai-ofis
    cd ai-ofis
+   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
    .\kur-ofis.ps1
    ```
 
-   Alternatif olarak GitHub'dan **Code → Download ZIP** ile indirin, ZIP'i çıkartın ve o klasörde `kur-ofis.ps1` çalıştırın.
+   Size `ai-ofis.zip` iletildiyse veya GitHub'dan **Code → Download ZIP** ile indirdiyseniz: ZIP'i kalıcı bir klasöre çıkartın, PowerShell'i o klasörde açın ve son iki satırı çalıştırın.
+
+   Windows varsayılan olarak `.ps1` betiklerini çalıştırmaz ("running scripts is disabled on this system" hatası). `Set-ExecutionPolicy -Scope Process` satırı izni **yalnızca o PowerShell penceresi için** açar; sistem ayarını değiştirmez. Yeni bir PowerShell penceresinde betik çalıştırmadan önce bu satırı yeniden yazın. Ofisin otomatik başlatma görevi ve masaüstü kısayolu bu izni kendisi verir.
+
 3. Sihirbazda araç/model, bildirim ve ilk proje seçimlerini tamamlayın. VM ve telefon seçenekleri isteğe bağlıdır; başlangıçta kapalı bırakabilirsiniz. Temel kurulum yönetici oturumu gerektirmez.
-4. Paneli açın ve durumu kontrol edin:
+4. Aynı pencerede durumu kontrol edin, sonra paneli açın:
 
    ```powershell
-   .\ofis\ofis.ps1 -Ac
    .\durum.ps1
+   .\ofis\ofis.ps1 -Ac
    ```
+
+   Panel tarayıcıda açılır. Bu PowerShell penceresi panelin sunucusudur: panel kullanıldığı sürece açık kalmalıdır (kapatmak için Ctrl+C). Paneli pencere olmadan açmak için sihirbazın oluşturduğu **AI Ekip Ofisi** masaüstü kısayolunu kullanın.
 
 Panel varsayılan olarak `http://127.0.0.1:8765/` adresini kullanır. Port doluysa kullanılan adres `ofis/sunucu.json` dosyasındadır.
 
@@ -41,7 +47,15 @@ Var olan Git projenizin yolunu kullanın:
 .\baslat.ps1 -Konsol
 ```
 
-Konsol kuyruğu sürekli işler. `durum.ps1 -Duraklat` ile duraklatabilir, `durum.ps1 -Surdur` ile sürdürebilirsiniz. HTML raporu `raporlar/son-rapor.html` dosyasına yazılır. Oturum açılışında otomatik çalıştırmak için `kur.ps1`, otomatik görevi kaldırmak için `kaldir.ps1` kullanılır. Aynı Windows oturumunda tek ofis kurulumu çalıştırın; yeniden kurulumdan önce döngüyü kapatın.
+Konsol kuyruğu sürekli işler (durdurmak için Ctrl+C). `durum.ps1 -Duraklat` ile duraklatabilir, `durum.ps1 -Surdur` ile sürdürebilirsiniz. HTML raporu `raporlar/son-rapor.html` dosyasına yazılır. Oturum açılışında otomatik çalıştırmak için `kur.ps1`, otomatik görevi kaldırmak için `kaldir.ps1` kullanılır. Aynı Windows oturumunda tek ofis kurulumu çalıştırın; yeniden kurulumdan önce döngüyü kapatın.
+
+## İsteğe bağlı özellikler
+
+```powershell
+.\eposta-kur.ps1              # Gmail uygulama şifresiyle ekip e-postası (şifre Windows DPAPI ile saklanır)
+.\ofis\telefon-kur.ps1        # Paneli telefondan açmak için; önce bilgisayara ve telefona Tailscale kurulmalı
+.\ofis\kisayol-olustur.ps1    # Masaüstüne panel kısayolu (sihirbaz da sorar)
+```
 
 ## Dosya yapısı
 
@@ -59,4 +73,4 @@ Konsol kuyruğu sürekli işler. `durum.ps1 -Duraklat` ile duraklatabilir, `duru
 
 Kurulum kişisel ayarları `*.yerel.json` dosyalarına yazar. Bu dosyalar şablonların tamamının yerine geçer ve Git'e eklenmez. Makine erişimlerini ve yetkileri kendi ortamınıza göre belirleyin; altyapı rolleri sistem komutları çalıştırabilir. Parolaları ve kişisel ayarları paylaşmayın. Dağıtım için temiz klon veya `paketle.ps1` ile üretilen `dagitim/ai-ofis.zip` kullanın; kurulmuş klasörün tamamını ZIP'lemeyin.
 
-Kontrol: `powershell -NoProfile -File .\testler\dagitim.test.ps1`. Gerçek AI çağrıları ve isteğe bağlı entegrasyonlar ayrıca denenmelidir.
+Kontrol: `powershell -NoProfile -ExecutionPolicy Bypass -File .\testler\dagitim.test.ps1` (Git klonunda da ZIP'ten açılmış klasörde de çalışır). Gerçek AI çağrıları ve isteğe bağlı entegrasyonlar ayrıca denenmelidir.

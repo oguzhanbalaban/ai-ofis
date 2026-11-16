@@ -2,7 +2,7 @@
 kisayol-olustur.ps1 - Masaüstüne "AI Ekip Ofisi" kısayolunu (ve ofis.ico simgesini) kurar. Yönetici gerekmez.
 
   Kısayol: conhost.exe --headless powershell.exe ... ofis.ps1 -Ac
-    * conhost --headless: hiçbir konsol penceresi görünmez (bu makinede Windows Script Host kapalı; VBS kullanılmaz).
+    * conhost --headless: hiçbir konsol penceresi görünmez (Windows Script Host bazı makinelerde kapalı olduğundan VBS kullanılmaz).
     * Panel sunucusu zaten çalışıyorsa yalnızca tarayıcıda paneli açar.
 
   .\ofis\kisayol-olustur.ps1            kısayolu kur / güncelle

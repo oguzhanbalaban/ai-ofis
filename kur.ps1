@@ -3,7 +3,7 @@ kur.ps1 - AI Ekip'i oturum açılışında otomatik başlatan zamanlanmış gör
 
   Tetik   : oturum açıldıktan GecikmeDk dakika sonra; ardından her BekciDk dakikada bir bekçi kontrolü
   Çalışma : conhost --headless -> powershell -> baslat.ps1 (pencere görünmez)
-            Not: bu makinede Windows Script Host yönetim düzeyinde kapalı; wscript/VBS çalışmaz.
+            Not: Windows Script Host bazı makinelerde kapalı olduğundan wscript/VBS kullanılmaz.
   Kaldır  : .\kaldir.ps1
 #>
 param([ValidateRange(0, 60)][int]$GecikmeDk = 5, [ValidateRange(5, 60)][int]$BekciDk = 10, [switch]$SimdiBaslat)
