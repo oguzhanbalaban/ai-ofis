@@ -16,7 +16,7 @@ Windows için kişisel yapay zeka ofisi kurulum paketi. Görevleri lider, geliş
 2. PowerShell'de depoyu kalıcı bir klasöre indirin ve sihirbazı başlatın:
 
    ```powershell
-   git clone https://github.com/oguzhanbalaban/deneme-proje.git ai-ofis
+   git clone https://github.com/oguzhanbalaban/ai-ofis.git
    cd ai-ofis
    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
    .\kur-ofis.ps1

@@ -2,7 +2,7 @@
 gorev-ekle.ps1 - Ekibe yeni görev ekler. Ekip en geç birkaç dakika içinde görevi alır.
 
 Örnekler:
-  .\gorev-ekle.ps1 -Proje deneme-proje -Baslik "Yüzde işlevi" -Aciklama "hesap.js'e yuzde() ekle" -Kabul "node --test geçer"
+  .\gorev-ekle.ps1 -Proje C:\Projeler\Uygulama -Baslik "Yüzde işlevi" -Aciklama "hesap.js'e yuzde() ekle" -Kabul "node --test geçer"
   .\gorev-ekle.ps1 -Proje C:\Projeler\Uygulama -Baslik "..." -Aciklama "..." -Dogrulama "dotnet build -c Release" -Oncelik 1
 
   -Proje      projeler.json'daki ad ya da bir git deposunun klasörü (yeni klasörler otomatik kaydedilir)
