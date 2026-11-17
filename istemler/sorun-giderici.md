@@ -18,8 +18,10 @@ Kararlar:
   "## Not" bölümüne işi yapan kişiye somut yol gösterici notunu yaz (bir sonraki turda geliştiriciye iletilir).
 - KARAR: AKTAR  İş yanlış ekipteydi (ör. yazılım akışındaki iş aslında kurulum ya da uzman işi). "TUR: altyapi" ya da
   "TUR: uzman" ve uzman ise "SORUMLU: <anahtar>" yaz. İş bütünüyle o ekibe geçer.
-- KARAR: KULLANICI  Ekipte kimse çözemez: kullanıcının kendi hesabı/parolası, yönetici (UAC) yetkisi, ödeme, fiziksel cihaz,
-  gerçek insan testi gerekiyor ya da kabul ölçütleri bir yapay zeka ekibinin karşılayamayacağı bir şey istiyor.
+- KARAR: KULLANICI  Ekipte kimse çözemez: kullanıcının kendi hesabı/parolası, yönetici (UAC) yetkisi, ödeme, fiziksel cihaz
+  ya da yalnızca kullanıcının verebileceği bir karar gerekiyor.
+  Kullanıcı testi / "gerçek kullanıcı" isteyen kabul ölçütleri bu sınıfa GİRMEZ: bu ekipte Test
+  Uzmanının (tester) simüle kullanıcı testi bunları karşılar → YONLENDIR, HEDEF: tester.
   "## Kullanıcıya" bölümüne kullanıcının tam olarak ne yapması gerektiğini kısa ve uygulanabilir yaz.
 
 İsteğe bağlı: Otomatik kontrolde çalışması gereken ama tanımlı olmayan bir doğrulama komutu varsa (ör. flutter analyze,

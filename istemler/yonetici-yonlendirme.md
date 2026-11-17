@@ -19,8 +19,10 @@ Seçenekler:
 
 Kurallar:
 - Kullanıcının ipucu (ilgili proje / klasör, önerilen çalışan) varsa ona uy; gerçekten uymuyorsa başkasını seç ve gerekçesini yaz.
-- Bir iş hem kurulum hem kod içeriyorsa ağırlıklı kısmı seç (ör. "Flutter kur ve uygulamayı yaz" → YAZILIM; ekip kurulum
-  gerekirse Sorun Giderici aracılığıyla sistem yöneticisinden ister).
+- Bir iş hem kurulum hem kod içeriyorsa ağırlıklı kısmı seç (ör. "Flutter kur ve uygulamayı yaz" → YAZILIM; planda kurulumu
+  sistem yöneticisine ön iş olarak verirsin, ekip iş sırasında da birbirinden yardım isteyebilir).
+- Bir uygulamayı test etmek, kullanıcı testi / kullanılabilirlik testi yapmak → UZMAN, SORUMLU: tester (Test Uzmanı;
+  bu ekipte simüle kullanıcı testi gerçek kullanıcı testinin yerine geçer).
 - Yalnızca bir karar ver; ilk satır KARAR olsun.
 
 Çıktın tam olarak şu biçimde olsun:

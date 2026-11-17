@@ -374,7 +374,11 @@ function Uzman-Plan($G) {
             Metin-Yaz (Join-Path $gk 'plan.md') $r.metin
             Ayarla $G 'sorumlu' $sorumlu
             Ayarla $G 'inceleyen' $inceleyen
-            Asama-Gec $G 'gelistirme' 'plan hazır' ('sorumlu: {0}, inceleyen: {1}' -f $sorumlu, $inceleyen) $r
+            $ayrinti = 'sorumlu: {0}, inceleyen: {1}' -f $sorumlu, $inceleyen
+            # Planda ön işler istendiyse ("YARDIM: <anahtar> | <iş>") önce onlar yapılır (yardim.ps1)
+            $isler = Plan-Yardimlari $G $r.metin
+            if ($isler.Count) { Gecmis-Ekle $G 'plan hazır' $ayrinti $r; [void](Yardim-Isleri-Ac $G $isler 'Yönetici (plan)' 'gelistirme'); return }
+            Asama-Gec $G 'gelistirme' 'plan hazır' $ayrinti $r
         }
         'ISE_ALIM' {
             $aranan = Alan-Oku $r.metin 'ARANAN'
@@ -498,13 +502,21 @@ function Uzman-Inceleme($G) {
     $tk = Tur-Klasoru $G
     $wt = Uzman-Calisma-Klasoru $G
     $sorumluAdi = [string]$G.sorumlu; $su = Kadro-Uye $sorumluAdi; if ($su) { $sorumluAdi = [string]$su.ad }
-    $istem = Sablon-Doldur 'uzman-inceleme.md' @{
-        ROL_ADI = [string]$uye.ad; ROL_TALIMATI = (Rol-Talimati $uye); SORUMLU_ADI = $sorumluAdi; CIKTI = (Uzman-Cikti $G)
-        GOREV = (Gorev-Metni $G); PLAN = (Plan-Metni $G)
-        CALISMA_OZET = (Metin-Oku (Join-Path $tk 'calisma-ozet.md')); KONTROL = (Metin-Oku (Join-Path $tk 'kontrol.md'))
-    }
     $haric = @(); if ($G.uygulayan) { $haric = @([string]$G.uygulayan) }
-    $r = Ajan-Cagir -Rol $rol -Istem $istem -Klasor $wt -KayitKlasoru $tk -Etiket 'inceleme' -Haric $haric
+    if ($rol -eq 'tester') {
+        # Test Uzmanı teslimleri çalıştırıp test eder (işlev + simüle kullanıcı testi); yetkisiyle çalışır (yardim.ps1)
+        $t = Teslim-Listesi $G
+        $icerik = "$sorumluAdi bu işi yaptı. Teslimler: $(Uzman-Cikti $G)`n`n$($t.metin)`n`n## Çalışanın raporu`n`n" + (Metin-Oku (Join-Path $tk 'calisma-ozet.md'))
+        if ($G.kaynak_klasor) { $icerik += "`n`nİlgili klasör: ``$($G.kaynak_klasor)``" }
+        $r = Tester-Calistir $G $uye $tk (Uzman-Cikti $G) $icerik (Metin-Oku (Join-Path $tk 'kontrol.md')) 'inceleme' $haric
+    } else {
+        $istem = Sablon-Doldur 'uzman-inceleme.md' @{
+            ROL_ADI = [string]$uye.ad; ROL_TALIMATI = (Rol-Talimati $uye); SORUMLU_ADI = $sorumluAdi; CIKTI = (Uzman-Cikti $G)
+            GOREV = (Gorev-Metni $G); PLAN = (Plan-Metni $G)
+            CALISMA_OZET = (Metin-Oku (Join-Path $tk 'calisma-ozet.md')); KONTROL = (Metin-Oku (Join-Path $tk 'kontrol.md'))
+        }
+        $r = Ajan-Cagir -Rol $rol -Istem $istem -Klasor $wt -KayitKlasoru $tk -Etiket 'inceleme' -Haric $haric
+    }
     if (-not $r.basarili) { Adim-Basarisiz $G "$($uye.ad) inceleyemedi: $($r.hata)"; return }
     Metin-Yaz (Join-Path $tk 'inceleme.md') $r.metin
     $kimlik = '{0}/{1}' -f $r.arac, $r.model
@@ -602,13 +614,21 @@ function Ek-Incelemeler($G, [string]$Tk, $D) {
     foreach ($rol in @($G.ek_inceleme | Where-Object { $_ })) {
         $uye = Kadro-Uye ([string]$rol)
         if (-not $uye) { continue }
-        $istem = Sablon-Doldur 'ek-inceleme.md' @{
-            ROL_ADI = [string]$uye.ad; ROL_TALIMATI = (Rol-Talimati $uye); GOREV = (Gorev-Metni $G); PLAN = (Plan-Metni $G)
-            DENETIM = (Metin-Oku (Join-Path $Tk 'denetim.md')); DIFF_OZET = $D.stat; DIFF = $D.diff
-        }
         $haric = @(); if ($G.gelistirici) { $haric = @([string]$G.gelistirici) }
-        $r = Ajan-Cagir -Rol ([string]$rol) -Istem $istem -Klasor $G.calisma_klasoru -KayitKlasoru $Tk -Etiket "inceleme-$rol" -Haric $haric
+        if ([string]$rol -eq 'tester') {
+            # Test Uzmanı değişikliği okumakla kalmaz: uygulamayı çalıştırıp işlev ve simüle kullanıcı testi yapar (yardim.ps1)
+            $icerik = "Git çalışma ağacı: ``$($G.calisma_klasoru)`` (dal $($G.dal)). Değişen dosyalar:`n`n$($D.stat)"
+            $r = Tester-Calistir $G $uye $Tk ([string]$G.calisma_klasoru) $icerik (Metin-Oku (Join-Path $Tk 'denetim.md')) "inceleme-$rol" $haric
+        } else {
+            $istem = Sablon-Doldur 'ek-inceleme.md' @{
+                ROL_ADI = [string]$uye.ad; ROL_TALIMATI = (Rol-Talimati $uye); GOREV = (Gorev-Metni $G); PLAN = (Plan-Metni $G)
+                DENETIM = (Metin-Oku (Join-Path $Tk 'denetim.md')); DIFF_OZET = $D.stat; DIFF = $D.diff
+            }
+            $r = Ajan-Cagir -Rol ([string]$rol) -Istem $istem -Klasor $G.calisma_klasoru -KayitKlasoru $Tk -Etiket "inceleme-$rol" -Haric $haric
+        }
         if (-not $r.basarili) {
+            # Ek inceleyen ekip içi yardım istedi: Adim-Denetim isteği Yöneticiye iletir
+            if ($r.yardim) { return [pscustomobject]@{ duzelt = $false; duzelt_metni = ''; metin = $hepsi.ToString(); yardim = $true } }
             Gecmis-Ekle $G "$($uye.ad) ek inceleme yapamadı" $r.hata
             [void]$hepsi.AppendLine("## $($uye.ad): inceleme yapılamadı ($(Kisalt $r.hata 200))")
             continue

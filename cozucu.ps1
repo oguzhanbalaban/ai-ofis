@@ -61,6 +61,14 @@ function Gorev-Surdur($G, [string]$Not = '', [string]$Kim = 'kullanıcı', [stri
     $notMd = ''; if ($Not) { $notMd = "## $NotBasligi`n`n$Not`n`n" }
     if ([string]$G.asama -eq 'bekliyor_kullanici') {
         $G.asama = 'plan'
+        if ($G.soru_donus_asama -and ($AktifAsamalar -contains [string]$G.soru_donus_asama)) { $G.asama = [string]$G.soru_donus_asama; Ayarla $G 'soru_donus_asama' '' }
+        if ($notMd) { $f = Join-Path (Tur-Klasoru $G) 'geri-bildirim.md'; Metin-Yaz $f ($notMd + (Metin-Oku $f)) }
+    } elseif ([string]$G.asama -eq 'yardim_bekliyor' -or [string]$G.asama -eq 'yardim') {
+        # Ekip içi yardım beklenirken kullanıcı sürdürdü: yardımı beklemeden kaldığı aşamadan devam
+        $d = [string]$G.yardim_donus_asama; if (-not $d -or $AktifAsamalar -notcontains $d -or $d -eq 'yardim') { $d = 'gelistirme' }
+        Ayarla $G 'yardim_bekleyen' @()
+        if ($notMd) { $f = Join-Path (Tur-Klasoru $G) 'geri-bildirim.md'; Metin-Yaz $f ($notMd + (Metin-Oku $f)) }
+        $G.asama = $d
     } elseif (Test-Path -LiteralPath $bekleyen) {
         # Tur sınırına takılmıştı: bir tur hakkı daha ver, son geri bildirimle geliştiriciye dön
         $gb = $notMd + (Metin-Oku $bekleyen)
@@ -229,7 +237,10 @@ function Yeni-Gorev-Klasoru([string]$Baslik) {
     }
     throw 'Yeni görev numarası alınamadı'
 }
-function Yardim-Gorevi-Ac($G, [string]$Hedef, $Uye, [string]$Baslik, [string]$Talep, [string]$Kabul, [string]$Teshis) {
+# Yardım işi: Sorun Giderici (takılan iş için) ya da Yönetici (ekip içi yardım isteği / plan ön işi, yardim.ps1) açar.
+# $Ek: yeni görevin durum.json'una eklenecek alanlar (ör. ise_alim_aranan)
+function Yardim-Gorevi-Ac($G, [string]$Hedef, $Uye, [string]$Baslik, [string]$Talep, [string]$Kabul, [string]$Teshis,
+    [string]$Acan = 'Sorun Giderici', [string]$NedenBasligi = 'Takılmanın nedeni (Sorun Giderici)', [hashtable]$Ek = @{}) {
     $altyapi = @('sistem', 'ag') -contains $Hedef
     if (-not $Baslik) { $Baslik = 'Yardım: ' + [string]$G.baslik }
     $Baslik = Kisalt $Baslik 110
@@ -238,15 +249,17 @@ function Yardim-Gorevi-Ac($G, [string]$Hedef, $Uye, [string]$Baslik, [string]$Ta
     $kabulMetni = '- (belirtilmedi; Yönetici planda ölçüt belirlesin)'
     if ($Kabul) { $kabulMetni = $Kabul }
     $tur = 'uzman işi'; if ($altyapi) { $tur = 'sunucu / kurulum talebi (sistem yöneticisi + network)' }
+    $kime = '(Yönetici seçer; uygun kimse yoksa İK işe alır)'
+    if ($Hedef -and $Uye) { $kime = "$($Uye.ad) ($Hedef)" }
     $md = @(
         "# $Baslik", '',
-        "- Tür: yardım işi ($tur); Sorun Giderici açtı",
-        "- İstenen çalışan: $($Uye.ad) ($Hedef)",
-        "- Takılan iş: #$($G.id) $($G.baslik)",
+        "- Tür: yardım işi ($tur); $Acan açtı",
+        "- İstenen çalışan: $kime",
+        "- Yardım edilen iş: #$($G.id) $($G.baslik)",
         '- Öncelik: 1',
         "- Eklenme: $((Get-Date).ToString('dd.MM.yyyy HH:mm'))", '',
         '## Açıklama', '', $Talep, '',
-        '## Takılmanın nedeni (Sorun Giderici)', '', $Teshis, '',
+        "## $NedenBasligi", '', $Teshis, '',
         '## Kabul ölçütleri', '', $kabulMetni, '',
         '## Notlar ve yanıtlar', '',
         '(Yönetici soru sorarsa yanıtlarını buraya yazıp dosyayı kaydet; ekip kendiliğinden devam eder.)'
@@ -262,8 +275,9 @@ function Yardim-Gorevi-Ac($G, [string]$Hedef, $Uye, [string]$Baslik, [string]$Ta
         $kaynak = [string]$G.calisma_klasoru; if (-not $kaynak -or -not (Test-Path -LiteralPath $kaynak)) { $kaynak = [string]$G.klasor }
         $d.kaynak_klasor = $kaynak
     }
+    foreach ($k in $Ek.Keys) { $d[$k] = $Ek[$k] }
     Json-Yaz ([pscustomobject]$d) (Join-Path $gk 'durum.json')
-    Gunluk "Sorun Giderici yardım işi açtı: $id ($Hedef) <- $($G.id)"
+    Gunluk "$Acan yardım işi açtı: $id ($(if ($Hedef) { $Hedef } else { 'Yönetici seçer' })) <- $($G.id)"
     return $id
 }
 # Yazılım işi başka akışa aktarılırken çalışma ağacındaki emek silinmesin: ağaç calisma\<no>-yazilim'e taşınır

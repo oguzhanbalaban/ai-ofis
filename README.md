@@ -1,6 +1,6 @@
 # AI Ofis
 
-Windows için kişisel yapay zeka ofisi kurulum paketi. Verilen işi **Yönetici** okuyup geliştirici, denetçi, altyapı ve uzman rollerine dağıtır; takılan işleri **Sorun Giderici** inceler. İnceleme, raporlama, token/bağlam kullanım panosu ve tarayıcıdan yönetim paneli sunar. Claude, Codex ve Gemini araçları birlikte veya ayrı kullanılabilir; varsayılan rol zincirleri Claude öncelikli, Codex yedektir (sihirbaz seçtiğiniz araçlara göre uyarlar).
+Windows için kişisel yapay zeka ofisi kurulum paketi. Verilen işi **Yönetici** okuyup geliştirici, denetçi, altyapı ve uzman rollerine dağıtır; çalışanlar iş sırasında Yönetici üzerinden birbirinden **yardım** ister, uygulamaları **Test Uzmanı** çalıştırıp test eder, takılan işleri **Sorun Giderici** inceler. İnceleme, raporlama, token/bağlam kullanım panosu ve tarayıcıdan yönetim paneli sunar. Claude, Codex ve Gemini araçları birlikte veya ayrı kullanılabilir; varsayılan rol zincirleri Claude öncelikli, Codex yedektir (sihirbaz seçtiğiniz araçlara göre uyarlar).
 
 ## Gereksinimler
 
@@ -55,6 +55,25 @@ Konsol kuyruğu sürekli işler (durdurmak için Ctrl+C). `durum.ps1 -Duraklat` 
 
 `is-ver.ps1` ve panelde **+ İş ver** tür sormaz; iş doğrudan Yöneticiye gider (rol anahtarı `lider` geriye uyumluluk için durur, her yerde Yönetici adıyla görünür). Yönetici işi okur ve `yonlendirme.ps1` ile karar verir: **YAZILIM** (kayıtlı bir proje ya da `ayarlar.json > gorev.yeni_proje_kok` altında, boşsa `%USERPROFILE%\ai-ekip-projeler` içinde yeni bir git deposu), **ALTYAPI** (sistem yöneticisi + network), **UZMAN** (kadrodan bir çalışan), **ISE_ALIM** (İK önce işe alır) ya da **SORU_VAR**. Gerekçe `gorev.md`'ye eklenir. İsteğe bağlı ipuçları: `-Ipucu` (proje adı ya da klasör) ve `-Rol` (önerilen çalışan).
 
+## Ekip içi yardımlaşma
+
+Bir çalışan iş sırasında kendi yapamayacağı ama ekipte başkasının yapabileceği bir şeyle karşılaşırsa (yazılım/SDK kurulumu, emülatör, ağ ayarı, uygulamayı çalıştırıp test etmek, tasarım varlığı, güvenlik görüşü, yalnızca sizin verebileceğiniz bir bilgi) işi başarısız saymaz: çıktısının sonuna bir ```` ```yardim {json} ```` bloğu ekler (talimat her uygun istemin sonuna kendiliğinden eklenir). Akış `yardim.ps1` içindedir:
+
+1. Görev **Yöneticide (yardım isteği)** aşamasına geçer; istek `gorevler\<no>\yardim-istek-N.md` dosyasına yazılır.
+2. Yönetici (`istemler\yonetici-yardim.md`) karar verir: **ATA** (kadrodan birine öncelikli yardım işi; sistem/network için altyapı talebi, diğerleri için uzman işi), **YANIT** (bilgi ya da yol gösterme), **ISE_ALIM** (İK işe alır) ya da **KULLANICI** (size sorar; yanıtladığınızda iş yeniden planlanmaz, kaldığı aşamadan sürer).
+3. Görev **Ekipten yardım bekliyor** aşamasında bekler; yardım işleri bitince kaldığı aşamadan sürer. Gelen sonuçlar `yardim-sonuclari.md` dosyasında toplanır ve o görevin sonraki her ajan istemine "EKİPTEN GELEN YARDIM" olarak eklenir.
+
+Yönetici planda ön iş de isteyebilir: `YARDIM: <kadro anahtarı> | <iş>` satırları geliştirmeden önce yardım işi olarak açılır (ör. SDK kurulumu → sistem). Sınırlar `ayarlar.json > yardimlasma` içindedir: `etkin`, `gorev_basina_en_fazla` (4), `derinlik` (2; yardım işinin yardım işi en fazla bu kadar). Panelde **Ekip içi yardım** sütunu, kartta isteyen ve istek, görev ayrıntısında **Ekip içi yardım** sekmesi görünür. Sorun Giderici, buna rağmen takılan işler için güvenlik ağıdır.
+
+## Test Uzmanı ve kullanıcı testleri
+
+Kabul ölçütlerindeki "kullanıcı testi", "gerçek kullanıcı", "N kullanıcıdan M'i" gibi maddeleri **Test Uzmanının** (`tester`, `istemler\kadro\tester.md`) simüle kullanıcı testi karşılar ve raporda bu açıkça "simüle kullanıcı testi" diye belirtilir. Test Uzmanı uygulamayı derleyip çalıştırır, kabul ölçütlerini işlev testiyle sınar, farklı kullanıcı profilleriyle (persona) senaryoları uygular, ekran görüntüsü ve günlükle kanıtlar ve `test-raporu.md` yazar. Tam yetkiyle çalışır (komut çalıştırabilir); yetkisini kendi ortamınıza göre `kadro.json` (kurulumdan sonra `kadro.yerel.json`) içinde değiştirebilirsiniz.
+
+- Yazılım işlerinde Yönetici `EK_INCELEME: tester` der: denetçi onayından sonra Test Uzmanı test eder (`istemler\tester-inceleme.md`); çıktılar `calisma\<no>-test\` klasörüne yazılır. Test edilen git ağacında bıraktığı değişiklikler (geliştiricinin işi korunarak) geri alınır.
+- Uzman işlerinde `INCELEYEN: tester` ya da test işinin kendisi için `SORUMLU: tester` seçilir. Herhangi bir çalışan da yardım isteğiyle Test Uzmanını çağırabilir.
+
+Bu sürümden önceki bir kurulumdan yükseltiyorsanız kişisel ayarlarınız şablonun yerine geçtiği için yeni özellikler kendiliğinden gelmez: `ayarlar.json` içindeki `yardimlasma` bloğunu `ayarlar.yerel.json`'a, `kadro.json` içindeki `tester` üyesini `kadro.yerel.json`'a kopyalayın (blok yoksa yardımlaşma kapalı kalır).
+
 ## Sorun Giderici: takılan işler
 
 Bir adım defalarca başarısız olunca ya da tur sınırı dolunca iş takılır. Sorun Giderici (`cozucu.ps1`) bunu hemen bildirmek yerine inceler (salt okunur) ve karar verir: engeli kaldırabilecek çalışana **yardım işi** açar (iş bitince takılan iş kaldığı yerden sürer), geçici sorunlarda **yeniden dener**, iş yanlış ekipteyse **aktarır** ya da ekipte çözebilecek kimse yoksa size tam olarak ne yapmanız gerektiğini bildirir. Her müdahale `gorevler\<no>\cozum-N.md` dosyasına yazılır. Sınırlar `ayarlar.json > sorun_giderici` içindedir (`etkin`, `gorev_basina_en_fazla`, `en_eski_saat`); panelde ya da `durum.ps1 -Devam <no>` ile "Devam" demeniz hakkı sıfırlar.
@@ -79,14 +98,15 @@ Her ajan çağrısı `durum\kullanim\kullanim-yyyyMM.jsonl` dosyasına yazılır
 | `baslat.ps1`, `ekip.ps1`, `ortak.ps1` | Görev döngüsü, ortak işlevler, token/bağlam kaydı |
 | `is-ver.ps1`, `yonlendirme.ps1` | Türü seçilmeden iş verme ve Yöneticinin yönlendirmesi |
 | `cozucu.ps1` | Sorun Giderici (takılan işler) |
+| `yardim.ps1` | Ekip içi yardımlaşma ve Test Uzmanı çalıştırma |
 | `gorev-ekle.ps1`, `talep-ekle.ps1`, `uzman-ekle.ps1` | Yazılım, altyapı ve uzman işini doğrudan ekleme |
 | `ayarlar.json`, `kadro.json`, `projeler.json` | Anonim ayar, kadro ve proje şablonları |
 | `istemler/` | Rol ve uzman talimatları |
 | `ofis/` | Web paneli ve telefon erişimi araçları |
 | `araclar/`, `posta.ps1`, `eposta-kur.ps1` | İsteğe bağlı e-posta desteği, kullanım geçmişi aktarımı |
-| `testler/` | Çevrimdışı testler: dağıtım, Yönetici/Sorun Giderici/kullanım kaydı, iptal yarışı |
+| `testler/` | Çevrimdışı testler: dağıtım, Yönetici/Sorun Giderici/kullanım kaydı, iptal yarışı, ekip içi yardımlaşma/Test Uzmanı |
 | `paketle.ps1`, `LICENSE` | Paylaşılabilir ZIP üretimi ve MIT lisansı |
 
 Kurulum kişisel ayarları `*.yerel.json` dosyalarına yazar. Bu dosyalar şablonların tamamının yerine geçer ve Git'e eklenmez. Makine erişimlerini ve yetkileri kendi ortamınıza göre belirleyin; altyapı rolleri sistem komutları çalıştırabilir. Parolaları ve kişisel ayarları paylaşmayın. Dağıtım için temiz klon veya `paketle.ps1` ile üretilen `dagitim/ai-ofis.zip` kullanın; kurulmuş klasörün tamamını ZIP'lemeyin.
 
-Kontrol: `powershell -NoProfile -ExecutionPolicy Bypass -File .\testler\dagitim.test.ps1` (Git klonunda da ZIP'ten açılmış klasörde de çalışır). `testler\yonetici-cozucu.test.ps1` ve `testler\iptal-yarisi.test.ps1` sahte bir ajanla geçici bir klasörde çalışır; gerçek AI aracı çağırmaz. Gerçek AI çağrıları ve isteğe bağlı entegrasyonlar ayrıca denenmelidir.
+Kontrol: `powershell -NoProfile -ExecutionPolicy Bypass -File .\testler\dagitim.test.ps1` (Git klonunda da ZIP'ten açılmış klasörde de çalışır). `testler\yonetici-cozucu.test.ps1`, `testler\iptal-yarisi.test.ps1` ve `testler\yardimlasma.test.ps1` sahte bir ajanla geçici bir klasörde çalışır; gerçek AI aracı çağırmaz. Gerçek AI çağrıları ve isteğe bağlı entegrasyonlar ayrıca denenmelidir.

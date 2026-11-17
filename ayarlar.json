@@ -133,6 +133,11 @@
                            "gorev_basina_en_fazla":  2,
                            "en_eski_saat":  72
                        },
+    "yardimlasma":  {
+                        "etkin":  true,
+                        "gorev_basina_en_fazla":  4,
+                        "derinlik":  2
+                    },
     "korunan_desenler":  [
                              ".env",
                              ".env.*",

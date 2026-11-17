@@ -11,7 +11,8 @@ Görev yaşam döngüsü (gorevler\<id>\durum.json -> asama). Yönetici = rol an
   Yönetici soru sorarsa: bekliyor_kullanici (gorev.md güncellenince kendiliğinden plan'a döner).
 #>
 
-$script:AktifAsamalar = @('yeni', 'plan', 'gelistirme', 'kontrol', 'denetim', 'kabul', 'tamamla')
+# 'yardim': ekip içi yardım isteğini Yönetici değerlendiriyor (yardim.ps1). 'yardim_bekliyor' etkin değildir (yardım işleri sürüyor).
+$script:AktifAsamalar = @('yeni', 'plan', 'gelistirme', 'kontrol', 'denetim', 'kabul', 'tamamla', 'yardim')
 # Sunucu / kurulum talepleri (tip = altyapi): sistem yöneticisi + network rolleri
 . (Join-Path $PSScriptRoot 'altyapi.ps1')
 # Kadro, uzman işleri (tip = uzman), İK işe alımı, e-posta: uzman.ps1 (+ posta.ps1)
@@ -20,6 +21,8 @@ $script:AktifAsamalar = @('yeni', 'plan', 'gelistirme', 'kontrol', 'denetim', 'k
 . (Join-Path $PSScriptRoot 'yonlendirme.ps1')
 # Takılan işler: Sorun Giderici
 . (Join-Path $PSScriptRoot 'cozucu.ps1')
+# Ekip içi yardımlaşma (ajan iş sırasında Yöneticiden yardım ister) ve Test Uzmanı
+. (Join-Path $PSScriptRoot 'yardim.ps1')
 
 # ---------------------------------------------------------------- yardımcılar
 function Tur-Klasoru($G) {
@@ -62,6 +65,12 @@ function Takildi($G, [string]$Neden) {
 function Adim-Basarisiz($G, [string]$Hata) {
     # Görev adım sürerken iptal edildiyse başarısızlık sayma: yeniden deneme planlama, "takıldı" bildirimi gönderme
     if (Gorev-Iptal-mi $G.id) { Gunluk "Görev $($G.id): '$($G.asama)' adımı iptal edilmiş görevde sona erdi; başarısız sayılmadı ($(Kisalt $Hata 160))" 'UYARI'; return }
+    # Ajan ekip içi yardım istediyse başarısızlık sayma: istek Yöneticiye gider (yardim.ps1)
+    if ($script:YardimIstegi -and [string]$script:YardimIstegi.gorev -eq [string]$G.id) {
+        $y = $script:YardimIstegi; $script:YardimIstegi = $null
+        if (Yardim-Istegi-Kaydet $G $y) { return }
+        $Hata = "$Hata (ekip içi yardım hakkı doldu)"
+    }
     $G.deneme = [int]$G.deneme + 1
     Ayarla $G 'son_hata' (Kisalt $Hata 500)
     Gecmis-Ekle $G 'deneme başarısız' $Hata
@@ -146,6 +155,9 @@ function Adim-Plan($G) {
             $ek = Ek-Inceleme-Coz (Alan-Oku $r.metin 'EK_INCELEME')
             Ayarla $G 'ek_inceleme' @($ek)
             $ayrinti = ''; if ($ek.Count) { $ayrinti = 'ek inceleme: ' + ($ek -join ', ') }
+            # Planda ön işler istendiyse ("YARDIM: <anahtar> | <iş>") önce onlar yapılır, sonra geliştirme başlar
+            $isler = Plan-Yardimlari $G $r.metin
+            if ($isler.Count) { Gecmis-Ekle $G 'plan hazır' $ayrinti $r; [void](Yardim-Isleri-Ac $G $isler 'Yönetici (plan)' 'gelistirme'); return }
             Asama-Gec $G 'gelistirme' 'plan hazır' $ayrinti $r
         }
         'UZMAN' {
@@ -282,6 +294,7 @@ function Adim-Denetim($G) {
             if (@($G.ek_inceleme | Where-Object { $_ }).Count) {
                 # Denetçi onayladı; lider güvenlik / mimari ek incelemesi istemişti
                 $ek = Ek-Incelemeler $G $tk $d
+                if ($ek.yardim) { Adim-Basarisiz $G 'ek inceleme ekip içi yardım istedi'; return }
                 if ($ek.duzelt) {
                     Gecmis-Ekle $G 'ek inceleme düzeltme istedi' '' $r
                     Yeni-Tur $G ("## Ek inceleme düzeltme istedi`n`n" + $ek.duzelt_metni) 'ek inceleme düzeltme istedi'
@@ -369,10 +382,12 @@ function Gorev-Ilerlet($G) {
     $script:AktifAdim = $G.asama
     $basAsama = [string]$G.asama
     $basTur = $G.tur
+    $script:YardimIstegi = $null
     Kalp 'çalışıyor'
     Gunluk "Görev $($G.id) [$($G.asama), tur $($G.tur)] ilerletiliyor"
     try {
-        if ($G.tip -eq 'altyapi') { Altyapi-Adim $G }
+        if ($G.asama -eq 'yardim') { Yardim-Yonlendir $G }
+        elseif ($G.tip -eq 'altyapi') { Altyapi-Adim $G }
         elseif ($G.tip -eq 'uzman') { Uzman-Adim $G }
         elseif ($G.tip -eq 'genel') { Genel-Adim $G }
         else { switch ($G.asama) {
@@ -417,9 +432,16 @@ function Bekleyenleri-Kontrol {
         $f = Join-Path (Gorev-Klasoru $g.id) 'gorev.md'
         if ((Test-Path -LiteralPath $f) -and (Get-Item -LiteralPath $f).LastWriteTime -gt [datetime]$g.soru_zamani) {
             Gecmis-Ekle $g 'kullanıcı gorev.md dosyasını güncelledi'
-            $g.asama = 'plan'; $g.deneme = 0
+            # Ekip içi yardım isteği kullanıcıya sorulduysa iş kaldığı aşamadan sürer; değilse yeniden planlanır
+            $hedef = 'plan'
+            if ($g.soru_donus_asama -and ($AktifAsamalar -contains [string]$g.soru_donus_asama)) {
+                $hedef = [string]$g.soru_donus_asama
+                Ayarla $g 'soru_donus_asama' ''
+                Yardim-Sonucu-Ekle $g 'Kullanıcının yanıtı' 'Kullanıcı yanıtını görev tanımının "Notlar ve yanıtlar" bölümüne yazdı (GÖREV metnine bak).'
+            }
+            $g.asama = $hedef; $g.deneme = 0
             Gorev-Kaydet $g
-            Gunluk "Görev $($g.id): kullanıcı yanıt verdi, yeniden planlanacak"
+            Gunluk "Görev $($g.id): kullanıcı yanıt verdi, '$hedef' aşamasından sürecek"
         }
     }
 }
@@ -493,6 +515,8 @@ function Ekip-Dongusu {
             Bekleyenleri-Kontrol
             # Sorun Giderici: biten yardım işlerinin takılan işlerini sürdür, incelenmemiş takılma varsa önce onu incele
             Yardim-Gorevleri-Kontrol
+            # Ekip içi yardım: yardım işleri biten görevler kaldıkları aşamadan sürer (yardim.ps1)
+            Yardim-Bekleyenleri-Kontrol
             $tg = Cozulecek-Gorev
             if ($tg) {
                 Sorun-Gider $tg

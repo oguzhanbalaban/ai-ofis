@@ -208,6 +208,7 @@ main { max-width:1320px; margin:0 auto; padding:16px 16px 48px; display:flex; fl
 .sutun-bas .cizgi-renk { width:8px; height:8px; border-radius:50%; background:var(--soluk); }
 .sutun-bas .adet { margin-left:auto; font-weight:600; color:var(--soluk); background:var(--gri-z); border-radius:999px; padding:0 8px; font-size:11.5px; }
 .s-plan .cizgi-renk, .s-kabul .cizgi-renk { background:var(--lider); }
+.s-yardim .cizgi-renk { background:#0d9488; }
 .s-gelistirme .cizgi-renk { background:var(--gelistirici); }
 .s-kontrol .cizgi-renk, .s-denetim .cizgi-renk { background:var(--denetci); }
 .s-tamam .cizgi-renk { background:var(--yesil); }
@@ -626,7 +627,7 @@ const GLIF_KUM = ['####', ' ## ', ' ## ', '####'];
 
 const VARSAYILAN_RENK = { lider: '#c2410c', gelistirici: '#2563eb', denetci: '#0e8459', sistem: '#7c3aed', ag: '#0e7490' };
 const rolRengi = r => (/^#[0-9a-f]{6}$/i.test(r.renk || '') ? r.renk : VARSAYILAN_RENK[r.anahtar]) || '#64748b';
-const KISA_AD = { lider: 'Yönetici', 'sorun-giderici': 'S. Giderici', mimar: 'Mimar', gelistirici: 'Geliştirici', denetci: 'Denetçi', sistem: 'Sistem', ag: 'Network', guvenlik: 'Güvenlik',
+const KISA_AD = { lider: 'Yönetici', 'sorun-giderici': 'S. Giderici', tester: 'Tester', mimar: 'Mimar', gelistirici: 'Geliştirici', denetci: 'Denetçi', sistem: 'Sistem', ag: 'Network', guvenlik: 'Güvenlik',
   'tasarimci-ui': 'UI/UX', 'tasarimci-grafik': 'Grafik', ik: 'İK', iletisim: 'İletişim', 'ses-tasarimci': 'Ses' };
 const kisaAd = r => KISA_AD[r.anahtar] || String(r.ad || r.anahtar).split(/\s+/)[0].slice(0, 14);
 function aracRengi(a) {
@@ -1372,6 +1373,30 @@ function takildiOlayi(no, rolA) {
   if (sg && !sg.gitti && veri && veri.sorun_giderici && veri.sorun_giderici.etkin) zamanla(2200, () => { sg.balon = { metin: `🔍 #${no}'ye bakıyorum`, bitis: an() + 3200 }; });
 }
 function soruOlayi(no) { olayBildir(`Yönetici soru soruyor (#${no}) ❓`); }
+// Ekip içi yardım: isteyen Yöneticiye gider, Yönetici yardım işini açar, yardım gelince isteyen teşekkür eder
+function yardimOlayi(g, e, no) {
+  const isteyen = kisiler.get(g.yardim_isteyen), yonetici = kisiler.get('lider');
+  const ad = (isteyen && isteyen.ad) || 'Ekip';
+  if (g.asama === 'yardim') {
+    olayBildir(`${ad}, #${no} için Yöneticiden yardım istedi 🙋`);
+    if (isteyen && yonetici && isteyen !== yonetici && !isteyen.gitti && !yonetici.gitti && !azHareket() && isteyen.durum !== 'calis' && !isteyen.olayda) {
+      planTemizle(isteyen); isteyen.olayda = true;
+      const z = ziyaretYeri(yonetici, isteyen);
+      isteyen.plan.push({ t: 'git', hedef: z, hiz: 56, basla: () => { isteyen.tasi = 'kagit'; } });
+      isteyen.plan.push({ t: 'dur', yon: z.yon });
+      isteyen.plan.push({ t: 'bekle', sure: 2200, balon: { metin: '🙋 Yardım lazım', gecikme: 0, sure: 2000 },
+        basla: () => zamanla(1200, () => { isteyen.tasi = null; yonetici.balon = { metin: '👀 Bakıyorum', bitis: an() + 2200 }; }) });
+      isteyen.plan.push({ t: 'fn', f: () => { isteyen.olayda = false; } });
+    } else if (isteyen) isteyen.balon = { metin: '🙋 Yardım lazım', bitis: an() + 3200 };
+  } else if (g.asama === 'yardim_bekliyor') {
+    const y = (g.yardim_bekleyen || []).map(x => '#' + String(x).split('-')[0]).join(', ');
+    olayBildir(`Yönetici #${no} için yardım işi açtı ${y} 🤝`);
+    if (yonetici && !yonetici.gitti) yonetici.balon = { metin: `🤝 ${y}`, bitis: an() + 3200 };
+  } else if ((e.asama === 'yardim_bekliyor' || e.asama === 'yardim') && !['takildi', 'iptal', 'bekliyor_kullanici'].includes(g.asama)) {
+    olayBildir(`Yardım geldi, #${no} devam ediyor ✅`);
+    if (isteyen && !isteyen.gitti) isteyen.balon = { metin: '✅ Teşekkürler!', bitis: an() + 3000 };
+  }
+}
 function cozumOlayi(g, no) {
   const y = String(g.yardim_gorevi || '').split('-')[0];
   const m = {
@@ -1467,6 +1492,10 @@ function guncelle(v) {
       if (!e) { if (g.asama === 'yeni') yeniIsOlayi(g, no); continue; }
       if (g.cozum_durumu && e.cozum_durumu !== g.cozum_durumu) cozumOlayi(g, no);
       if (e.asama === g.asama) continue;
+      if (g.asama === 'yardim' || g.asama === 'yardim_bekliyor' || e.asama === 'yardim_bekliyor' || e.asama === 'yardim') {
+        yardimOlayi(g, e, no);
+        if (!['tamam', 'takildi', 'bekliyor_kullanici'].includes(g.asama)) continue;
+      }
       if (g.asama === 'tamam') kutlamaOlayi(no);
       else if (g.asama === 'takildi') takildiOlayi(no, g.sorumlu);
       else if (g.asama === 'bekliyor_kullanici') soruOlayi(no);
@@ -1837,7 +1866,8 @@ const kac = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&a
 const renkGecerli = r => /^#[0-9a-fA-F]{6}$/.test(r || '') ? r : '';
 const koyuMu = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
 const ASAMA_ADI = { yeni: 'Sırada', plan: 'Planlanıyor', gelistirme: 'Geliştiriliyor', kontrol: 'Kontrol ediliyor', denetim: 'Denetleniyor', kabul: 'Yönetici onayında',
-  tamamla: 'Commit ediliyor', tamam: 'Tamamlandı', takildi: 'Takıldı', bekliyor_kullanici: 'Senden yanıt bekliyor', iptal: 'İptal' };
+  tamamla: 'Commit ediliyor', tamam: 'Tamamlandı', takildi: 'Takıldı', bekliyor_kullanici: 'Senden yanıt bekliyor', iptal: 'İptal',
+  yardim: 'Yöneticide (yardım isteği)', yardim_bekliyor: 'Ekipten yardım bekliyor' };
 const SUTUNLAR = [
   { a: 'yeni', ad: 'Yeni', asamalar: ['yeni'] },
   { a: 'plan', ad: 'Plan', asamalar: ['plan'] },
@@ -1845,10 +1875,11 @@ const SUTUNLAR = [
   { a: 'kontrol', ad: 'Kontrol', asamalar: ['kontrol'] },
   { a: 'denetim', ad: 'Denetim / doğrulama', asamalar: ['denetim'] },
   { a: 'kabul', ad: 'Kabul', asamalar: ['kabul', 'tamamla'] },
+  { a: 'yardim', ad: 'Ekip içi yardım', asamalar: ['yardim', 'yardim_bekliyor'] },
   { a: 'tamam', ad: 'Tamamlandı', asamalar: ['tamam', 'iptal'] },
   { a: 'takildi', ad: 'Takıldı / seni bekliyor', asamalar: ['takildi', 'bekliyor_kullanici'] },
 ];
-const AKTIF_ASAMALAR = ['yeni', 'plan', 'gelistirme', 'kontrol', 'denetim', 'kabul', 'tamamla'];
+const AKTIF_ASAMALAR = ['yeni', 'plan', 'gelistirme', 'kontrol', 'denetim', 'kabul', 'tamamla', 'yardim'];
 const DOSYA_ADI = {
   'gelistirici-ozet.md': 'Geliştirici özeti', 'kontrol.md': 'Otomatik kontrol', 'denetim.md': 'Denetim raporu', 'kabul.md': 'Yönetici kararı',
   'geri-bildirim.md': 'Bu turun geri bildirimi', 'degisiklik.diff': 'Diff', 'degisiklik-u0.diff': 'Diff (bağlamsız)',
@@ -2208,7 +2239,7 @@ function sohbetleriGuncelle(v) {
 // ---------------------------------------------------------------- pano
 let panoImza = '';
 function panoCiz(gorevler) {
-  const imza = JSON.stringify(gorevler.map(g => [g.id, g.asama, g.tur, g.max_tur, g.son_zaman, g.aktif, g.son_hata, g.sonraki_deneme, g.baslik, g.tip, g.cozuluyor, g.cozum_durumu]));
+  const imza = JSON.stringify(gorevler.map(g => [g.id, g.asama, g.tur, g.max_tur, g.son_zaman, g.aktif, g.son_hata, g.sonraki_deneme, g.baslik, g.tip, g.cozuluyor, g.cozum_durumu, g.yardim_bekleyen]));
   if (imza === panoImza) return;
   panoImza = imza;
   const pano = $('#pano');
@@ -2237,6 +2268,8 @@ function gorevKarti(g) {
   if (uzman) rozetler.push(E('span', { class: 'gk-rozet altyapi', text: 'uzman' }));
   if (g.ana_gorev) rozetler.push(E('span', { class: 'gk-rozet cozum', text: `#${noKisa(g.ana_gorev)} için yardım`, title: 'Sorun Giderici bu işi takılan bir iş için açtı' }));
   if (g.aktif) rozetler.push(E('span', { class: 'gk-rozet calisiyor', text: 'çalışılıyor' }));
+  if (g.asama === 'yardim') rozetler.push(E('span', { class: 'gk-rozet yonetici', text: `${rolAdi(g.yardim_isteyen) || 'ekip'} yardım istedi` }));
+  if (g.asama === 'yardim_bekliyor') rozetler.push(E('span', { class: 'gk-rozet cozum', text: `yardım bekliyor: ${(g.yardim_bekleyen || []).map(x => '#' + noKisa(x)).join(', ')}` }));
   if (g.cozuluyor) rozetler.push(E('span', { class: 'gk-rozet calisiyor', text: 'Sorun Giderici bakıyor' }));
   else if (takili && g.cozum_durumu === 'yardim_bekleniyor') rozetler.push(E('span', { class: 'gk-rozet cozum', text: `yardım bekliyor: #${noKisa(g.yardim_gorevi)}` }));
   else if (takili && g.cozum_durumu === 'kullanici') rozetler.push(E('span', { class: 'gk-rozet soru', text: 'seni bekliyor' }));
@@ -2248,6 +2281,7 @@ function gorevKarti(g) {
   if (g.son_hata && !['tamam', 'iptal'].includes(g.asama)) hata = g.son_hata;
   if (takili && g.cozum_durumu === 'kullanici' && g.cozum_kullaniciya) cozum = '🙋 ' + g.cozum_kullaniciya;
   else if (takili && g.cozum_durumu === 'yardim_bekleniyor' && g.cozum_teshis) cozum = '🔧 ' + g.cozum_teshis;
+  if ((g.asama === 'yardim' || g.asama === 'yardim_bekliyor') && g.yardim_istek) cozum = `🙋 ${rolAdi(g.yardim_isteyen)}: ${g.yardim_istek}`;
   if (cozum.length > 180) cozum = cozum.slice(0, 180) + '…';
   let alt = g.son_olay ? `${tarihSaat(g.son_zaman)} · ${g.son_olay}` : `eklendi ${tarihSaat(g.olusturma)}`;
   if (g.sonraki_deneme && new Date(g.sonraki_deneme) > new Date()) alt += ` · yeniden deneme ${saatMetni(g.sonraki_deneme)}`;
@@ -2497,7 +2531,7 @@ try { const g = Number(localStorage.getItem('aiOfisKullanimGun')); if ([1, 7, 30
 const sayiKisa = n => new Intl.NumberFormat('tr-TR', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(n) || 0);
 const sayiTam = n => new Intl.NumberFormat('tr-TR').format(Number(n) || 0);
 const ARAC_AD = { claude: 'Claude', codex: 'Codex', diger: 'Diğer' };
-const ETIKET_AD = { plan: 'plan', gelistirme: 'geliştirme', denetim: 'denetim', kabul: 'kabul', yonlendirme: 'yönlendirme', cozum: 'sorun inceleme', calisma: 'çalışma',
+const ETIKET_AD = { plan: 'plan', gelistirme: 'geliştirme', denetim: 'denetim', kabul: 'kabul', yonlendirme: 'yönlendirme', cozum: 'sorun inceleme', calisma: 'çalışma', yardim: 'yardım değerlendirme',
   inceleme: 'inceleme', uygulama: 'uygulama', dogrulama: 'doğrulama', ise_alim: 'işe alım', sohbet: 'sohbet' };
 const etiketAdi = e => ETIKET_AD[e] || (String(e || '').startsWith('inceleme-') ? 'ek inceleme' : String(e || '').startsWith('sohbet') ? 'sohbet' : e);
 const GUN_KISA = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
@@ -2719,6 +2753,8 @@ function cekmeceCiz() {
   if (d.yonlendirme_md) sekmeler.push(['yonlendirme', 'Yönetici kararı']);
   if (d.sorular_md) sekmeler.push(['soru', 'Soru']);
   if ((d.cozumler || []).length) sekmeler.push(['cozum', `Sorun Giderici (${d.cozumler.length})`]);
+  const yardimSayisi = (d.yardimlar || []).filter(y => /^yardim-istek-/.test(y.ad)).length;
+  if ((d.yardimlar || []).length) sekmeler.push(['yardimlar', `Ekip içi yardım (${yardimSayisi})`]);
   sekmeler.push(['turlar', `Turlar (${d.turlar.length})`]);
   if (altyapi || uzman) {
     const teslim = (d.ciktilar || []).filter(f => f.yol.startsWith('cikti/')).length;
@@ -2734,6 +2770,8 @@ function cekmeceCiz() {
     ciktilar: ciktilarSekmesi, sonuc: () => [md(d.sonuc_md)],
     yonlendirme: () => [E('div', { class: 'soluk', text: '"İş ver" ile gelen işi Yönetici okudu ve kime vereceğine karar verdi. Ham çıktı:' }), md(d.yonlendirme_md)],
     cozum: () => d.cozumler.slice().reverse().flatMap((c, i) => [i ? E('hr', { class: 'ayrac' }) : null, md(c.md)].filter(Boolean)),
+    yardimlar: () => [E('div', { class: 'soluk', text: 'Çalışanların iş sırasında Yöneticiden istediği yardımlar, Yöneticinin kararları ve gelen sonuçlar (en yenisi üstte).' }),
+      ...d.yardimlar.slice().reverse().flatMap((y, i) => [i ? E('hr', { class: 'ayrac' }) : null, E('div', { class: 'soluk mono', text: `${y.ad} · ${tarihSaat(y.zaman)}` }), md(y.md)].filter(Boolean))],
     kesif: () => [E('div', { class: 'soluk', text: 'Talep başındaki durum; her turun güncel keşfi Turlar sekmesinde.' }), md(d.kesif_md || '(henüz keşif yapılmadı)')] }[cekmece.sekme])(d, g));
   ic.scrollTop = 0;
 }
@@ -2754,7 +2792,11 @@ function ozetSekmesi(d, g) {
     else if (g.cozum_durumu === 'incelenemedi') parca.push(E('div', { class: 'kutu uyari', text: 'Sorun Giderici bu takılmayı inceleyemedi (araç sorunu); "Devam ettir" ile sürdürebilirsin.' }));
     else if (sgAyar.etkin && (Number(g.cozum_sayisi) || 0) < (sgAyar.en_fazla || 2)) parca.push(E('div', { class: 'kutu', text: '🔍 Sorun Giderici bu takılmayı birazdan inceleyecek: ekipte giderebilecek biri varsa ona iş açar, yoksa sana ne yapman gerektiğini yazar.' }));
   }
-  if (g.ana_gorev) parca.push(E('div', { class: 'kutu' }, 'Bu iş, takılan ', sgBaglanti(g.ana_gorev), ' için Sorun Giderici tarafından açıldı; bitince o iş kendiliğinden sürer.'));
+  if (g.ana_gorev) parca.push(E('div', { class: 'kutu' }, 'Bu bir yardım işi: ', sgBaglanti(g.ana_gorev), ' için açıldı; bitince o iş sonucuyla kendiliğinden sürer.'));
+  // Ekip içi yardım
+  if (g.asama === 'yardim') parca.push(E('div', { class: 'kutu' }, `🙋 ${rolAdi(g.yardim_isteyen)} iş sırasında yardım istedi: ${g.yardim_istek || ''} Yönetici kimin yapacağına karar veriyor; sonra iş "${ASAMA_ADI[g.yardim_donus_asama] || g.yardim_donus_asama}" aşamasından sürer.`));
+  if (g.asama === 'yardim_bekliyor') parca.push(E('div', { class: 'kutu' }, `⏳ ${rolAdi(g.yardim_isteyen) || 'Ekip'} için yardım bekleniyor: `,
+    ...(g.yardim_bekleyen || []).flatMap((x, i) => [i ? ', ' : '', sgBaglanti(x)]), `. Bitince iş "${ASAMA_ADI[g.yardim_donus_asama] || g.yardim_donus_asama}" aşamasından, gelen sonuçla sürer.`));
   const satir = (dt, dd) => dd ? [E('dt', { text: dt }), E('dd', {}, dd)] : [];
   const altyapi = d.tip === 'altyapi', uzman = d.tip === 'uzman';
   // Görevde araç kullanan her çalışan (durum.json'da rol anahtarı = "arac/model")

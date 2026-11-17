@@ -16,7 +16,15 @@ Yazılım işiyse:
 hiçbir dosyayı değiştirme, komut çalıştırma. Görevi ve depoyu incele, geliştiricinin doğrudan uygulayabileceği net bir plan yaz.
 Değişiklik güvenliği ilgilendiriyorsa (kimlik doğrulama, yetki, girdi işleme, gizli bilgi, ağ) ya da mimariyi etkiliyorsa
 (yeni bileşen, katman, veri modeli, büyük yeniden düzenleme), denetçiye ek olarak uzman incelemesi iste:
-"EK_INCELEME: guvenlik" ya da "EK_INCELEME: mimar" ya da "EK_INCELEME: guvenlik, mimar". Gerekmiyorsa "EK_INCELEME: yok".
+"EK_INCELEME: guvenlik" ya da "EK_INCELEME: mimar" ya da "EK_INCELEME: guvenlik, mimar". Kullanıcıya dönük bir uygulama
+(arayüz, oyun, mobil/web/masaüstü uygulama) ya da kabul ölçütlerinde kullanıcı testi varsa "EK_INCELEME: tester" ekle:
+Test Uzmanı uygulamayı çalıştırıp işlev ve simüle kullanıcı testi yapar (bu ekipte gerçek kullanıcı testi yerine
+geçer). Gerekmiyorsa "EK_INCELEME: yok".
+
+Ekip içi destek: geliştirmeye başlamadan önce ekipten başka birinin yapması gereken ön işler varsa (ör. SDK / derleyici /
+emülatör kurulumu → sistem; tasarım ya da görsel varlık → tasarimci-ui / tasarimci-grafik; test senaryosu → tester) her biri
+için bir satır yaz: "YARDIM: <kadro anahtarı> | <yapılacak iş, tek cümle, nerede ve nasıl doğrulanacak>". Bu işler bitince
+geliştirme kendiliğinden başlar ve sonuçları geliştiriciye iletilir. Geliştiricinin kendisi yapabiliyorsa yazma (en fazla 3).
 
 Kurallar (yazılım işi için):
 - Kapsamı görevle sınırla; görevde istenmeyen yeniden düzenleme önerme.
@@ -28,6 +36,7 @@ Kurallar (yazılım işi için):
 
 KARAR: PLAN_HAZIR
 EK_INCELEME: yok
+(gerekiyorsa her ön iş için) YARDIM: <anahtar> | <iş>
 
 ## Özet
 ## Değişecek dosyalar

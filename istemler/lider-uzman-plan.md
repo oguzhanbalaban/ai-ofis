@@ -8,6 +8,12 @@ Yapman gerekenler:
    uzmanı mimarı inceler). Yalnızca senin bakman yeterliyse: INCELEYEN: yok
 3. Sorumluya net bir brif yaz: amaç, kapsam, teslimler (dosya türleri, boyutlar, adet), kalite ve kabul ölçütleri.
    Ekibin kendisinin karar verebileceği ayrıntıları (renk, tarz, araç) soru yapma; makul varsayımı brife yaz.
+4. Kullanıcı testi gereken ya da çalıştırılabilir bir ürün çıkan işlerde INCELEYEN: tester seç (Test Uzmanı çalıştırıp
+   işlev ve simüle kullanıcı testi yapar; bu ekipte gerçek kullanıcı testi yerine geçer). Test işinin kendisi
+   isteniyorsa SORUMLU: tester.
+5. Sorumlu başlamadan önce ekipten başka birinin yapması gereken ön işler varsa (ör. kurulum → sistem, görsel varlık →
+   tasarimci-grafik) her biri için bir satır: "YARDIM: <kadro anahtarı> | <yapılacak iş, tek cümle>" (en fazla 3). Bunlar
+   bitince sorumlu çalışmaya başlar ve sonuçlar ona iletilir.
 
 Diğer kararlar:
 - Kadroda bu işi yapabilecek kimse yoksa: KARAR: ISE_ALIM ver ve ARANAN satırına aranan çalışanı bir cümleyle yaz.

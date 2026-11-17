@@ -98,6 +98,40 @@
                        "ise_alan":  null
                    },
                    {
+                       "anahtar":  "tester",
+                       "ad":  "Test Uzmanı",
+                       "departman":  "Yazılım",
+                       "uzman_isi":  true,
+                       "yetki":  "tam",
+                       "renk":  "#0d9488",
+                       "renk_koyu":  "#2dd4bf",
+                       "uzmanlik":  "Uygulamaları gerçek kullanıcının yerine test eder: derleyip çalıştırır (web, mobil emülatör, masaüstü, komut satırı), kabul ölçütlerini işlev testiyle sınar, farklı kullanıcı profilleriyle (persona) senaryoları adım adım uygular, ekran görüntüsü ve günlükle kanıtlar; kullanılabilirlik ölçümleri ve hata raporu içeren test raporu yazar. Kabul ölçütlerindeki kullanıcı testlerini simüle kullanıcılarla karşılar.",
+                       "istem":  "istemler\\kadro\\tester.md",
+                       "faaliyet_metni":  "Test ediyor",
+                       "araclar":  [
+                                       {
+                                           "arac":  "claude",
+                                           "model":  "sonnet"
+                                       },
+                                       {
+                                           "arac":  "claude",
+                                           "model":  "opus"
+                                       },
+                                       {
+                                           "arac":  "codex",
+                                           "model":  "gpt-6.1-sol",
+                                           "efor":  "high"
+                                       },
+                                       {
+                                           "arac":  "codex",
+                                           "model":  "gpt-6-astra",
+                                           "efor":  "high"
+                                       }
+                                   ],
+                       "ise_alinma":  null,
+                       "ise_alan":  null
+                   },
+                   {
                        "anahtar":  "guvenlik",
                        "ad":  "Siber Güvenlik Uzmanı",
                        "departman":  "Altyapı ve güvenlik",

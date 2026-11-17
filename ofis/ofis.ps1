@@ -44,11 +44,12 @@ foreach ($a in $adlar) { Remove-Item -LiteralPath "env:$a" -ErrorAction Silently
 $env:GIT_OPTIONAL_LOCKS = '0'
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
 
-$script:AktifAsamalar = @('yeni', 'plan', 'gelistirme', 'kontrol', 'denetim', 'kabul', 'tamamla')
+$script:AktifAsamalar = @('yeni', 'plan', 'gelistirme', 'kontrol', 'denetim', 'kabul', 'tamamla', 'yardim')
 $script:AsamaAdlari = @{
     yeni = 'Sırada'; plan = 'Planlanıyor'; gelistirme = 'Geliştiriliyor'; kontrol = 'Kontrol ediliyor'
     denetim = 'Denetleniyor'; kabul = 'Yönetici onayında'; tamamla = 'Commit ediliyor'; tamam = 'Tamamlandı'
     takildi = 'Takıldı'; bekliyor_kullanici = 'Senden yanıt bekliyor'; iptal = 'İptal'
+    yardim = 'Yöneticide (yardım isteği)'; yardim_bekliyor = 'Ekipten yardım bekliyor'
 }
 # "İş ver" ile gelen, Yöneticinin henüz yönlendirmediği işler (tip = genel; bkz. yonlendirme.ps1)
 $script:GenelAsamaAdlari = @{ yeni = 'Yöneticide'; plan = 'Yöneticide' }
@@ -102,7 +103,7 @@ function Gorev-Rolu($G, [string]$Etiket = '') {
     if ($Etiket -match '^inceleme-(.+)$') { return $Matches[1] }
     $asama = [string]$G.asama
     $tip = Gorev-Tipi $G
-    if ($tip -eq 'genel') { return 'lider' }
+    if ($tip -eq 'genel' -or $asama -eq 'yardim') { return 'lider' }
     if ($tip -eq 'altyapi') {
         $sorumlu = [string](Ozellik $G 'sorumlu'); if ($sorumlu -ne 'ag') { $sorumlu = 'sistem' }
         $destek = [string](Ozellik $G 'destek'); if ($destek -ne 'ag' -and $destek -ne 'sistem') { $destek = '' }
@@ -531,7 +532,9 @@ function Durum-Uret {
             $asama = [string]$aktif.asama
             $altyapi = ($aktifTip -eq 'altyapi')
             if ($kalpEtiket -eq 'ise_alim') { $faaliyet = 'ise_alim'; $metin = 'İşe alım yapıyor' }
+            elseif ($asama -eq 'yardim') { $faaliyet = 'plan'; $metin = 'Ekip içi yardım isteğini değerlendiriyor' }
             elseif ($aktifTip -eq 'genel') { $faaliyet = 'plan'; $metin = 'Yeni işi okuyup kime vereceğine karar veriyor' }
+            elseif ($rol -eq 'tester') { $faaliyet = 'inceleme'; $metin = 'Uygulamayı test ediyor' }
             elseif ($kalpEtiket -match '^inceleme-') { $faaliyet = 'inceleme'; $metin = 'Kodu kendi alanından inceliyor' }
             elseif ($altyapi) {
                 $faaliyet = $AltyapiFaaliyet[$asama]; $metin = $AltyapiMetni[$asama]
@@ -565,6 +568,17 @@ function Durum-Uret {
                         $baslangic = Ozellik $g 'soru_zamani'
                         break
                     }
+                }
+            }
+            # Ekip içi yardım isteyen çalışan, yardım gelene kadar bekler
+            foreach ($g in $gorevler) {
+                if ($faaliyet -ne 'bosta') { break }
+                $ga = [string]$g.asama
+                if (($ga -eq 'yardim' -or $ga -eq 'yardim_bekliyor') -and [string](Ozellik $g 'yardim_isteyen') -eq $rol) {
+                    $faaliyet = 'bekliyor'; $metin = $(if ($ga -eq 'yardim') { 'Yöneticiden yardım istedi' } else { 'Ekipten yardım bekliyor' })
+                    $gorevBilgi = [ordered]@{ id = $g.id; baslik = $g.baslik; tur = $g.tur; max_tur = $g.max_tur }
+                    $yb = @(Ozellik $g 'yardim_bekleyen' | Where-Object { $_ })
+                    $not = 'İstek: {0}{1}' -f [string](Ozellik $g 'yardim_istek'), $(if ($yb.Count) { ' · yardım işi: ' + (($yb | ForEach-Object { '#' + ([string]$_ -split '-')[0] }) -join ', ') } else { '' })
                 }
             }
             if ($rol -eq 'sorun-giderici' -and $yardimBekleyen) {
@@ -615,6 +629,8 @@ function Durum-Uret {
             cozum_durumu = (Ozellik $g 'cozum_durumu'); cozum_son_karar = (Ozellik $g 'cozum_son_karar'); cozum_teshis = (Ozellik $g 'cozum_teshis')
             cozum_kullaniciya = (Ozellik $g 'cozum_kullaniciya'); cozum_sayisi = (Ozellik $g 'cozum_sayisi')
             yardim_gorevi = (Ozellik $g 'yardim_gorevi'); ana_gorev = (Ozellik $g 'ana_gorev'); yonlendirme_karari = (Ozellik $g 'yonlendirme_karari')
+            yardim_bekleyen = @(Ozellik $g 'yardim_bekleyen' | Where-Object { $_ }); yardim_isteyen = (Ozellik $g 'yardim_isteyen')
+            yardim_istek = (Ozellik $g 'yardim_istek'); yardim_donus_asama = (Ozellik $g 'yardim_donus_asama'); yardim_sayisi = (Ozellik $g 'yardim_sayisi')
         })
     }
 
@@ -712,7 +728,13 @@ function Gorev-Ayrinti([string]$Id) {
     foreach ($f in @(Get-ChildItem -LiteralPath $gk -Filter 'cozum-*.md' -File -ErrorAction SilentlyContinue | Sort-Object { [int]($_.BaseName -replace '\D', '') })) {
         $cozumler.Add([ordered]@{ ad = $f.Name; zaman = $f.LastWriteTime.ToString('o'); md = (Metin-Oku $f.FullName 60000) })
     }
+    # Ekip içi yardım: istekler, Yöneticinin kararları ve gelen yardımlar (yardim.ps1)
+    $yardimlar = New-Object Collections.Generic.List[object]
+    foreach ($f in @(Get-ChildItem -LiteralPath $gk -Filter 'yardim-*.md' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime)) {
+        $yardimlar.Add([ordered]@{ ad = $f.Name; zaman = $f.LastWriteTime.ToString('o'); md = (Metin-Oku $f.FullName 60000) })
+    }
     return [ordered]@{
+        yardimlar = $yardimlar
         yonlendirme_md = (Metin-Oku (Join-Path $gk 'yonlendirme.md') 60000)
         cozumler = $cozumler
         durum = $g

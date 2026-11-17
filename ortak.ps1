@@ -18,6 +18,7 @@ foreach ($d in @($YolGorev, $YolDurum, $YolGunluk, $YolRapor, $YolCalisma)) {
 if (-not (Test-Path variable:script:Konsol)) { $script:Konsol = $false }
 $script:AktifGorev = ''
 $script:AktifAdim  = ''
+$script:YardimIstegi = $null   # son ajan çağrısının ekip içi yardım isteği (yardim.ps1 > Yardim-Istegi-Kaydet işler)
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
 # ---------------------------------------------------------------- dosya / json
@@ -531,6 +532,75 @@ function Gemini-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [st
     return (Sonuc $true ([string]$j.response) '' $s)
 }
 
+# ---------------------------------------------------------------- ekip içi yardımlaşma (ayarlar.json > yardimlasma; akış yardim.ps1)
+# Görev adımlarında çalışan ajan, kendi yapamayacağı ama ekipte başkasının yapabileceği bir şeye ihtiyaç duyarsa
+# çıktısının sonuna ```yardim {json}``` bloğu ekler; adım başarısız sayılmaz, Yönetici isteği uygun çalışana verir.
+function Yardim-Uygun-mu([string]$Rol, [string]$Etiket) {
+    if (-not $script:AktifGorev) { return $false }
+    $a = $Ayar.yardimlasma
+    if (-not $a -or -not $a.etkin) { return $false }
+    if ($Rol -eq 'sorun-giderici') { return $false }
+    if (@('yardim', 'cozum', 'yonlendirme', 'ise_alim') -contains $Etiket -or $Etiket -like 'sohbet*') { return $false }
+    if ($Rol -eq 'lider' -and $Etiket -ne 'kabul') { return $false }   # Yönetici planda ön işleri "YARDIM:" satırlarıyla ister
+    return $true
+}
+function Yardim-Talimati-Metni {
+    $k = Json-Oku (Join-Path $Kok 'kadro.json')
+    $satirlar = @()
+    foreach ($u in @($k.uyeler)) {
+        if ($u -and $u.anahtar -and @('lider', 'sorun-giderici') -notcontains [string]$u.anahtar) { $satirlar += ('- {0} ({1}): {2}' -f $u.anahtar, $u.ad, (Kisalt ([string]$u.uzmanlik) 120)) }
+    }
+    $metin = @'
+
+
+---
+
+# EKİPTEN YARDIM İSTEME
+
+Bu işi yaparken senin yapamayacağın ama ekipte başka birinin yapabileceği bir şeye ihtiyaç duyarsan işi yarım bırakıp
+başarısız sayma, reddetme: Yöneticiden yardım iste. Örnekler: yazılım / SDK / araç kurulumu, emülatör ya da sunucu hazırlığı,
+ağ / port ayarı (sistem, ag); uygulamayı gerçekten çalıştırıp test etmek ya da kullanıcı testi (tester); tasarım ya da görsel
+varlık; güvenlik ya da mimari görüşü; yalnızca kullanıcının verebileceği bir bilgi ya da karar.
+Özellikle DUZELT / RET vermeden önce düşün: eksik olan şey işi yapanın değil başka birinin uzmanlığıysa yardım iste.
+Yönetici isteğini uygun kişiye verir; yardım gelince bu adım, gelen sonuçla ("EKİPTEN GELEN YARDIM") yeniden çalışır.
+Yapabildiğin kısmı yine yap. Yardım istemek için çıktının EN SONUNA şu bloğu ekle (gerekmiyorsa ekleme):
+
+```yardim
+{"ne": "tam olarak ne yapılmalı", "neden": "neden sen yapamıyorsun, neden gerekli", "kim": "önerdiğin kadro anahtarı ya da boş", "kabul": ["yardımın tamam sayılma ölçütü"]}
+```
+
+Bu ekipte "kullanıcı testi", "gerçek kullanıcı", "N kullanıcıdan M'i" gibi kabul ölçütlerini Test
+Uzmanının (tester) simüle kullanıcı testi karşılar: bu yüzden işi reddetme, test raporu yoksa tester'dan yardım iste.
+
+Ekip:
+'@
+    return $metin + ($satirlar -join "`n")
+}
+# Görev adımlarında istemin sonuna: bu görevde daha önce gelen yardımlar + (uygunsa) yardım isteme talimatı
+function Yardim-Istem-Ekle([string]$Rol, [string]$Etiket, [string]$Istem) {
+    if (-not $script:AktifGorev) { return $Istem }
+    $a = $Ayar.yardimlasma
+    if (-not $a -or -not $a.etkin) { return $Istem }
+    if ($Etiket -like 'sohbet*' -or $Etiket -eq 'yonlendirme') { return $Istem }
+    $ek = ''
+    $s = Metin-Oku (Join-Path (Join-Path $YolGorev $script:AktifGorev) 'yardim-sonuclari.md')
+    if ($s.Trim()) {
+        if ($s.Length -gt 8000) { $s = '…' + $s.Substring($s.Length - 8000) }
+        $ek += "`n`n---`n`n# EKİPTEN GELEN YARDIM (bu işte daha önce istenen yardımların sonuçları; bunları kullan)`n`n" + $s.Trim()
+    }
+    if (Yardim-Uygun-mu $Rol $Etiket) { $ek += (Yardim-Talimati-Metni) }
+    return ($Istem + $ek)
+}
+function Yardim-Blogu-Oku([string]$Metin) {
+    $m = [regex]::Match([string]$Metin, '```yardim[ \t]*\r?\n\s*(\{[\s\S]*?\})\s*```')
+    if (-not $m.Success) { return $null }
+    $j = $null
+    try { $j = $m.Groups[1].Value | ConvertFrom-Json } catch { return $null }
+    $ne = ([string]$j.ne).Trim()
+    if (-not $ne -or $ne -eq 'tam olarak ne yapılmalı') { return $null }
+    return $j
+}
+
 # ---------------------------------------------------------------- rol çağırma (yedek zinciriyle)
 function Ajan-Cagir {
     param(
@@ -544,6 +614,7 @@ function Ajan-Cagir {
         [switch]$TamYetki           # altyapı rolleri: sandbox'sız, izin sormadan (altyapı görev kapsamı)
     )
     if (-not (Test-Path -LiteralPath $KayitKlasoru)) { New-Item -ItemType Directory -Force $KayitKlasoru | Out-Null }
+    $Istem = Yardim-Istem-Ekle $Rol $Etiket $Istem
     $notlar = @()
     $gorevId = [string]$script:AktifGorev
     $iptalHata = 'görev kullanıcı tarafından iptal edildi'
@@ -580,6 +651,15 @@ function Ajan-Cagir {
                 # Ajan iptalden sonra bitti: adım bu sonuçla ilerlemesin (soru, aktarma, e-posta, yeni tur...)
                 Gunluk "$Rol -> $kimlik sonucu kullanılmadı: görev $gorevId ajan çalışırken iptal edildi" 'UYARI'
                 return [pscustomobject]@{ basarili = $false; metin = ''; hata = $iptalHata; sure_sn = $r.sure_sn; arac = $r.arac; model = $r.model; iptal = $true }
+            }
+            # Ekip içi yardım isteği: adım ilerlemesin; Adim-Basarisiz bunu başarısızlık saymaz, Yöneticiye iletir (yardim.ps1)
+            if (Yardim-Uygun-mu $Rol $Etiket) {
+                $y = Yardim-Blogu-Oku $r.metin
+                if ($y) {
+                    $script:YardimIstegi = [pscustomobject]@{ gorev = $gorevId; rol = $Rol; etiket = $Etiket; arac = $kimlik; istek = $y; metin = $r.metin }
+                    Gunluk "$Rol ekip içi yardım istedi [$gorevId / $Etiket]: $(Kisalt ([string]$y.ne) 160)"
+                    return [pscustomobject]@{ basarili = $false; metin = $r.metin; hata = "yardım istendi: $(Kisalt ([string]$y.ne) 200)"; sure_sn = $r.sure_sn; arac = $r.arac; model = $r.model; yardim = $y }
+                }
             }
             return $r
         }
@@ -675,5 +755,6 @@ $script:AsamaAdlari = @{
     yeni = 'Sırada'; plan = 'Planlanıyor'; gelistirme = 'Geliştiriliyor'; kontrol = 'Kontrol ediliyor'
     denetim = 'Denetleniyor'; kabul = 'Yönetici onayında'; tamamla = 'Commit ediliyor'; tamam = 'Tamamlandı'
     takildi = 'Takıldı'; bekliyor_kullanici = 'Senden yanıt bekliyor'; iptal = 'İptal'
+    yardim = 'Yöneticide (yardım isteği)'; yardim_bekliyor = 'Ekipten yardım bekliyor'
 }
 function Asama-Adi([string]$A) { if ($AsamaAdlari.ContainsKey($A)) { return $AsamaAdlari[$A] }; return $A }
