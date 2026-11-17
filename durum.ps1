@@ -4,7 +4,7 @@ durum.ps1 - AI Ekip'in anlık durumu ve görev yönetimi.
   .\durum.ps1                       durum özeti
   .\durum.ps1 -Ac                   HTML raporu tarayıcıda aç
   .\durum.ps1 -Devam 0003           takılan/bekleyen görevi sürdür (gerekirse bir tur hakkı daha verir)
-  .\durum.ps1 -Devam 0003 -Not "..."  sürdürürken geliştiriciye kendi notunu ekle
+  .\durum.ps1 -Devam 0003 -Not "..."  sürdürürken Software Developerʼa kendi notunu ekle
   .\durum.ps1 -Iptal 0003           görevi iptal et (dal ve dosyalar silinmez)
   .\durum.ps1 -Duraklat / -Surdur   tüm ekibi duraklat / sürdür (DURDUR dosyası)
   .\durum.ps1 -KilitleriSifirla     araç kilitlerini kaldır (ör. "claude auth login" yaptıktan sonra)
@@ -30,7 +30,7 @@ if ($KilitleriSifirla) { Json-Yaz (New-Object psobject) (Join-Path $YolDurum 'ki
 if ($Devam) {
     $g = Gorev-Bul $Devam
     # Ortak sürdürme mantığı (cozucu.ps1 > Gorev-Surdur): soru bekliyorsa yeniden plan; tur sınırına takıldıysa bir tur
-    # daha; değilse takıldığı aşamadan. Kullanıcının "Devam" demesi Sorun Gidericinin hakkını da sıfırlar.
+    # daha; değilse takıldığı aşamadan. Kullanıcının "Devam" demesi Incident Managerʼın hakkını da sıfırlar.
     Gorev-Surdur $g $Not 'kullanıcı' 'Kullanıcının notu'
     Gorev-Kaydet $g
     Write-Host "Görev $($g.id) sürdürülüyor: $(Asama-Adi $g.asama) (tur $($g.tur)/$($g.max_tur))"

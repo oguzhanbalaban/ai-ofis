@@ -84,6 +84,15 @@ function Araclari-Uyarla($Ayar, $Kadro, [hashtable]$Modeller, [string[]]$Sira) {
         if ($yerlesik) { $Ayar.roller.($hedef.Name) = @($zincir) }
         else { $hedef | Add-Member -NotePropertyName araclar -NotePropertyValue @($zincir) -Force }
     }
+    # Paneldeki model seçici yalnızca katalogdaki modelleri kaydeder: kurulumda seçilen modelleri kataloğa ekle
+    if (-not $Ayar.model_katalogu) { $Ayar | Add-Member -NotePropertyName model_katalogu -NotePropertyValue ([pscustomobject]@{}) -Force }
+    foreach ($arac in $Sira) {
+        $liste = @(); if ($Ayar.model_katalogu.PSObject.Properties[$arac]) { $liste = @($Ayar.model_katalogu.$arac | Where-Object { $_ }) }
+        foreach ($model in $Modeller[$arac]) {
+            if (-not @($liste | Where-Object { [string]$_.model -eq $model }).Count) { $liste += [pscustomobject][ordered]@{ model = $model; ad = $model; not = 'kurulumda seçildi' } }
+        }
+        $Ayar.model_katalogu | Add-Member -NotePropertyName $arac -NotePropertyValue @($liste) -Force
+    }
 }
 function Vmrun-Bul {
     $adaylar = @()

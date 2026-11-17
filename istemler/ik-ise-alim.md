@@ -23,14 +23,15 @@ KARAR: ISE_ALINDI
 ```json
 {
   "anahtar": "kucuk-harf-tireli-kisa-ad",
-  "ad": "Türkçe unvan",
+  "ad": "İngilizce, gerçek şirketlerde kullanılan unvan (ör. Data Engineer, Mobile Developer, Technical Writer)",
+  "rol_tr": "unvanın kısa Türkçe karşılığı",
   "departman": "Yönetim | Yazılım | Altyapı ve güvenlik | Tasarım | İK ve iletişim | Uzmanlar",
   "uzmanlik": "Bir iki cümle: neleri yapar, hangi teslimleri üretir.",
   "yetki": "oku | yaz | tam",
   "araclar": [ { "arac": "claude", "model": "sonnet" }, { "arac": "codex", "model": "gpt-6.1-sol", "efor": "high" } ],
   "renk": "#RRGGBB",
   "faaliyet_metni": "Çalışırken masasında görünecek iki üç kelime (ör. Ses kaydı hazırlıyor)",
-  "tanisma": "Ekibe ve yöneticiye kendini tanıtan 2-3 cümle (birinci tekil şahıs)."
+  "tanisma": "Ekibe ve Engineering Manager'a kendini tanıtan 2-3 cümle (birinci tekil şahıs)."
 }
 ```
 

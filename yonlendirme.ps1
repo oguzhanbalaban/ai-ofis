@@ -1,13 +1,13 @@
 ﻿<#
 yonlendirme.ps1 - Türü seçilmeden verilen işler (durum.json > tip = "genel"; panelde "İş ver", is-ver.ps1). ekip.ps1 dot-source eder.
 
-İş doğrudan Yöneticiye gelir (rol anahtarı: lider). Yönetici işi okur ve kimin yapacağına karar verir:
+İş doğrudan Engineering Managerʼa gelir (rol anahtarı: lider). Engineering Manager işi okur ve kimin yapacağına karar verir:
   YAZILIM   yazılım akışı: kayıtlı bir proje seçer ya da YENI_PROJE ile boş bir git deposu açtırır
-  ALTYAPI   sistem yöneticisi + network (HEDEF: makineler)
-  UZMAN     kadrodan SORUMLU (uzman akışı; Yönetici orada brifi yazar ve inceleyeni seçer)
+  ALTYAPI   System Administrator + Network Engineer (HEDEF: makineler)
+  UZMAN     kadrodan SORUMLU (uzman akışı; Engineering Manager orada brifi yazar ve inceleyeni seçer)
   ISE_ALIM  İK önce işe alır, iş uzman akışında yeni çalışana verilir
   SORU_VAR  kullanıcıya soru; yanıt gelince (aşama plan) yeniden yönlendirir
-Karardan sonra görev seçilen akışın 'yeni' aşamasına geçer; Yöneticinin gerekçesi gorev.md'ye eklenir.
+Karardan sonra görev seçilen akışın 'yeni' aşamasına geçer; Engineering Managerʼın gerekçesi gorev.md'ye eklenir.
 #>
 
 function Bolum-Oku([string]$Metin, [string]$Baslik) {
@@ -62,10 +62,10 @@ function Proje-Coz([string]$Deger) {
     $p = [pscustomobject]@{ ad = (Split-Path $klasor -Leaf); klasor = $klasor; temel_dal = ''; dogrulama = @() }
     $pj.projeler = @($pj.projeler | Where-Object { $_ }) + $p
     Json-Yaz $pj (Join-Path $Kok 'projeler.json')
-    Gunluk "Proje kaydedildi (Yönetici seçti): $($p.ad) ($klasor)"
+    Gunluk "Proje kaydedildi (Engineering Manager seçti): $($p.ad) ($klasor)"
     return $p
 }
-# Yönetici yeni bir depo istediğinde: ayarlar.json > gorev.yeni_proje_kok altında boş bir git deposu (AI Ekip kimliğiyle ilk commit)
+# Engineering Manager yeni bir depo istediğinde: ayarlar.json > gorev.yeni_proje_kok altında boş bir git deposu (AI Ekip kimliğiyle ilk commit)
 function Yeni-Proje-Olustur([string]$Ad) {
     $slug = Slug (Deger-Temizle $Ad)
     $var = Proje-Bul $slug
@@ -98,7 +98,7 @@ function Gorev-Notu-Ekle($G, [string]$Baslik, [string]$Metin) {
 function Yonlendirme-Bitir($G, [string]$Olay, [string]$Ayrinti, $Sonuc, [string]$Not) {
     Ayarla $G 'yonlendiren' ('{0}/{1}' -f $Sonuc.arac, $Sonuc.model)
     Ayarla $G 'yonlendirme_karari' (Karar-Oku $Sonuc.metin)
-    if ($Not) { Gorev-Notu-Ekle $G 'Yöneticinin yönlendirmesi' $Not }
+    if ($Not) { Gorev-Notu-Ekle $G 'Engineering Managerʼın yönlendirmesi' $Not }
     Asama-Gec $G 'yeni' $Olay $Ayrinti $Sonuc
 }
 
@@ -106,7 +106,7 @@ function Yonetici-Yonlendir($G) {
     $gk = Gorev-Klasoru $G.id
     $istem = Sablon-Doldur 'yonetici-yonlendirme.md' @{ KADRO = (Kadro-Metni); PROJELER = (Projeler-Metni); MAKINELER = (Makineler-Metni); GOREV = (Gorev-Metni $G) }
     $r = Ajan-Cagir -Rol 'lider' -Istem $istem -Klasor $gk -KayitKlasoru (Kayit-Klasoru $G) -Etiket 'yonlendirme'
-    if (-not $r.basarili) { Adim-Basarisiz $G "Yönetici işi yönlendiremedi: $($r.hata)"; return }
+    if (-not $r.basarili) { Adim-Basarisiz $G "Engineering Manager işi yönlendiremedi: $($r.hata)"; return }
     Ayarla $G 'lider' ('{0}/{1}' -f $r.arac, $r.model)
     Metin-Yaz (Join-Path $gk 'yonlendirme.md') $r.metin
     $gerekce = Kirp (Bolum-Oku $r.metin 'Gerekçe') 1200
@@ -120,7 +120,7 @@ function Yonetici-Yonlendir($G) {
                 $yeni = Alan-Oku $r.metin 'YENI_PROJE'
                 if (-not $yeni) {
                     Metin-Yaz (Join-Path $gk 'plan-gecersiz.md') $r.metin
-                    Adim-Basarisiz $G "Yönetici yazılım işi dedi ama geçerli bir proje vermedi (PROJE: '$ad')"
+                    Adim-Basarisiz $G "Engineering Manager yazılım işi dedi ama geçerli bir proje vermedi (PROJE: '$ad')"
                     return
                 }
                 $p = Yeni-Proje-Olustur $yeni
@@ -128,7 +128,7 @@ function Yonetici-Yonlendir($G) {
             Ayarla $G 'tip' 'yazilim'
             $G.proje = [string]$p.ad
             $G.klasor = [string]$p.klasor
-            Yonlendirme-Bitir $G 'yönetici yazılım ekibine verdi' "proje: $($p.ad)" $r ("Yazılım ekibine verildi; proje: $($p.ad) (``$($p.klasor)``).`n`n$gerekce")
+            Yonlendirme-Bitir $G 'Engineering Manager yazılım ekibine verdi' "proje: $($p.ad)" $r ("Yazılım ekibine verildi; proje: $($p.ad) (``$($p.klasor)``).`n`n$gerekce")
         }
         'ALTYAPI' {
             $hedef = Hedef-Coz (Alan-Oku $r.metin 'HEDEF')
@@ -136,8 +136,8 @@ function Yonetici-Yonlendir($G) {
             $G.proje = 'altyapı'
             $G.klasor = ''
             Ayarla $G 'hedef' @($hedef)
-            $h = '(Yönetici planda belirleyecek)'; if ($hedef.Count) { $h = $hedef -join ', ' }
-            Yonlendirme-Bitir $G 'yönetici altyapı ekibine verdi' "hedef: $h" $r ("Sistem yöneticisi + network ekibine verildi; hedef makineler: $h.`n`n$gerekce")
+            $h = '(Engineering Manager planda belirleyecek)'; if ($hedef.Count) { $h = $hedef -join ', ' }
+            Yonlendirme-Bitir $G 'Engineering Manager altyapı ekibine verdi' "hedef: $h" $r ("System Administrator + Network Engineer ekibine verildi; hedef makineler: $h.`n`n$gerekce")
         }
         'UZMAN' {
             $sorumlu = Kadro-Anahtar-Coz (Alan-Oku $r.metin 'SORUMLU')
@@ -151,8 +151,8 @@ function Yonetici-Yonlendir($G) {
             $pp = $null; if ($pa) { $pp = Proje-Bul (Deger-Temizle $pa) }
             if ($pp) { Ayarla $G 'kaynak_klasor' ([string]$pp.klasor) }
             elseif ($G.ipucu -and (Test-Path -LiteralPath ([string]$G.ipucu) -PathType Container)) { Ayarla $G 'kaynak_klasor' ((Resolve-Path -LiteralPath ([string]$G.ipucu)).Path) }
-            $kim = '(Yönetici uzman akışında seçecek)'; if ($u -and $sorumlu) { $kim = "$($u.ad) ($sorumlu)" }
-            Yonlendirme-Bitir $G 'yönetici uzmana verdi' "sorumlu: $kim" $r ("Uzman işi olarak verildi; sorumlu: $kim.`n`n$gerekce")
+            $kim = '(Engineering Manager uzman akışında seçecek)'; if ($u -and $sorumlu) { $kim = "$($u.ad) ($sorumlu)" }
+            Yonlendirme-Bitir $G 'Engineering Manager uzmana verdi' "sorumlu: $kim" $r ("Uzman işi olarak verildi; sorumlu: $kim.`n`n$gerekce")
         }
         'ISE_ALIM' {
             $aranan = Alan-Oku $r.metin 'ARANAN'
@@ -162,9 +162,9 @@ function Yonetici-Yonlendir($G) {
             $G.klasor = ''
             Ayarla $G 'ise_alim_aranan' $aranan
             Ayarla $G 'ise_alim_sayisi' 1
-            Yonlendirme-Bitir $G 'yönetici İK''dan işe alım istedi' $aranan $r ("Kadroda bu işi yapabilecek kimse yok; İnsan Kaynakları işe alım yapacak. Aranan: $aranan`n`n$gerekce")
+            Yonlendirme-Bitir $G 'Engineering Manager İK''dan işe alım istedi' $aranan $r ("Kadroda bu işi yapabilecek kimse yok; HR Specialist işe alım yapacak. Aranan: $aranan`n`n$gerekce")
         }
-        'SORU_VAR' { Altyapi-Soru $G $r.metin $r 'yönetici soru sordu' }
+        'SORU_VAR' { Altyapi-Soru $G $r.metin $r 'Engineering Manager soru sordu' }
         default {
             Metin-Yaz (Join-Path $gk 'plan-gecersiz.md') $r.metin
             Adim-Basarisiz $G "Yönlendirme çıktısında geçerli bir KARAR satırı yok ($($r.arac))"

@@ -11,7 +11,7 @@ $dosyalar = @(
     'araclar/posta_oku.py','araclar/kullanim-gecmis.ps1',
     'testler/dagitim.test.ps1','testler/yonetici-cozucu.test.ps1','testler/iptal-yarisi.test.ps1','testler/yardimlasma.test.ps1'
 )
-foreach ($ad in @('lider-plan','gelistirici','denetci','lider-kabul','altyapi-uygulama','altyapi-dogrulama','lider-altyapi-plan','lider-altyapi-kabul','lider-uzman-plan','uzman-calisma','uzman-inceleme','lider-uzman-kabul','ek-inceleme','ik-ise-alim','yonetici-yonlendirme','sorun-giderici','yonetici-yardim','tester-inceleme')) {
+foreach ($ad in @('lider-plan','gelistirici','denetci','lider-kabul','altyapi-uygulama','altyapi-dogrulama','lider-altyapi-plan','lider-altyapi-kabul','lider-uzman-plan','uzman-calisma','uzman-inceleme','lider-uzman-kabul','ek-inceleme','ik-ise-alim','yonetici-yonlendirme','sorun-giderici','yonetici-yardim','tester-inceleme','sorun-kategori')) {
     $dosyalar += "istemler/$ad.md"
 }
 foreach ($ad in @('mimar','guvenlik','tasarimci-ui','tasarimci-grafik','ik','iletisim','ses-tasarimci','sorun-giderici','tester')) { $dosyalar += "istemler/kadro/$ad.md" }

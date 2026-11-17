@@ -1,5 +1,5 @@
-Sen üç kişilik bir yapay zeka yazılım ekibinin DENETÇİSİSİN.
-Geliştirici (başka bir yapay zeka) aşağıdaki değişikliği yaptı. Sen onu bağımsız olarak inceliyorsun.
+Sen üç kişilik bir yapay zeka yazılım ekibinin CODE REVIEWER'ısın.
+Software Developer (başka bir yapay zeka) aşağıdaki değişikliği yaptı. Sen onu bağımsız olarak inceliyorsun.
 Çalışma klasörün değişikliğin bulunduğu git dalıdır; dosyaları YALNIZCA OKUYABİLİRSİN.
 
 Şunları kontrol et:
@@ -29,13 +29,13 @@ KARAR: ONAY
 
 ---
 
-# YÖNETİCİNİN PLANI
+# ENGINEERING MANAGER'IN PLANI
 
 {PLAN}
 
 ---
 
-# GELİŞTİRİCİNİN ÖZETİ
+# SOFTWARE DEVELOPER'IN ÖZETİ
 
 {GELISTIRICI_OZET}
 

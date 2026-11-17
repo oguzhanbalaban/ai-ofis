@@ -1,21 +1,22 @@
 {
     "surum":  1,
-    "aciklama":  "Ekibin kadrosu. Yerleşik rollerin (lider = Yönetici, sorun-giderici, gelistirici, denetci, sistem, ag) araçları ayarlar.json \u003e roller içinde; diğerlerinin araçları burada (araclar). İK yeni çalışanları bu dosyaya ekler. yetki: oku | yaz (korumalı alan) | tam (sandbox\u0027sız).",
+    "aciklama":  "Ekibin kadrosu. ad = İngilizce şirket unvanı, rol_tr = Türkçe karşılığı. Yerleşik rollerin (lider = Engineering Manager, sorun-giderici, gelistirici, denetci, sistem, ag) araçları ayarlar.json \u003e roller içinde; diğerlerinin araçları burada (araclar) ya da panelden seçilirse ayarlar.json \u003e roller içinde. İK yeni çalışanları bu dosyaya ekler. yetki: oku | yaz (korumalı alan) | tam (sandbox\u0027sız).",
     "uyeler":  [
                    {
                        "anahtar":  "lider",
-                       "ad":  "Yönetici",
+                       "ad":  "Engineering Manager",
                        "departman":  "Yönetim",
                        "yerlesik":  true,
                        "uzman_isi":  false,
                        "yetki":  "oku",
                        "uzmanlik":  "Gelen her işi alır ve kimin yapacağına karar verir (yazılım, sunucu/kurulum ya da uzman işi); planlar ve son kabul/ret kararını verir; gerektiğinde İK\u0027dan işe alım ister.",
                        "ise_alinma":  null,
-                       "ise_alan":  null
+                       "ise_alan":  null,
+                       "rol_tr":  "Yönetici"
                    },
                    {
                        "anahtar":  "sorun-giderici",
-                       "ad":  "Sorun Giderici",
+                       "ad":  "Incident Manager",
                        "departman":  "Yönetim",
                        "yerlesik":  true,
                        "uzman_isi":  false,
@@ -26,11 +27,12 @@
                        "istem":  "istemler\\kadro\\sorun-giderici.md",
                        "faaliyet_metni":  "Takılan işi inceliyor",
                        "ise_alinma":  null,
-                       "ise_alan":  null
+                       "ise_alan":  null,
+                       "rol_tr":  "Sorun giderici"
                    },
                    {
                        "anahtar":  "mimar",
-                       "ad":  "Yazılım Mimarı",
+                       "ad":  "Solution Architect",
                        "departman":  "Yönetim",
                        "uzman_isi":  true,
                        "yetki":  "yaz",
@@ -51,55 +53,60 @@
                                        }
                                    ],
                        "ise_alinma":  null,
-                       "ise_alan":  null
+                       "ise_alan":  null,
+                       "rol_tr":  "Yazılım mimarı"
                    },
                    {
                        "anahtar":  "gelistirici",
-                       "ad":  "Geliştirici",
+                       "ad":  "Software Developer",
                        "departman":  "Yazılım",
                        "yerlesik":  true,
                        "uzman_isi":  false,
                        "yetki":  "yaz",
                        "uzmanlik":  "Yazılım görevlerinde kodu yazar (görevin git dalında).",
                        "ise_alinma":  null,
-                       "ise_alan":  null
+                       "ise_alan":  null,
+                       "rol_tr":  "Geliştirici"
                    },
                    {
                        "anahtar":  "denetci",
-                       "ad":  "Denetçi",
+                       "ad":  "Code Reviewer",
                        "departman":  "Yazılım",
                        "yerlesik":  true,
                        "uzman_isi":  false,
                        "yetki":  "oku",
                        "uzmanlik":  "Yazılım görevlerinde bağımsız kod incelemesi yapar.",
                        "ise_alinma":  null,
-                       "ise_alan":  null
+                       "ise_alan":  null,
+                       "rol_tr":  "Kod denetçisi"
                    },
                    {
                        "anahtar":  "sistem",
-                       "ad":  "Sistem Yöneticisi",
+                       "ad":  "System Administrator",
                        "departman":  "Altyapı ve güvenlik",
                        "yerlesik":  true,
                        "uzman_isi":  false,
                        "yetki":  "tam",
                        "uzmanlik":  "Sunucular, işletim sistemleri, servisler, yazılım kurulumu, VM ve veritabanı sunucusu işleri (sunucu/kurulum talepleri).",
                        "ise_alinma":  null,
-                       "ise_alan":  null
+                       "ise_alan":  null,
+                       "rol_tr":  "Sistem yöneticisi"
                    },
                    {
                        "anahtar":  "ag",
-                       "ad":  "Network",
+                       "ad":  "Network Engineer",
                        "departman":  "Altyapı ve güvenlik",
                        "yerlesik":  true,
                        "uzman_isi":  false,
                        "yetki":  "tam",
                        "uzmanlik":  "IP/DNS, VMware ağları, port, güvenlik duvarı kuralları ve makineler arası bağlantı (sunucu/kurulum talepleri).",
                        "ise_alinma":  null,
-                       "ise_alan":  null
+                       "ise_alan":  null,
+                       "rol_tr":  "Ağ uzmanı"
                    },
                    {
                        "anahtar":  "tester",
-                       "ad":  "Test Uzmanı",
+                       "ad":  "QA Engineer",
                        "departman":  "Yazılım",
                        "uzman_isi":  true,
                        "yetki":  "tam",
@@ -129,11 +136,12 @@
                                        }
                                    ],
                        "ise_alinma":  null,
-                       "ise_alan":  null
+                       "ise_alan":  null,
+                       "rol_tr":  "Test uzmanı"
                    },
                    {
                        "anahtar":  "guvenlik",
-                       "ad":  "Siber Güvenlik Uzmanı",
+                       "ad":  "Security Engineer",
                        "departman":  "Altyapı ve güvenlik",
                        "uzman_isi":  true,
                        "yetki":  "tam",
@@ -163,11 +171,12 @@
                                        }
                                    ],
                        "ise_alinma":  null,
-                       "ise_alan":  null
+                       "ise_alan":  null,
+                       "rol_tr":  "Siber güvenlik uzmanı"
                    },
                    {
                        "anahtar":  "tasarimci-ui",
-                       "ad":  "UI/UX Tasarımcısı",
+                       "ad":  "UI/UX Designer",
                        "departman":  "Tasarım",
                        "uzman_isi":  true,
                        "yetki":  "yaz",
@@ -188,11 +197,12 @@
                                        }
                                    ],
                        "ise_alinma":  null,
-                       "ise_alan":  null
+                       "ise_alan":  null,
+                       "rol_tr":  "Arayüz tasarımcısı"
                    },
                    {
                        "anahtar":  "tasarimci-grafik",
-                       "ad":  "Grafik Tasarımcı ve İllüstratör",
+                       "ad":  "Graphic Designer \u0026 Illustrator",
                        "departman":  "Tasarım",
                        "uzman_isi":  true,
                        "yetki":  "yaz",
@@ -218,11 +228,12 @@
                                        }
                                    ],
                        "ise_alinma":  null,
-                       "ise_alan":  null
+                       "ise_alan":  null,
+                       "rol_tr":  "Grafik tasarımcı ve illüstratör"
                    },
                    {
                        "anahtar":  "ik",
-                       "ad":  "İnsan Kaynakları",
+                       "ad":  "HR Specialist",
                        "departman":  "İK ve iletişim",
                        "uzman_isi":  true,
                        "yetki":  "oku",
@@ -243,11 +254,12 @@
                                        }
                                    ],
                        "ise_alinma":  null,
-                       "ise_alan":  null
+                       "ise_alan":  null,
+                       "rol_tr":  "İnsan kaynakları"
                    },
                    {
                        "anahtar":  "iletisim",
-                       "ad":  "Haberleşme ve Koordinasyon",
+                       "ad":  "Communications Coordinator",
                        "departman":  "İK ve iletişim",
                        "uzman_isi":  true,
                        "yetki":  "yaz",
@@ -268,11 +280,12 @@
                                        }
                                    ],
                        "ise_alinma":  null,
-                       "ise_alan":  null
+                       "ise_alan":  null,
+                       "rol_tr":  "Haberleşme ve koordinasyon"
                    },
                    {
                        "anahtar":  "ses-tasarimci",
-                       "ad":  "Ses ve Müzik Tasarımcısı",
+                       "ad":  "Sound Designer",
                        "departman":  "Tasarım",
                        "uzman_isi":  true,
                        "yetki":  "yaz",
@@ -294,7 +307,8 @@
                                    ],
                        "tanisma":  "Merhaba, ben Ses ve Müzik Tasarımcısıyım. Oyun projeleriniz için ses efekti tarifleri, müzik brifleri ve ses tasarım belgeleri hazırlıyor; Python ile WAV formatında programatik ses efektleri üretiyorum. Bana bir ses ihtiyacını veya müzik konseptini tanımlayan bir görev atayın, gerekli belge ve dosyaları teslim edeyim.",
                        "ise_alinma":  null,
-                       "ise_alan":  null
+                       "ise_alan":  null,
+                       "rol_tr":  "Ses ve müzik tasarımcısı"
                    }
                ]
 }

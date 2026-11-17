@@ -1,15 +1,15 @@
 ﻿<#
-yardimlasma.test.ps1 - Ekip içi yardımlaşma (yardim.ps1) ve Test Uzmanı akışını sınar. Çevrimdışıdır: gerçek Claude / Codex
+yardimlasma.test.ps1 - Ekip içi yardımlaşma (yardim.ps1) ve QA Engineer akışını sınar. Çevrimdışıdır: gerçek Claude / Codex
 çağrılmaz, gerçek gorevler\ klasörüne, bildirimlere ve e-postaya dokunulmaz. Sahte ajan --model değerine göre
 cikti-<model>.txt dosyasını (yoksa sahte-cikti.txt) stream-json biçiminde basar.
 
   powershell -NoProfile -ExecutionPolicy Bypass -File testler\yardimlasma.test.ps1 [-Kaynak <betik klasörü>] [-Koru]
 
   I  istem: yardım talimatı ve gelen yardımlar doğru adımlara eklenir
-  A  akış: geliştirici yardım ister -> Yönetici ATA -> yardım işi -> bitince geliştirme sürer (sonuç istemde)
+  A  akış: Software Developer yardım ister -> Engineering Manager ATA -> yardım işi -> bitince geliştirme sürer (sonuç istemde)
   K  kararlar: YANIT, KULLANICI (yanıttan sonra kaldığı aşama), ISE_ALIM, geçersiz atama, hak sınırı, zincir sınırı
-  P  plan ön işleri (YARDIM: satırları), Yöneticinin kabulde doğrudan yardım istemesi
-  T  Test Uzmanı: ek incelemede tam yetkiyle çalışır, raporu yazılır, ağaçta bıraktığı değişiklikler geri alınır,
+  P  plan ön işleri (YARDIM: satırları), Engineering Managerʼın kabulde doğrudan yardım istemesi
+  T  QA Engineer: ek incelemede tam yetkiyle çalışır, raporu yazılır, ağaçta bıraktığı değişiklikler geri alınır,
      ek incelemede yardım isterse görev yardım akışına geçer
 #>
 param([string]$Kaynak = '', [switch]$Koru)
@@ -46,14 +46,14 @@ $ayarJ | Add-Member -Force -NotePropertyName yardimlasma -NotePropertyValue ([ps
 $uye = { param($a, $ad, $uzman, $yetki, $model) $o = [ordered]@{ anahtar = $a; ad = $ad; departman = 'Test'; yerlesik = (-not $uzman); uzman_isi = $uzman; yetki = $yetki; uzmanlik = "$ad işleri" }
     if ($model) { $o.araclar = @(& $s $model) }; if ($a -eq 'tester') { $o.istem = 'istemler\kadro\tester.md' }; [pscustomobject]$o }
 $kadro = [pscustomobject]@{ surum = 1; uyeler = @(
-    (& $uye 'lider' 'Yönetici' $false 'oku' ''), (& $uye 'sorun-giderici' 'Sorun Giderici' $false 'oku' ''), (& $uye 'gelistirici' 'Geliştirici' $false 'yaz' ''),
-    (& $uye 'denetci' 'Denetçi' $false 'oku' ''), (& $uye 'sistem' 'Sistem Yöneticisi' $false 'tam' ''), (& $uye 'ag' 'Network' $false 'tam' ''),
-    (& $uye 'tester' 'Test Uzmanı' $true 'tam' 'sahte-tester'), (& $uye 'tasarimci-ui' 'UI/UX Tasarımcısı' $true 'yaz' 'sahte-tasarimci'), (& $uye 'ik' 'İnsan Kaynakları' $true 'oku' 'sahte-ik')) }
+    (& $uye 'lider' 'Engineering Manager' $false 'oku' ''), (& $uye 'sorun-giderici' 'Incident Manager' $false 'oku' ''), (& $uye 'gelistirici' 'Software Developer' $false 'yaz' ''),
+    (& $uye 'denetci' 'Code Reviewer' $false 'oku' ''), (& $uye 'sistem' 'System Administrator' $false 'tam' ''), (& $uye 'ag' 'Network Engineer' $false 'tam' ''),
+    (& $uye 'tester' 'QA Engineer' $true 'tam' 'sahte-tester'), (& $uye 'tasarimci-ui' 'UI/UX Designer' $true 'yaz' 'sahte-tasarimci'), (& $uye 'ik' 'HR Specialist' $true 'oku' 'sahte-ik')) }
 [IO.File]::WriteAllText((Join-Path $kum 'kadro.json'), ($kadro | ConvertTo-Json -Depth 6), $bom)
 [IO.File]::WriteAllText((Join-Path $kum 'projeler.json'), '{ "projeler": [] }', $bom)
 # git'in uyarıları (LF/CRLF) Stop kipinde hata sayılmasın
 function Git-T { $eap = $ErrorActionPreference; $ErrorActionPreference = 'Continue'; try { return (& git @args 2>$null) } finally { $ErrorActionPreference = $eap } }
-# Test için git deposu (geliştiricinin işi index'te)
+# Test için git deposu (Software Developerʼın işi index'te)
 $repo = Join-Path $kum 'depo'
 New-Item -ItemType Directory -Force $repo | Out-Null
 Git-T -C $repo init -q -b main
@@ -122,14 +122,14 @@ try {
     Yanit 'tamam'
     [void](Ajan-Cagir -Rol 'gelistirici' -Istem 'ISTEM-GELISTIRICI' -Klasor $kum -KayitKlasoru $kk -Etiket 'gelistirme')
     $i1 = Son-Istem $kk 'gelistirme-*.istem.md'
-    Dogrula 'geliştirici isteminde yardım talimatı ve ekip listesi var' ($i1 -match 'EKİPTEN YARDIM İSTEME' -and $i1 -match 'tester \(Test Uzmanı\)' -and $i1 -match '```yardim')
+    Dogrula 'Software Developer isteminde yardım talimatı ve ekip listesi var' ($i1 -match 'EKİPTEN YARDIM İSTEME' -and $i1 -match 'tester \(QA Engineer\)' -and $i1 -match '```yardim')
     Dogrula 'talimatta kullanıcı testi kuralı var' ($i1 -match 'simüle kullanıcı testi')
     [void](Ajan-Cagir -Rol 'lider' -Istem 'ISTEM-PLAN' -Klasor $kum -KayitKlasoru $kk -Etiket 'plan')
-    Dogrula 'Yöneticinin plan isteminde yok (plan "YARDIM:" satırlarını kullanır)' (-not ((Son-Istem $kk 'plan-*.istem.md') -match 'EKİPTEN YARDIM İSTEME'))
+    Dogrula 'Engineering Managerʼın plan isteminde yok (plan "YARDIM:" satırlarını kullanır)' (-not ((Son-Istem $kk 'plan-*.istem.md') -match 'EKİPTEN YARDIM İSTEME'))
     [void](Ajan-Cagir -Rol 'lider' -Istem 'ISTEM-KABUL' -Klasor $kum -KayitKlasoru $kk -Etiket 'kabul')
-    Dogrula 'Yöneticinin kabul isteminde var' ((Son-Istem $kk 'kabul-*.istem.md') -match 'EKİPTEN YARDIM İSTEME')
+    Dogrula 'Engineering Managerʼın kabul isteminde var' ((Son-Istem $kk 'kabul-*.istem.md') -match 'EKİPTEN YARDIM İSTEME')
     [void](Ajan-Cagir -Rol 'sorun-giderici' -Istem 'ISTEM-COZUM' -Klasor $kum -KayitKlasoru $kk -Etiket 'cozum')
-    Dogrula 'Sorun Gidericinin isteminde yok' (-not ((Son-Istem $kk 'cozum-*.istem.md') -match 'EKİPTEN YARDIM İSTEME'))
+    Dogrula 'Incident Managerʼın isteminde yok' (-not ((Son-Istem $kk 'cozum-*.istem.md') -match 'EKİPTEN YARDIM İSTEME'))
     $script:AktifGorev = ''
     [void](Ajan-Cagir -Rol 'gelistirici' -Istem 'ISTEM-SOHBET' -Klasor $kum -KayitKlasoru $kk -Etiket 'sohbet')
     Dogrula 'görevsiz (sohbet) çağrıda yok' (-not ((Son-Istem $kk 'sohbet-*.istem.md') -match 'EKİPTEN YARDIM'))
@@ -139,17 +139,17 @@ try {
     $Ayar.yardimlasma.etkin = $true; $script:AktifGorev = ''
 
     # ------------------------------------------------------------ A
-    Write-Host ''; Write-Host 'A1: geliştirici iş sırasında yardım istiyor (adım başarısız sayılmaz)'
+    Write-Host ''; Write-Host 'A1: Software Developer iş sırasında yardım istiyor (adım başarısız sayılmaz)'
     $g = Test-Gorevi '9302-akis' 'gelistirme'
     Yanit ("Ekran kodunu yazdım ama test edemiyorum." + (Yardim-Blogu 'Flutter SDK kur ve flutter test çalışsın' 'sistem'))
     Gorev-Ilerlet $g
     $d = Gorev-Oku $g.id
     Dogrula 'aşama yardim, dönüş gelistirme, deneme 0' ($d.asama -eq 'yardim' -and $d.yardim_donus_asama -eq 'gelistirme' -and [int]$d.deneme -eq 0 -and -not $d.sonraki_deneme) "$($d.asama)/$($d.yardim_donus_asama)/$($d.deneme)"
-    Dogrula 'yardim-istek-1.md yazıldı; geçmişte "Geliştirici yardım istedi", "deneme başarısız" yok' ((Test-Path (Join-Path (Gorev-Klasoru $g.id) 'yardim-istek-1.md')) -and ((Olaylar $d) -contains 'Geliştirici yardım istedi') -and -not ((Olaylar $d) -contains 'deneme başarısız'))
+    Dogrula 'yardim-istek-1.md yazıldı; geçmişte "Software Developer yardım istedi", "deneme başarısız" yok' ((Test-Path (Join-Path (Gorev-Klasoru $g.id) 'yardim-istek-1.md')) -and ((Olaylar $d) -contains 'Software Developer yardım istedi') -and -not ((Olaylar $d) -contains 'deneme başarısız'))
     Dogrula 'isteğin içeriği kaydedildi' ($d.yardim_isteyen -eq 'gelistirici' -and $d.yardim_istek -match 'Flutter SDK' -and [int]$d.yardim_sayisi -eq 1)
     Dogrula 'yardim etkin aşama (döngü seçebilir)' ($AktifAsamalar -contains $d.asama)
 
-    Write-Host ''; Write-Host 'A2: Yönetici ATA -> sistem yöneticisine yardım işi'
+    Write-Host ''; Write-Host 'A2: Engineering Manager ATA -> System Administratorʼa yardım işi'
     $once = Gorev-Sayisi
     Yanit "KARAR: ATA`nKIM: sistem`nBASLIK: Flutter SDK kurulumu`n`n## Gerekçe`nKurulum sistemin işi.`n`n## İş`nFlutter SDK'yı kur ve PATH'e ekle.`n`n## Kabul`n- flutter --version çalışır"
     Gorev-Ilerlet $d
@@ -158,7 +158,7 @@ try {
     $y = $null; if ($yid) { $y = Gorev-Oku $yid }
     Dogrula 'görev yardım bekliyor, bir yardım işi açıldı' ($d.asama -eq 'yardim_bekliyor' -and @($d.yardim_bekleyen).Count -eq 1 -and (Gorev-Sayisi) -eq ($once + 1)) "$($d.asama)"
     Dogrula 'yardım işi: altyapı, öncelik 1, ana_gorev bağlı, başlık' ($y -and $y.tip -eq 'altyapi' -and [int]$y.oncelik -eq 1 -and $y.ana_gorev -eq $g.id -and $y.baslik -eq 'Flutter SDK kurulumu')
-    Dogrula 'yardım işinin tanımında açan ve iş var' ((Gorev-Metni $y) -match 'Yönetici \(Geliştirici istedi\) açtı' -and (Gorev-Metni $y) -match "Flutter SDK'yı kur")
+    Dogrula 'yardım işinin tanımında açan ve iş var' ((Gorev-Metni $y) -match 'Engineering Manager \(Software Developer istedi\) açtı' -and (Gorev-Metni $y) -match "Flutter SDK'yı kur")
     Dogrula 'yardim-karar-1.md yazıldı' (Test-Path (Join-Path (Gorev-Klasoru $g.id) 'yardim-karar-1.md'))
     Dogrula 'beklerken seçilmez' (-not ((Siradaki-Gorev) -and (Siradaki-Gorev).id -eq $g.id))
 
@@ -176,22 +176,22 @@ try {
     Gorev-Ilerlet $d
     $d = Gorev-Oku $g.id
     $ist = Son-Istem (Tur-Klasoru $d) 'gelistirme-*.istem.md'
-    Dogrula 'geliştirici yeniden çalıştı, isteminde EKİPTEN GELEN YARDIM ve sonuç var' ($ist -match 'EKİPTEN GELEN YARDIM' -and $ist -match 'Flutter 3.38 kuruldu')
+    Dogrula 'Software Developer yeniden çalıştı, isteminde EKİPTEN GELEN YARDIM ve sonuç var' ($ist -match 'EKİPTEN GELEN YARDIM' -and $ist -match 'Flutter 3.38 kuruldu')
     Dogrula 'adım normal ilerledi (kontrol)' ($d.asama -eq 'kontrol') "$($d.asama)"
 
     # ------------------------------------------------------------ K
-    Write-Host ''; Write-Host 'K1: denetçi yardım istiyor, Yönetici YANIT veriyor -> denetim yeniden'
+    Write-Host ''; Write-Host 'K1: Code Reviewer yardım istiyor, Engineering Manager YANIT veriyor -> denetim yeniden'
     $g = Test-Gorevi '9303-yanit' 'denetim' @{ dal = 'ekip/9303'; temel_commit = $temel; calisma_klasoru = $repo; gelistirici = 'claude/sahte-gelistirici' }
     Model-Yanit 'sahte-denetci' ("KARAR: DUZELT`n`nTest sonucu görmeden onaylayamam." + (Yardim-Blogu 'flutter test sonucunu kim üretecek?'))
     Gorev-Ilerlet $g
     $d = Gorev-Oku $g.id
-    Dogrula 'denetçinin isteği: aşama yardim, dönüş denetim, yeni tur açılmadı' ($d.asama -eq 'yardim' -and $d.yardim_donus_asama -eq 'denetim' -and [int]$d.tur -eq 1 -and $d.yardim_isteyen -eq 'denetci') "$($d.asama) tur=$($d.tur)"
+    Dogrula 'Code Reviewerʼın isteği: aşama yardim, dönüş denetim, yeni tur açılmadı' ($d.asama -eq 'yardim' -and $d.yardim_donus_asama -eq 'denetim' -and [int]$d.tur -eq 1 -and $d.yardim_isteyen -eq 'denetci') "$($d.asama) tur=$($d.tur)"
     Model-Yanitlari-Sil
     Yanit "KARAR: YANIT`n`n## Gerekçe`nx`n`n## Yanıt`nTest sonucu kontrol.md içinde; onu kullan."
     Gorev-Ilerlet $d
     $d = Gorev-Oku $g.id
     Dogrula 'aşama denetim, yanıt yardım sonuçlarında' ($d.asama -eq 'denetim' -and (Metin-Oku (Join-Path (Gorev-Klasoru $g.id) 'yardim-sonuclari.md')) -match 'kontrol.md içinde') "$($d.asama)"
-    Dogrula 'geçmişte "Yönetici yanıtladı"' ((Olaylar $d) -contains 'Yönetici yanıtladı')
+    Dogrula 'geçmişte "Engineering Manager yanıtladı"' ((Olaylar $d) -contains 'Engineering Manager yanıtladı')
 
     Write-Host ''; Write-Host 'K2: KULLANICI -> soru; kullanıcı yanıtlayınca kaldığı aşamadan (plan değil)'
     $g = Test-Gorevi '9304-kullanici' 'gelistirme'
@@ -201,7 +201,7 @@ try {
     Gorev-Ilerlet (Gorev-Oku $g.id)
     $d = Gorev-Oku $g.id
     Dogrula 'bekliyor_kullanici, soru_donus_asama gelistirme, sorular.md' ($d.asama -eq 'bekliyor_kullanici' -and $d.soru_donus_asama -eq 'gelistirme' -and (Metin-Oku (Join-Path (Gorev-Klasoru $g.id) 'sorular.md')) -match 'yazma izni')
-    Dogrula 'bildirim "Yönetici soru soruyor"' (@(Bildirimler | Where-Object { $_.baslik -like 'Yönetici soru soruyor*' -and $_.metin -match '9304' }).Count -eq 1)
+    Dogrula 'bildirim "Engineering Manager soru soruyor"' (@(Bildirimler | Where-Object { $_.baslik -like 'Engineering Manager soru soruyor*' -and $_.metin -match '9304' }).Count -eq 1)
     Start-Sleep -Milliseconds 1100
     $f = Join-Path (Gorev-Klasoru $g.id) 'gorev.md'; Metin-Yaz $f ((Metin-Oku $f) + "`n### Yanıt`nİzin verdim.")
     Bekleyenleri-Kontrol
@@ -217,7 +217,7 @@ try {
     $d = Gorev-Oku $g.id; $y = Gorev-Oku (@($d.yardim_bekleyen)[0])
     Dogrula 'yardım işi uzman, ise_alim_aranan dolu, hedef boş' ($d.asama -eq 'yardim_bekliyor' -and $y.tip -eq 'uzman' -and $y.ise_alim_aranan -eq 'Türkçe seslendirme sanatçısı' -and -not $y.hedef_rol)
 
-    Write-Host ''; Write-Host 'K4: geçersiz atama (geliştiriciye) -> yanıt olarak iletilir'
+    Write-Host ''; Write-Host 'K4: geçersiz atama (Software Developerʼa) -> yanıt olarak iletilir'
     $g = Test-Gorevi '9306-gecersiz' 'gelistirme'
     Yanit ("x" + (Yardim-Blogu 'şu fonksiyonu yaz'))
     Gorev-Ilerlet $g
@@ -234,7 +234,7 @@ try {
     $d = Gorev-Oku $g.id
     Dogrula 'aşama gelistirme, deneme 1' ($d.asama -eq 'gelistirme' -and [int]$d.deneme -eq 1 -and [string]$d.son_hata -match 'yardım hakkı doldu') "$($d.asama)/$($d.deneme)"
 
-    Write-Host ''; Write-Host 'K6: zincir sınırında Yönetici yeni yardım işi açamaz'
+    Write-Host ''; Write-Host 'K6: zincir sınırında Engineering Manager yeni yardım işi açamaz'
     $p1 = Test-Gorevi '9308-ana' 'yardim_bekliyor'
     $p2 = Test-Gorevi '9309-yardim1' 'gelistirme' @{ tip = 'uzman'; ana_gorev = '9308-ana' }
     $p3 = Test-Gorevi '9310-yardim2' 'gelistirme' @{ tip = 'uzman'; ana_gorev = '9309-yardim1'; sorumlu = 'tasarimci-ui' }
@@ -262,7 +262,7 @@ try {
     Yardim-Bekleyenleri-Kontrol
     Dogrula 'ikisi de bitince geliştirme başlar' ((Gorev-Oku $g.id).asama -eq 'gelistirme')
 
-    Write-Host ''; Write-Host 'P2: Yönetici kabulde tester istiyor -> değerlendirme adımı olmadan doğrudan yardım işi'
+    Write-Host ''; Write-Host 'P2: Engineering Manager kabulde tester istiyor -> değerlendirme adımı olmadan doğrudan yardım işi'
     Git-T -C $repo checkout -q -b ekip/9312
     [IO.File]::WriteAllText((Join-Path $repo 'b.txt'), "b`n", $ascii)
     $g = Test-Gorevi '9312-kabul' 'kabul' @{ dal = 'ekip/9312'; temel_commit = $temel; calisma_klasoru = $repo }
@@ -273,14 +273,14 @@ try {
 
     # ------------------------------------------------------------ T
     Write-Host ''; Write-Host 'T1: test sonrası ağaç temizliği (index korunur)'
-    Git-T -C $repo add -A    # geliştiricinin işi index'te (b.txt)
+    Git-T -C $repo add -A    # Software Developerʼın işi index'te (b.txt)
     [IO.File]::WriteAllText((Join-Path $repo 'a.txt'), "testçi bozdu`n", $ascii)
     [IO.File]::WriteAllText((Join-Path $repo 'tester-kalinti.txt'), "x`n", $ascii)
     $n = Test-Sonrasi-Agaci-Temizle $repo
     $durum = (Git-T -C $repo status --porcelain) -join ' | '
     Dogrula '2 değişiklik geri alındı, b.txt index''te kaldı' ($n -eq 2 -and (Test-Path (Join-Path $repo 'b.txt')) -and -not (Test-Path (Join-Path $repo 'tester-kalinti.txt')) -and ((Get-Content (Join-Path $repo 'a.txt')) -eq 'a') -and $durum -match '^A  b.txt') $durum
 
-    Write-Host ''; Write-Host 'T2: denetçi onaylar, Test Uzmanı ek incelemede tam yetkiyle çalışır ve düzeltme ister'
+    Write-Host ''; Write-Host 'T2: Code Reviewer onaylar, QA Engineer ek incelemede tam yetkiyle çalışır ve düzeltme ister'
     $g = Test-Gorevi '9313-tester' 'denetim' @{ dal = 'ekip/9312'; temel_commit = $temel; calisma_klasoru = $repo; gelistirici = 'claude/sahte-gelistirici'; ek_inceleme = @('tester') }
     Model-Yanit 'sahte-denetci' "KARAR: ONAY`n`n## Bulgular`nyok"
     Model-Yanit 'sahte-tester' "KARAR: DUZELT`n`n## Test özeti`nKayıt ekranı çöküyor.`n`n## Simüle kullanıcı testi`n5 personadan 2'si tamamladı."
@@ -294,7 +294,7 @@ try {
     Dogrula 'tester isteminde test klasörü (calisma\<no>-test) ve talimat var' ((Son-Istem $tk 'inceleme-tester-*.istem.md') -match '9313-tester-test' -and (Son-Istem $tk 'inceleme-tester-*.istem.md') -match 'simüle kullanıcı testi')
     Dogrula 'düzeltme istendi: yeni tur' ([int]$d.tur -eq 2 -and $d.asama -eq 'gelistirme' -and (Metin-Oku (Join-Path (Tur-Klasoru $d) 'geri-bildirim.md')) -match 'Kayıt ekranı çöküyor') "$($d.asama) tur=$($d.tur)"
 
-    Write-Host ''; Write-Host 'T3: Test Uzmanı ek incelemede yardım isterse görev yardım akışına geçer'
+    Write-Host ''; Write-Host 'T3: QA Engineer ek incelemede yardım isterse görev yardım akışına geçer'
     $g = Test-Gorevi '9314-tester-yardim' 'denetim' @{ dal = 'ekip/9312'; temel_commit = $temel; calisma_klasoru = $repo; gelistirici = 'claude/sahte-gelistirici'; ek_inceleme = @('tester') }
     Model-Yanit 'sahte-tester' ("Uygulamayı çalıştıramadım." + (Yardim-Blogu 'Android emülatörü kur' 'sistem'))
     Gorev-Ilerlet $g

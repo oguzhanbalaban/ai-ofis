@@ -59,7 +59,7 @@ function Kadro-Metni {
         [void]$sb.AppendLine(('| {0} | {1} | {2} | {3} | {4} | {5} |' -f $u.anahtar, $ad, $u.departman, $alir, $u.yetki, (([string]$u.uzmanlik) -replace '\|', '/')))
     }
     [void]$sb.AppendLine('')
-    [void]$sb.AppendLine('Yazılım işleri geliştirici+denetçi akışında, sunucu/kurulum/ağ işleri sistem yöneticisi+network akışında yürür; "uzman işi alır = evet" olanlar uzman işlerinde SORUMLU ya da INCELEYEN olabilir.')
+    [void]$sb.AppendLine('Yazılım işleri Software Developer+Code Reviewer akışında, sunucu/kurulum/ağ işleri System Administrator+Network Engineer akışında yürür; "uzman işi alır = evet" olanlar uzman işlerinde SORUMLU ya da INCELEYEN olabilir.')
     return $sb.ToString()
 }
 function Tarih-Coz($Deger) { if (-not $Deger) { return $null }; try { return [datetime]$Deger } catch { return $null } }
@@ -168,8 +168,9 @@ function Uye-Dogrula($J, [string]$Talimat, [bool]$TamVerebilir) {
     $faaliyet = ([string]$J.faaliyet_metni).Trim(); if (-not $faaliyet -or $faaliyet.Length -gt 40) { $faaliyet = 'Çalışıyor' }
     $tanisma = ([string]$J.tanisma).Trim(); if ($tanisma.Length -gt 600) { $tanisma = $tanisma.Substring(0, 600) }
     if ($Talimat.Length -lt 60) { $Talimat = "Rolün: $ad. $uzmanlik`n`n$Talimat" }
+    $rolTr = ([string]$J.rol_tr).Trim(); if ($rolTr.Length -gt 60) { $rolTr = $rolTr.Substring(0, 60) }
     $uye = [pscustomobject][ordered]@{
-        anahtar = $anahtar; ad = $ad; departman = $departman; uzman_isi = $true; yetki = $yetki; renk = $renk; renk_koyu = $renk
+        anahtar = $anahtar; ad = $ad; rol_tr = $rolTr; departman = $departman; uzman_isi = $true; yetki = $yetki; renk = $renk; renk_koyu = $renk
         uzmanlik = $uzmanlik; istem = "istemler\kadro\$anahtar.md"; faaliyet_metni = $faaliyet; araclar = $araclar
         tanisma = $tanisma; ise_alinma = (Simdi); ise_alan = 'İK'
     }
@@ -340,7 +341,7 @@ function Uzman-Hazirla($G) {
 function Uzman-Plan($G) {
     Kadro-Rolleri-Yukle
     $gk = Gorev-Klasoru $G.id
-    # Lider işe alım istediyse önce İK çalışır; görev bir sonraki adımda yeniden planlanır
+    # Engineering Manager işe alım istediyse önce İK çalışır; görev bir sonraki adımda yeniden planlanır
     if ([string]$G.ise_alim_aranan) {
         $s = Ise-Al $G ([string]$G.ise_alim_aranan)
         if ($s.durum -eq 'hata') { Adim-Basarisiz $G $s.metin; return }
@@ -358,7 +359,7 @@ function Uzman-Plan($G) {
     $ikNotu = '(yok)'; if ($G.ik_notu) { $ikNotu = [string]$G.ik_notu }
     $istem = Sablon-Doldur 'lider-uzman-plan.md' @{ KADRO = (Kadro-Metni); ISTENEN = $istenen; IK_NOTU = $ikNotu; GOREV = (Gorev-Metni $G) }
     $r = Ajan-Cagir -Rol 'lider' -Istem $istem -Klasor (Uzman-Calisma-Klasoru $G) -KayitKlasoru (Kayit-Klasoru $G) -Etiket 'plan'
-    if (-not $r.basarili) { Adim-Basarisiz $G "Yönetici plan yazamadı: $($r.hata)"; return }
+    if (-not $r.basarili) { Adim-Basarisiz $G "Engineering Manager plan yazamadı: $($r.hata)"; return }
     Ayarla $G 'lider' ('{0}/{1}' -f $r.arac, $r.model)
     switch (Karar-Oku $r.metin) {
         'PLAN_HAZIR' {
@@ -377,7 +378,7 @@ function Uzman-Plan($G) {
             $ayrinti = 'sorumlu: {0}, inceleyen: {1}' -f $sorumlu, $inceleyen
             # Planda ön işler istendiyse ("YARDIM: <anahtar> | <iş>") önce onlar yapılır (yardim.ps1)
             $isler = Plan-Yardimlari $G $r.metin
-            if ($isler.Count) { Gecmis-Ekle $G 'plan hazır' $ayrinti $r; [void](Yardim-Isleri-Ac $G $isler 'Yönetici (plan)' 'gelistirme'); return }
+            if ($isler.Count) { Gecmis-Ekle $G 'plan hazır' $ayrinti $r; [void](Yardim-Isleri-Ac $G $isler 'Engineering Manager (plan)' 'gelistirme'); return }
             Asama-Gec $G 'gelistirme' 'plan hazır' $ayrinti $r
         }
         'ISE_ALIM' {
@@ -387,12 +388,12 @@ function Uzman-Plan($G) {
             if ($sayi -ge 2) { Altyapi-Soru $G ("## İşe alım sınırı`n`nLider bu görev için yeniden işe alım istedi; görev için zaten $sayi kez işe alım yapıldı.`n`n" + $r.metin) $r 'işe alım sınırına ulaşıldı'; return }
             Ayarla $G 'ise_alim_sayisi' ($sayi + 1)
             Metin-Yaz (Join-Path $gk 'yonlendirme.md') $r.metin
-            Gecmis-Ekle $G 'yönetici İK''dan işe alım istedi' $aranan $r
+            Gecmis-Ekle $G 'Engineering Manager İK''dan işe alım istedi' $aranan $r
             Ayarla $G 'ise_alim_aranan' $aranan
         }
         'ALTYAPI' {
             Metin-Yaz (Join-Path $gk 'yonlendirme.md') $r.metin
-            Altyapiya-Aktar $G 'yönetici işi altyapı ekibine yönlendirdi' $r
+            Altyapiya-Aktar $G 'Engineering Manager işi altyapı ekibine yönlendirdi' $r
         }
         'SORU_VAR' { Altyapi-Soru $G $r.metin $r }
         default {
@@ -404,7 +405,7 @@ function Uzman-Plan($G) {
 
 function Uzman-IseAlim-Gorevi($G) {
     $tk = Tur-Klasoru $G
-    $s = Ise-Al $G ((Gorev-Metni $G) + "`n`n# Yöneticinin brifi`n`n" + (Plan-Metni $G))
+    $s = Ise-Al $G ((Gorev-Metni $G) + "`n`n# Engineering Managerʼın brifi`n`n" + (Plan-Metni $G))
     switch ($s.durum) {
         'alindi' {
             Metin-Yaz (Join-Path $tk 'calisma-ozet.md') $s.metin
@@ -498,13 +499,13 @@ function Uzman-Inceleme($G) {
     Kadro-Rolleri-Yukle
     $rol = [string]$G.inceleyen
     $uye = Kadro-Uye $rol
-    if (-not $uye) { Asama-Gec $G 'kabul' 'inceleyen yok; yönetici bakacak'; return }
+    if (-not $uye) { Asama-Gec $G 'kabul' 'inceleyen yok; Engineering Manager bakacak'; return }
     $tk = Tur-Klasoru $G
     $wt = Uzman-Calisma-Klasoru $G
     $sorumluAdi = [string]$G.sorumlu; $su = Kadro-Uye $sorumluAdi; if ($su) { $sorumluAdi = [string]$su.ad }
     $haric = @(); if ($G.uygulayan) { $haric = @([string]$G.uygulayan) }
     if ($rol -eq 'tester') {
-        # Test Uzmanı teslimleri çalıştırıp test eder (işlev + simüle kullanıcı testi); yetkisiyle çalışır (yardim.ps1)
+        # QA Engineer teslimleri çalıştırıp test eder (işlev + simüle kullanıcı testi); yetkisiyle çalışır (yardim.ps1)
         $t = Teslim-Listesi $G
         $icerik = "$sorumluAdi bu işi yaptı. Teslimler: $(Uzman-Cikti $G)`n`n$($t.metin)`n`n## Çalışanın raporu`n`n" + (Metin-Oku (Join-Path $tk 'calisma-ozet.md'))
         if ($G.kaynak_klasor) { $icerik += "`n`nİlgili klasör: ``$($G.kaynak_klasor)``" }
@@ -541,18 +542,18 @@ function Uzman-Kabul($G) {
         CALISMA_OZET = (Metin-Oku (Join-Path $tk 'calisma-ozet.md')); KONTROL = (Metin-Oku (Join-Path $tk 'kontrol.md')); INCELEME = $inc
     }
     $r = Ajan-Cagir -Rol 'lider' -Istem $istem -Klasor (Uzman-Calisma-Klasoru $G) -KayitKlasoru $tk -Etiket 'kabul'
-    if (-not $r.basarili) { Adim-Basarisiz $G "Yönetici son kararı veremedi: $($r.hata)"; return }
+    if (-not $r.basarili) { Adim-Basarisiz $G "Engineering Manager son kararı veremedi: $($r.hata)"; return }
     Metin-Yaz (Join-Path $tk 'kabul.md') $r.metin
     switch (Karar-Oku $r.metin) {
         'KABUL' {
             Ayarla $G 'ozet' (Alan-Oku $r.metin 'OZET')
-            Asama-Gec $G 'tamamla' 'yönetici kabul etti' '' $r
+            Asama-Gec $G 'tamamla' 'Engineering Manager kabul etti' '' $r
         }
         'RET' {
-            Gecmis-Ekle $G 'yönetici reddetti' '' $r
-            Yeni-Tur $G ("## Yönetici reddetti`n`n" + $r.metin) 'yönetici reddetti'
+            Gecmis-Ekle $G 'Engineering Manager reddetti' '' $r
+            Yeni-Tur $G ("## Engineering Manager reddetti`n`n" + $r.metin) 'Engineering Manager reddetti'
         }
-        'SORU_VAR' { Altyapi-Soru $G $r.metin $r 'yönetici kullanıcıdan bilgi istedi' }
+        'SORU_VAR' { Altyapi-Soru $G $r.metin $r 'Engineering Manager kullanıcıdan bilgi istedi' }
         default { Adim-Basarisiz $G "Kabul çıktısında KARAR satırı yok ($($r.arac))" }
     }
 }
@@ -565,7 +566,7 @@ function Uzman-Tamamla($G) {
     $sorumlu = [string]$G.sorumlu; $su = Kadro-Uye $sorumlu; if ($su) { $sorumlu = "$($su.ad) ($sorumlu)" }
     $md = @(
         "# Sonuç: $($G.baslik)", '', $ozet, '',
-        "- Sorumlu: $sorumlu [$($G.uygulayan)] | İnceleyen: $($G.inceleyen) [$($G.inceleyen_arac)] | Yönetici: $($G.lider) | Tur: $($G.tur)",
+        "- Sorumlu: $sorumlu [$($G.uygulayan)] | İnceleyen: $($G.inceleyen) [$($G.inceleyen_arac)] | Engineering Manager: $($G.lider) | Tur: $($G.tur)",
         "- Çıktı klasörü: $(Uzman-Cikti $G)", '',
         "## Teslimler ($($t.adet))", '', $(if ($t.adet) { $t.metin } else { '(dosya yok)' })
     ) -join "`n"
@@ -589,7 +590,7 @@ function Uzman-Adim($G) {
 }
 
 # ---------------------------------------------------------------- yazılım görevlerinde ek uzman incelemesi
-# Lider planında "EK_INCELEME: guvenlik, mimar" dediyse denetçi onayından sonra bu çalışanlar da inceler.
+# Engineering Manager planında "EK_INCELEME: guvenlik, mimar" dediyse Code Reviewer onayından sonra bu çalışanlar da inceler.
 function Ek-Inceleme-Coz([string]$Metin) {
     $l = @()
     foreach ($p in (([string]$Metin) -split '[,;/\s]+')) {
@@ -616,7 +617,7 @@ function Ek-Incelemeler($G, [string]$Tk, $D) {
         if (-not $uye) { continue }
         $haric = @(); if ($G.gelistirici) { $haric = @([string]$G.gelistirici) }
         if ([string]$rol -eq 'tester') {
-            # Test Uzmanı değişikliği okumakla kalmaz: uygulamayı çalıştırıp işlev ve simüle kullanıcı testi yapar (yardim.ps1)
+            # QA Engineer değişikliği okumakla kalmaz: uygulamayı çalıştırıp işlev ve simüle kullanıcı testi yapar (yardim.ps1)
             $icerik = "Git çalışma ağacı: ``$($G.calisma_klasoru)`` (dal $($G.dal)). Değişen dosyalar:`n`n$($D.stat)"
             $r = Tester-Calistir $G $uye $Tk ([string]$G.calisma_klasoru) $icerik (Metin-Oku (Join-Path $Tk 'denetim.md')) "inceleme-$rol" $haric
         } else {
@@ -627,7 +628,7 @@ function Ek-Incelemeler($G, [string]$Tk, $D) {
             $r = Ajan-Cagir -Rol ([string]$rol) -Istem $istem -Klasor $G.calisma_klasoru -KayitKlasoru $Tk -Etiket "inceleme-$rol" -Haric $haric
         }
         if (-not $r.basarili) {
-            # Ek inceleyen ekip içi yardım istedi: Adim-Denetim isteği Yöneticiye iletir
+            # Ek inceleyen ekip içi yardım istedi: Adim-Denetim isteği Engineering Managerʼa iletir
             if ($r.yardim) { return [pscustomobject]@{ duzelt = $false; duzelt_metni = ''; metin = $hepsi.ToString(); yardim = $true } }
             Gecmis-Ekle $G "$($uye.ad) ek inceleme yapamadı" $r.hata
             [void]$hepsi.AppendLine("## $($uye.ad): inceleme yapılamadı ($(Kisalt $r.hata 200))")

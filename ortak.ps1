@@ -18,6 +18,8 @@ foreach ($d in @($YolGorev, $YolDurum, $YolGunluk, $YolRapor, $YolCalisma)) {
 if (-not (Test-Path variable:script:Konsol)) { $script:Konsol = $false }
 $script:AktifGorev = ''
 $script:AktifAdim  = ''
+# Kök neden analizi iptal edilmiş görevler üzerinde çalışır: o sırada iptal izlemesi kapatılır (cozucu.ps1 > Kok-Neden-Belirle)
+$script:IptalIzleme = $true
 $script:YardimIstegi = $null   # son ajan çağrısının ekip içi yardım isteği (yardim.ps1 > Yardim-Istegi-Kaydet işler)
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
@@ -184,7 +186,7 @@ function Surec-Calistir {
     while (-not $p.WaitForExit(15000)) {
         Kalp "$Etiket çalışıyor"
         # Kullanıcı görevi bu süreç çalışırken iptal ettiyse (panel / durum.ps1 -Iptal) işi bitirmesini bekleme
-        if ($gorevId -and (Gorev-Iptal-mi $gorevId)) {
+        if ($script:IptalIzleme -and $gorevId -and (Gorev-Iptal-mi $gorevId)) {
             $iptal = $true
             Gunluk "Görev $gorevId iptal edildi; çalışan $Etiket süreç ağacı sonlandırılıyor (PID $($p.Id))" 'UYARI'
             $eap = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
@@ -310,12 +312,17 @@ function Claude-Cikti-Coz([string]$Ham) {
     $sonuc = $null; $tepe = [long]0
     $gorulen = @{}
     $top = [ordered]@{ giris = [long]0; onbellek_okuma = [long]0; onbellek_yazma = [long]0; cikis = [long]0 }
+    $haklar = $null
     foreach ($satir in ($Ham -split "`r?`n")) {
-        # Araç sonuçlarını (type=user, büyük dosya içerikleri) hiç çözme
-        if ($satir -notmatch '^\s*\{"type":"(assistant|result)"') { continue }
+        # Araç sonuçlarını (type=user, büyük dosya içerikleri) hiç çözme. Alan sırası CLI sürümüne göre değişir
+        # (2.1.3xx'te sonuç satırı "duration_api_ms" ile başlar), bu yüzden "type" alanı satırın herhangi bir yerinde aranır.
+        if (-not $satir.StartsWith('{') -or $satir.StartsWith('{"type":"user"')) { continue }
+        if ($satir -notmatch '"type":"(assistant|result|rate_limit_event)"') { continue }
         $j = $null
         try { $j = $satir | ConvertFrom-Json } catch { continue }
         if ($j.type -eq 'result') { $sonuc = $j; continue }
+        if ($j.type -eq 'rate_limit_event') { if ($j.rate_limit_info) { $haklar = $j.rate_limit_info }; continue }
+        if ($j.type -ne 'assistant') { continue }
         $m = $j.message
         if (-not $m -or -not $m.usage) { continue }
         $u = $m.usage
@@ -330,16 +337,20 @@ function Claude-Cikti-Coz([string]$Ham) {
     if (-not $sonuc -and $Ham.TrimStart().StartsWith('{')) {
         try { $j = $Ham | ConvertFrom-Json; if ($j.type -eq 'result') { $sonuc = $j } } catch {}
     }
+    if ($haklar) { try { Claude-Haklari-Kaydet $haklar } catch {} }
     $kul = $null
     if ($sonuc -and $sonuc.usage) {
         $u = $sonuc.usage
         $pencere = [long]0
         if ($sonuc.modelUsage) { foreach ($p in $sonuc.modelUsage.PSObject.Properties) { $w = Sayi $p.Value.contextWindow; if ($w -gt $pencere) { $pencere = $w } } }
         $istek = $gorulen.Count; if ($istek -eq 0) { $istek = Sayi $sonuc.num_turns }
+        # Gerçekte çalışan model ("opus" gibi kısaltmalar CLI sürümüne göre farklı modele gider): en çok harcayan
+        $gercek = ''; $enCok = -1.0
+        if ($sonuc.modelUsage) { foreach ($p in $sonuc.modelUsage.PSObject.Properties) { $c2 = [double]$p.Value.costUSD; if ($c2 -gt $enCok) { $enCok = $c2; $gercek = $p.Name } } }
         $kul = [ordered]@{
             giris = (Sayi $u.input_tokens); onbellek_okuma = (Sayi $u.cache_read_input_tokens); onbellek_yazma = (Sayi $u.cache_creation_input_tokens)
             cikis = (Sayi $u.output_tokens); baglam_tepe = $tepe; baglam_pencere = $pencere; istek = [long]$istek
-            maliyet_usd = [double]$sonuc.total_cost_usd; olcum = $(if ($tepe -gt 0) { 'tam' } else { 'toplam' })
+            maliyet_usd = [double]$sonuc.total_cost_usd; olcum = $(if ($tepe -gt 0) { 'tam' } else { 'toplam' }); model_gercek = $gercek
         }
     } elseif ($gorulen.Count -gt 0) {
         # Zaman aşımı / iptal: sonuç satırı yok, yarıda kalan yanıtların kullanımı
@@ -410,6 +421,17 @@ function Codex-Haklari-Kaydet($H) {
     Ayarla $d 'codex' ([pscustomobject][ordered]@{ guncelleme = (Simdi); plan = [string]$H.plan_type; bes_saat = (& $cevir $H.primary); haftalik = (& $cevir $H.secondary) })
     Json-Yaz $d $yol
 }
+# Claude hesabının 5 saatlik / haftalık kullanım oranları (CLI 2.1.3xx stream-json "rate_limit_event"); panel KPI olarak gösterir
+function Claude-Haklari-Kaydet($H) {
+    $cevir = { param($x) if (-not $x) { return $null }; $s = $null; if ($x.resetsAt) { $s = [DateTimeOffset]::FromUnixTimeSeconds([int64]$x.resetsAt).LocalDateTime.ToString('o') }; return [ordered]@{ yuzde = [Math]::Round(100 * [double]$x.utilization, 1); sifirlanma = $s; durum = [string]$x.status } }
+    $w = $H.unifiedWindows
+    if (-not $w) { return }
+    $yol = Join-Path $YolDurum 'arac-haklari.json'
+    $d = Json-Oku $yol
+    if (-not $d) { $d = New-Object psobject }
+    Ayarla $d 'claude' ([pscustomobject][ordered]@{ guncelleme = (Simdi); bes_saat = (& $cevir $w.five_hour); haftalik = (& $cevir $w.seven_day); asim = [string]$H.overageStatus })
+    Json-Yaz $d $yol
+}
 function Kullanim-Kaydet([string]$Rol, [string]$Etiket, $Giris, $R, [int]$IstemKarakter) {
     try {
         if (-not (Test-Path -LiteralPath $YolKullanim)) { New-Item -ItemType Directory -Force $YolKullanim | Out-Null }
@@ -422,6 +444,7 @@ function Kullanim-Kaydet([string]$Rol, [string]$Etiket, $Giris, $R, [int]$IstemK
             $v = [long]0; if ($k -and $k.Contains($a)) { $v = Sayi $k[$a] }
             $kayit[$a] = $v
         }
+        if ($k -and $k.Contains('model_gercek') -and $k['model_gercek']) { $kayit.model_gercek = [string]$k['model_gercek'] }
         $kayit.toplam = $kayit.giris + $kayit.onbellek_okuma + $kayit.onbellek_yazma + $kayit.cikis
         if ($k -and $k.Contains('toplam') -and (Sayi $k['toplam']) -gt $kayit.toplam) { $kayit.toplam = Sayi $k['toplam'] }
         if ($k -and $k.Contains('maliyet_usd') -and [double]$k['maliyet_usd'] -gt 0) { $kayit.maliyet_usd = [Math]::Round([double]$k['maliyet_usd'], 4) }
@@ -433,8 +456,12 @@ function Kullanim-Kaydet([string]$Rol, [string]$Etiket, $Giris, $R, [int]$IstemK
 }
 
 # ---------------------------------------------------------------- Claude
-function Claude-Hata-Isle([string]$Hata) {
-    if ($Hata -match '(?i)\b401\b|authenticat|oauth|not logged in|invalid api key') {
+function Claude-Hata-Isle([string]$Hata, [string]$Model = '') {
+    if ($Hata -match '(?i)does not support this model|claude_code_version_too_old|model.{0,40}(not found|not available|does not exist|invalid)|not_found_error') {
+        # CLI bu modeli çalıştıramıyor: yalnızca bu modeli kilitle, zincirdeki sonraki model denensin
+        Kilit-Koy ("claude:{0}" -f $Model) (Get-Date).AddHours(6) 'model bu Claude CLI sürümünde kullanılamıyor'
+        Bildir -Baslik "Claude modeli kullanılamıyor: $Model" -Metin ("Claude CLI bu modeli çalıştıramıyor; 6 saat atlanacak. CLI'yi güncellemek gerekebilir (claude update). Ayrıntı: {0}" -f (Kisalt $Hata 120)) -Anahtar "claude-model-$Model" -AralikDk 720
+    } elseif ($Hata -match '(?i)\b401\b|authenticat|oauth|not logged in|invalid api key') {
         Kilit-Koy 'claude' (Get-Date).AddHours(2) 'Claude CLI girişi geçersiz'
         Bildir -Baslik 'Claude girişi gerekli' -Metin 'Arka plandaki Claude CLI oturumu geçersiz. Bir terminalde "claude auth login" çalıştır. O zamana kadar Claude''un işlerini Codex yapıyor.' -Anahtar 'claude-giris' -Onem 'yuksek' -AralikDk 720
     } elseif ($Hata -match '(?i)usage limit|limit reached|hit your limit|rate.?limit|\b429\b|quota|overloaded|\b529\b') {
@@ -466,12 +493,12 @@ function Claude-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [st
     $j = $c.sonuc
     if (-not $j) {
         $h = "çıktı çözülemedi (kod $($s.kod)): " + (Kisalt ((Son-Satirlar (Metin-Oku $Err) 6) + ' ' + (Son-Satirlar $ham 3)) 300)
-        Claude-Hata-Isle $h
+        Claude-Hata-Isle $h ([string]$G.model)
         return (Sonuc $false '' $h $s $c.kullanim)
     }
     if ($j.is_error -or $j.subtype -ne 'success') {
         $h = Kisalt ("{0} {1}" -f $j.subtype, $j.result) 300
-        Claude-Hata-Isle $h
+        Claude-Hata-Isle $h ([string]$G.model)
         return (Sonuc $false '' $h $s $c.kullanim)
     }
     return (Sonuc $true ([string]$j.result) '' $s $c.kullanim)
@@ -534,14 +561,14 @@ function Gemini-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [st
 
 # ---------------------------------------------------------------- ekip içi yardımlaşma (ayarlar.json > yardimlasma; akış yardim.ps1)
 # Görev adımlarında çalışan ajan, kendi yapamayacağı ama ekipte başkasının yapabileceği bir şeye ihtiyaç duyarsa
-# çıktısının sonuna ```yardim {json}``` bloğu ekler; adım başarısız sayılmaz, Yönetici isteği uygun çalışana verir.
+# çıktısının sonuna ```yardim {json}``` bloğu ekler; adım başarısız sayılmaz, Engineering Manager isteği uygun çalışana verir.
 function Yardim-Uygun-mu([string]$Rol, [string]$Etiket) {
     if (-not $script:AktifGorev) { return $false }
     $a = $Ayar.yardimlasma
     if (-not $a -or -not $a.etkin) { return $false }
     if ($Rol -eq 'sorun-giderici') { return $false }
     if (@('yardim', 'cozum', 'yonlendirme', 'ise_alim') -contains $Etiket -or $Etiket -like 'sohbet*') { return $false }
-    if ($Rol -eq 'lider' -and $Etiket -ne 'kabul') { return $false }   # Yönetici planda ön işleri "YARDIM:" satırlarıyla ister
+    if ($Rol -eq 'lider' -and $Etiket -ne 'kabul') { return $false }   # Engineering Manager planda ön işleri "YARDIM:" satırlarıyla ister
     return $true
 }
 function Yardim-Talimati-Metni {
@@ -558,11 +585,11 @@ function Yardim-Talimati-Metni {
 # EKİPTEN YARDIM İSTEME
 
 Bu işi yaparken senin yapamayacağın ama ekipte başka birinin yapabileceği bir şeye ihtiyaç duyarsan işi yarım bırakıp
-başarısız sayma, reddetme: Yöneticiden yardım iste. Örnekler: yazılım / SDK / araç kurulumu, emülatör ya da sunucu hazırlığı,
+başarısız sayma, reddetme: Engineering Managerʼdan yardım iste. Örnekler: yazılım / SDK / araç kurulumu, emülatör ya da sunucu hazırlığı,
 ağ / port ayarı (sistem, ag); uygulamayı gerçekten çalıştırıp test etmek ya da kullanıcı testi (tester); tasarım ya da görsel
 varlık; güvenlik ya da mimari görüşü; yalnızca kullanıcının verebileceği bir bilgi ya da karar.
 Özellikle DUZELT / RET vermeden önce düşün: eksik olan şey işi yapanın değil başka birinin uzmanlığıysa yardım iste.
-Yönetici isteğini uygun kişiye verir; yardım gelince bu adım, gelen sonuçla ("EKİPTEN GELEN YARDIM") yeniden çalışır.
+Engineering Manager isteğini uygun kişiye verir; yardım gelince bu adım, gelen sonuçla ("EKİPTEN GELEN YARDIM") yeniden çalışır.
 Yapabildiğin kısmı yine yap. Yardım istemek için çıktının EN SONUNA şu bloğu ekle (gerekmiyorsa ekleme):
 
 ```yardim
@@ -610,7 +637,7 @@ function Ajan-Cagir {
         [Parameter(Mandatory)][string]$KayitKlasoru,
         [Parameter(Mandatory)][string]$Etiket,
         [switch]$Yazabilir,
-        [string[]]$Haric = @(),     # bu araçları atla (ör. denetçi geliştiriciyle aynı model olmasın)
+        [string[]]$Haric = @(),     # bu araçları atla (ör. Code Reviewer Software Developerʼla aynı model olmasın)
         [switch]$TamYetki           # altyapı rolleri: sandbox'sız, izin sormadan (altyapı görev kapsamı)
     )
     if (-not (Test-Path -LiteralPath $KayitKlasoru)) { New-Item -ItemType Directory -Force $KayitKlasoru | Out-Null }
@@ -620,7 +647,7 @@ function Ajan-Cagir {
     $iptalHata = 'görev kullanıcı tarafından iptal edildi'
     foreach ($g in @($Ayar.roller.$Rol)) {
         # İptal edilen görevde yedek zincirdeki sonraki araca geçme
-        if ($gorevId -and (Gorev-Iptal-mi $gorevId)) {
+        if ($script:IptalIzleme -and $gorevId -and (Gorev-Iptal-mi $gorevId)) {
             Gunluk "$Rol çağrısı yapılmadı: görev $gorevId iptal edildi [$Etiket]" 'UYARI'
             return [pscustomobject]@{ basarili = $false; metin = ''; hata = $iptalHata; sure_sn = 0; arac = ''; model = ''; iptal = $true }
         }
@@ -647,12 +674,12 @@ function Ajan-Cagir {
         if ($r.basarili) {
             $r.arac = [string]$g.arac; $r.model = [string]$g.model
             Gunluk "$Rol -> $kimlik bitti ($($r.sure_sn) sn)"
-            if ($gorevId -and (Gorev-Iptal-mi $gorevId)) {
+            if ($script:IptalIzleme -and $gorevId -and (Gorev-Iptal-mi $gorevId)) {
                 # Ajan iptalden sonra bitti: adım bu sonuçla ilerlemesin (soru, aktarma, e-posta, yeni tur...)
                 Gunluk "$Rol -> $kimlik sonucu kullanılmadı: görev $gorevId ajan çalışırken iptal edildi" 'UYARI'
                 return [pscustomobject]@{ basarili = $false; metin = ''; hata = $iptalHata; sure_sn = $r.sure_sn; arac = $r.arac; model = $r.model; iptal = $true }
             }
-            # Ekip içi yardım isteği: adım ilerlemesin; Adim-Basarisiz bunu başarısızlık saymaz, Yöneticiye iletir (yardim.ps1)
+            # Ekip içi yardım isteği: adım ilerlemesin; Adim-Basarisiz bunu başarısızlık saymaz, Engineering Managerʼa iletir (yardim.ps1)
             if (Yardim-Uygun-mu $Rol $Etiket) {
                 $y = Yardim-Blogu-Oku $r.metin
                 if ($y) {
@@ -753,8 +780,8 @@ function Gorevleri-Listele {
 }
 $script:AsamaAdlari = @{
     yeni = 'Sırada'; plan = 'Planlanıyor'; gelistirme = 'Geliştiriliyor'; kontrol = 'Kontrol ediliyor'
-    denetim = 'Denetleniyor'; kabul = 'Yönetici onayında'; tamamla = 'Commit ediliyor'; tamam = 'Tamamlandı'
+    denetim = 'Denetleniyor'; kabul = 'Engineering Manager onayında'; tamamla = 'Commit ediliyor'; tamam = 'Tamamlandı'
     takildi = 'Takıldı'; bekliyor_kullanici = 'Senden yanıt bekliyor'; iptal = 'İptal'
-    yardim = 'Yöneticide (yardım isteği)'; yardim_bekliyor = 'Ekipten yardım bekliyor'
+    yardim = 'Engineering Managerʼda (yardım isteği)'; yardim_bekliyor = 'Ekipten yardım bekliyor'
 }
 function Asama-Adi([string]$A) { if ($AsamaAdlari.ContainsKey($A)) { return $AsamaAdlari[$A] }; return $A }

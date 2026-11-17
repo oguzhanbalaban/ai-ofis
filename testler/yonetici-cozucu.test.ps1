@@ -1,13 +1,13 @@
 ﻿<#
-yonetici-cozucu.test.ps1 - Yönetici yönlendirmesini, Sorun Gidericiyi ve token / bağlam kaydını sınar. Çevrimdışıdır: gerçek Claude / Codex çağrılmaz, gerçek gorevler\
+yonetici-cozucu.test.ps1 - Engineering Manager yönlendirmesini, Incident Managerʼı ve token / bağlam kaydını sınar. Çevrimdışıdır: gerçek Claude / Codex çağrılmaz, gerçek gorevler\
 klasörüne, bildirimlere ve e-postaya dokunulmaz. Betikler geçici bir kum havuzuna kopyalanır; claude.exe yerine her
 senaryoda verilen yanıtı stream-json biçiminde basan sahte bir ajan (.cmd) kullanılır.
 
   powershell -NoProfile -ExecutionPolicy Bypass -File testler\yonetici-cozucu.test.ps1 [-Kaynak <betik klasörü>] [-Koru]
 
   K   token / bağlam kaydı (Claude stream-json, Codex oturum dosyası)
-  Y   "İş ver" -> Yönetici yönlendirmesi (UZMAN, YAZILIM + yeni depo, YAZILIM + kayıtlı proje, ALTYAPI, SORU_VAR -> yanıt -> yeniden)
-  S   Sorun Giderici (bildirim bastırma, YONLENDIR + yardım işi + otomatik sürdürme, YENIDEN_DENE, KULLANICI, sınır, zincir yok,
+  Y   "İş ver" -> Engineering Manager yönlendirmesi (UZMAN, YAZILIM + yeni depo, YAZILIM + kayıtlı proje, ALTYAPI, SORU_VAR -> yanıt -> yeniden)
+  S   Incident Manager (bildirim bastırma, YONLENDIR + yardım işi + otomatik sürdürme, YENIDEN_DENE, KULLANICI, sınır, zincir yok,
       kullanıcının Devam'ı hakkı sıfırlar, doğrulama komutu güvenlik süzgeci)
 Çıkış kodu: kalan denetim sayısı (0 = hepsi geçti).
 #>
@@ -44,8 +44,8 @@ $ayar.sorun_giderici = [pscustomobject]@{ etkin = $true; gorev_basina_en_fazla =
 [IO.File]::WriteAllText((Join-Path $kum 'ayarlar.json'), ($ayar | ConvertTo-Json -Depth 10), $bom)
 $uye = { param($a, $ad, $uz, $yer) [pscustomobject]@{ anahtar = $a; ad = $ad; departman = 'Test'; yerlesik = $yer; uzman_isi = (-not $yer); yetki = 'yaz'; uzmanlik = "$ad işleri" } }
 $kadro = [pscustomobject]@{ surum = 1; uyeler = @(
-    (& $uye 'lider' 'Yönetici' '' $true), (& $uye 'sorun-giderici' 'Sorun Giderici' '' $true), (& $uye 'gelistirici' 'Geliştirici' '' $true),
-    (& $uye 'sistem' 'Sistem Yöneticisi' '' $true), (& $uye 'ag' 'Network' '' $true), (& $uye 'tasarimci-ui' 'UI/UX Tasarımcısı' '' $false)) }
+    (& $uye 'lider' 'Engineering Manager' '' $true), (& $uye 'sorun-giderici' 'Incident Manager' '' $true), (& $uye 'gelistirici' 'Software Developer' '' $true),
+    (& $uye 'sistem' 'System Administrator' '' $true), (& $uye 'ag' 'Network Engineer' '' $true), (& $uye 'tasarimci-ui' 'UI/UX Designer' '' $false)) }
 [IO.File]::WriteAllText((Join-Path $kum 'kadro.json'), ($kadro | ConvertTo-Json -Depth 6), $bom)
 # Kayıtlı test projesi (git deposu)
 $mevcutProje = Join-Path $kum 'mevcut-proje'
@@ -145,8 +145,8 @@ try {
     Dogrula 'oturum dosyası yoksa "tokens used" toplamı okunur' ($ck2 -and $ck2.toplam -eq 3120 -and $ck2.olcum -eq 'toplam') "toplam=$($ck2.toplam)"
     $env:CODEX_HOME = $eskiCodexHome
 
-    # ------------------------------------------------------------ Y: Yönetici yönlendirmesi
-    Write-Host ''; Write-Host 'Y1: İş ver -> Yönetici UZMAN der'
+    # ------------------------------------------------------------ Y: Engineering Manager yönlendirmesi
+    Write-Host ''; Write-Host 'Y1: İş ver -> Engineering Manager UZMAN der'
     $g = Is-Ver @('-Baslik', 'Giriş ekranı tasarımı', '-Aciklama', 'Mobil uygulama için giriş ekranı', '-Rol', 'tasarimci-ui', '-Ipucu', 'mevcut-proje')
     Dogrula 'is-ver.ps1 türü genel, aşaması yeni olan görev açtı' ($g.tip -eq 'genel' -and $g.asama -eq 'yeni' -and $g.istenen_rol -eq 'tasarimci-ui') "$($g.tip) $($g.asama)"
     Dogrula 'gorev.md ipuçlarını içeriyor' ((Gorev-Metni $g) -match 'Önerilen çalışan' -and (Gorev-Metni $g) -match 'mevcut-proje')
@@ -154,11 +154,11 @@ try {
     Gorev-Ilerlet $g
     $d = Gorev-Oku $g.id
     Dogrula 'uzman akışına geçti, sorumlu tasarimci-ui, ilgili klasör proje' ($d.tip -eq 'uzman' -and $d.hedef_rol -eq 'tasarimci-ui' -and $d.asama -eq 'yeni' -and $d.kaynak_klasor -eq $mevcutProje) "$($d.tip) $($d.hedef_rol) $($d.asama) $($d.kaynak_klasor)"
-    Dogrula 'yonlendirme.md yazıldı, gorev.md''ye Yöneticinin notu eklendi' ((Test-Path (Join-Path (Gorev-Klasoru $g.id) 'yonlendirme.md')) -and (Gorev-Metni $d) -match 'Yöneticinin yönlendirmesi')
-    Dogrula 'geçmiş: "yönetici uzmana verdi"' (@($d.gecmis | Where-Object { $_.olay -eq 'yönetici uzmana verdi' }).Count -eq 1)
+    Dogrula 'yonlendirme.md yazıldı, gorev.md''ye Engineering Managerʼın notu eklendi' ((Test-Path (Join-Path (Gorev-Klasoru $g.id) 'yonlendirme.md')) -and (Gorev-Metni $d) -match 'Engineering Managerʼın yönlendirmesi')
+    Dogrula 'geçmiş: "Engineering Manager uzmana verdi"' (@($d.gecmis | Where-Object { $_.olay -eq 'Engineering Manager uzmana verdi' }).Count -eq 1)
     Dogrula 'kullanım kaydında etiket yonlendirme' ((Son-Kullanim).etiket -eq 'yonlendirme')
 
-    Write-Host ''; Write-Host 'Y2: Yönetici YAZILIM + YENI_PROJE der (boş git deposu açılır)'
+    Write-Host ''; Write-Host 'Y2: Engineering Manager YAZILIM + YENI_PROJE der (boş git deposu açılır)'
     $g = Is-Ver @('-Baslik', 'Kelime oyunu', '-Aciklama', 'Yeni bir oyun yaz')
     Sahte-Yanit "KARAR: YAZILIM`nYENI_PROJE: Kelime Oyunu`n`n## Gerekçe`nYeni bir depo gerekiyor."
     Gorev-Ilerlet $g
@@ -169,27 +169,27 @@ try {
     Dogrula 'yeni depo git deposu ve ilk commit var' (@($log).Count -eq 1) ($log -join ' ')
     Dogrula 'projeler.json''a kaydedildi' ((Proje-Bul 'kelime-oyunu') -ne $null)
 
-    Write-Host ''; Write-Host 'Y3: Yönetici YAZILIM + kayıtlı proje der'
+    Write-Host ''; Write-Host 'Y3: Engineering Manager YAZILIM + kayıtlı proje der'
     $g = Is-Ver @('-Baslik', 'Hata düzelt', '-Aciklama', 'a.txt içindeki hatayı düzelt')
     Sahte-Yanit "KARAR: YAZILIM`nPROJE: ``mevcut-proje```n`n## Gerekçe`nKod işi."
     Gorev-Ilerlet $g
     $d = Gorev-Oku $g.id
     Dogrula 'kayıtlı projeye bağlandı' ($d.tip -eq 'yazilim' -and $d.klasor -eq $mevcutProje) "$($d.proje) $($d.klasor)"
 
-    Write-Host ''; Write-Host 'Y4: Yönetici ALTYAPI der (bilinmeyen makine adı süzülür)'
+    Write-Host ''; Write-Host 'Y4: Engineering Manager ALTYAPI der (bilinmeyen makine adı süzülür)'
     $g = Is-Ver @('-Baslik', 'Servis kontrolü', '-Aciklama', 'LAB-SRV servislerine bak')
     Sahte-Yanit "KARAR: ALTYAPI`nHEDEF: LAB-SRV, YOK-BOYLE`n`n## Gerekçe`nSunucu işi."
     Gorev-Ilerlet $g
     $d = Gorev-Oku $g.id
     Dogrula 'altyapı talebine dönüştü, hedef yalnızca LAB-SRV' ($d.tip -eq 'altyapi' -and (@($d.hedef) -join ',') -eq 'LAB-SRV' -and $d.proje -eq 'altyapı') "$($d.tip) $(@($d.hedef) -join ',')"
 
-    Write-Host ''; Write-Host 'Y5: Yönetici SORU_VAR der, kullanıcı yanıtlayınca yeniden yönlendirir; geçersiz karar yeniden denenir'
+    Write-Host ''; Write-Host 'Y5: Engineering Manager SORU_VAR der, kullanıcı yanıtlayınca yeniden yönlendirir; geçersiz karar yeniden denenir'
     $g = Is-Ver @('-Baslik', 'Belirsiz iş', '-Aciklama', 'şunu yap')
     Sahte-Yanit "KARAR: SORU_VAR`n`n## Sorular`n1. Ne yapılacak?"
     Gorev-Ilerlet $g
     $d = Gorev-Oku $g.id
     Dogrula 'soru: bekliyor_kullanici, sorular.md' ($d.asama -eq 'bekliyor_kullanici' -and (Test-Path (Join-Path (Gorev-Klasoru $g.id) 'sorular.md')))
-    Dogrula 'bildirim başlığı "Yönetici soru soruyor"' (@(Bildirimler | Where-Object { $_.baslik -like 'Yönetici soru soruyor*' }).Count -ge 1)
+    Dogrula 'bildirim başlığı "Engineering Manager soru soruyor"' (@(Bildirimler | Where-Object { $_.baslik -like 'Engineering Manager soru soruyor*' }).Count -ge 1)
     Start-Sleep -Milliseconds 1100
     $f = Join-Path (Gorev-Klasoru $g.id) 'gorev.md'; Metin-Yaz $f ((Metin-Oku $f) + "`n### Yanıt`nArayüz tasarla.")
     Bekleyenleri-Kontrol
@@ -205,23 +205,23 @@ try {
     $d = Gorev-Oku $g.id
     Dogrula 'yeniden denemede uzmana yönlendi' ($d.tip -eq 'uzman' -and $d.hedef_rol -eq 'tasarimci-ui')
 
-    # ------------------------------------------------------------ S: Sorun Giderici
-    Write-Host ''; Write-Host 'S1: Takildi, Sorun Giderici üstlenecekse telefona bildirim göndermez'
+    # ------------------------------------------------------------ S: Incident Manager
+    Write-Host ''; Write-Host 'S1: Takildi, Incident Manager üstlenecekse telefona bildirim göndermez'
     $once = @(Bildirimler).Count
     $g = Test-Gorevi '9201-takilan-yazilim' 'denetim'
     $tk = Tur-Klasoru $g
     Metin-Yaz (Join-Path $tk 'denetim.md') "KARAR: DUZELT`nflutter analyze çalıştırılamadı."
     $g.tur = 3
-    Yeni-Tur $g '## Denetçi düzeltme istedi' 'denetçi düzeltme istedi'
+    Yeni-Tur $g '## Code Reviewer düzeltme istedi' 'Code Reviewer düzeltme istedi'
     Gorev-Kaydet $g
     $d = Gorev-Oku $g.id
     Dogrula 'tur sınırında takıldı, bekleyen geri bildirim var, takılma zamanı yazıldı' ($d.asama -eq 'takildi' -and (Test-Path (Join-Path (Gorev-Klasoru $g.id) 'bekleyen-geri-bildirim.md')) -and $d.takildi_zamani)
     Dogrula '"Görev takıldı" bildirimi gönderilmedi' (@(Bildirimler | Where-Object { $_.baslik -like 'Görev takıldı*' }).Count -eq 0)
 
-    Write-Host ''; Write-Host 'S2: YONLENDIR -> sistem yöneticisine yardım işi, güvenli doğrulama komutu eklenir, tehlikeli olan eklenmez'
+    Write-Host ''; Write-Host 'S2: YONLENDIR -> System Administratorʼa yardım işi, güvenli doğrulama komutu eklenir, tehlikeli olan eklenmez'
     $sec = Cozulecek-Gorev
     Dogrula 'Cozulecek-Gorev takılan işi seçti' ($sec -and $sec.id -eq '9201-takilan-yazilim') "$($sec.id)"
-    Sahte-Yanit "KARAR: YONLENDIR`nHEDEF: sistem`nBASLIK: Flutter SDK kurulumu`nDOGRULAMA_EKLE: cd app && flutter analyze`nDOGRULAMA_EKLE: del /q *`n`n## Teşhis`nFlutter kurulu değil; denetçi analiz sonucu istiyor.`n`n## Talep`nFlutter SDK'yı kur ve PATH'e ekle.`n`n## Kabul`n- flutter --version çalışır"
+    Sahte-Yanit "KARAR: YONLENDIR`nHEDEF: sistem`nBASLIK: Flutter SDK kurulumu`nDOGRULAMA_EKLE: cd app && flutter analyze`nDOGRULAMA_EKLE: del /q *`n`n## Teşhis`nFlutter kurulu değil; Code Reviewer analiz sonucu istiyor.`n`n## Talep`nFlutter SDK'yı kur ve PATH'e ekle.`n`n## Kabul`n- flutter --version çalışır"
     Sorun-Gider $sec
     $d = Gorev-Oku '9201-takilan-yazilim'
     $yid = [string]$d.yardim_gorevi
@@ -231,7 +231,7 @@ try {
     Dogrula 'yardım işinin gorev.md''sinde talep ve teşhis var' ((Gorev-Metni $y) -match 'Flutter SDK''yı kur' -and (Gorev-Metni $y) -match 'Flutter kurulu değil')
     Dogrula 'güvenli doğrulama komutu eklendi, tehlikeli komut eklenmedi' ((@($d.dogrulama) -contains 'cd app && flutter analyze') -and -not (@($d.dogrulama) -contains 'del /q *')) (@($d.dogrulama) -join ' | ')
     Dogrula 'cozum-1.md yazıldı ve reddedilen komutu not ediyor' ((Metin-Oku (Join-Path (Gorev-Klasoru $d.id) 'cozum-1.md')) -match 'eklenmedi: del /q')
-    Dogrula 'bildirim: "Sorun Giderici devrede"' (@(Bildirimler | Where-Object { $_.baslik -like 'Sorun Giderici devrede*' }).Count -eq 1)
+    Dogrula 'bildirim: "Incident Manager devrede"' (@(Bildirimler | Where-Object { $_.baslik -like 'Incident Manager devrede*' }).Count -eq 1)
     Dogrula 'yardım beklenirken yeniden incelenmez' ((Cozulecek-Gorev) -eq $null)
     Dogrula 'kullanım kaydı: rol sorun-giderici, etiket cozum' ((Son-Kullanim).rol -eq 'sorun-giderici' -and (Son-Kullanim).etiket -eq 'cozum')
 
@@ -245,7 +245,7 @@ try {
     $d = Gorev-Oku '9201-takilan-yazilim'
     $gb = Metin-Oku (Join-Path (Join-Path (Gorev-Klasoru $d.id) 'tur4') 'geri-bildirim.md')
     Dogrula 'ana iş geliştirmeye döndü, tur 4/4' ($d.asama -eq 'gelistirme' -and [int]$d.tur -eq 4 -and [int]$d.max_tur -eq 4) "$($d.asama) $($d.tur)/$($d.max_tur)"
-    Dogrula 'geri bildirimde yardım sonucu ve eski denetim notu var' ($gb -match 'Yardım işi tamamlandı' -and $gb -match 'Flutter 3.38' -and $gb -match 'Denetçi düzeltme istedi')
+    Dogrula 'geri bildirimde yardım sonucu ve eski denetim notu var' ($gb -match 'Yardım işi tamamlandı' -and $gb -match 'Flutter 3.38' -and $gb -match 'Code Reviewer düzeltme istedi')
     Dogrula 'cozum_durumu yardim_tamam, bekleyen geri bildirim silindi' ($d.cozum_durumu -eq 'yardim_tamam' -and -not (Test-Path (Join-Path (Gorev-Klasoru $d.id) 'bekleyen-geri-bildirim.md')))
 
     Write-Host ''; Write-Host 'S4: YENIDEN_DENE + BEKLE_DK (araç sınırı) -> takıldığı aşamadan, ertelenmiş'
@@ -256,8 +256,8 @@ try {
     $d = Gorev-Oku '9202-arac-siniri'
     $dk = 0; if ($d.sonraki_deneme) { $dk = ([datetime]$d.sonraki_deneme - (Get-Date)).TotalMinutes }
     Dogrula 'aşama denetim, ~45 dk sonra' ($d.asama -eq 'denetim' -and $dk -gt 40 -and $dk -le 46) ("{0} {1:N0} dk" -f $d.asama, $dk)
-    Dogrula 'geri bildirime Sorun Gidericinin notu yazıldı' ((Metin-Oku (Join-Path (Tur-Klasoru $d) 'geri-bildirim.md')) -match 'Sorun Gidericinin notu')
-    Dogrula 'geçmiş: "Sorun Giderici devam ettirdi", hak 1/2' (@($d.gecmis | Where-Object { $_.olay -eq 'Sorun Giderici devam ettirdi' }).Count -eq 1 -and [int]$d.cozum_sayisi -eq 1)
+    Dogrula 'geri bildirime Incident Managerʼın notu yazıldı' ((Metin-Oku (Join-Path (Tur-Klasoru $d) 'geri-bildirim.md')) -match 'Incident Managerʼın notu')
+    Dogrula 'geçmiş: "Incident Manager devam ettirdi", hak 1/2' (@($d.gecmis | Where-Object { $_.olay -eq 'Incident Manager devam ettirdi' }).Count -eq 1 -and [int]$d.cozum_sayisi -eq 1)
 
     Write-Host ''; Write-Host 'S5: aynı iş yine takılınca ikinci kez incelenir; KULLANICI -> yüksek önemli bildirim, iş takılı kalır'
     $d.asama = 'denetim'; Takildi $d 'yine sınır'; Gorev-Kaydet $d
@@ -270,7 +270,7 @@ try {
     Dogrula 'bildirim kullanıcıya ne yapacağını söylüyor (yüksek önem)' ($bk.Count -eq 1 -and $bk[0].metin -match 'gunluk_sinir' -and $bk[0].onem -eq 'yuksek')
     Dogrula 'karar verilen takılma yeniden incelenmez' ((Cozulecek-Gorev) -eq $null)
 
-    Write-Host ''; Write-Host 'S6: hak bitince Sorun Giderici üstlenmez, bildirim eskisi gibi gider; kullanıcının Devam''ı hakkı sıfırlar'
+    Write-Host ''; Write-Host 'S6: hak bitince Incident Manager üstlenmez, bildirim eskisi gibi gider; kullanıcının Devam''ı hakkı sıfırlar'
     $d.asama = 'denetim'; Takildi $d 'üçüncü kez'; Gorev-Kaydet $d
     Dogrula '"Görev takıldı" bildirimi gitti' (@(Bildirimler | Where-Object { $_.baslik -like 'Görev takıldı*' }).Count -eq 1)
     Dogrula 'Cozulecek-Gorev seçmiyor' ((Cozulecek-Gorev) -eq $null)
@@ -287,7 +287,7 @@ try {
     $d = Gorev-Oku '9203-yardim-isi'
     Dogrula 'yeni görev açılmadı, kullanıcıya bırakıldı' (@(Get-ChildItem $YolGorev -Directory).Count -eq ($sayi + 1) -and $d.cozum_durumu -eq 'kullanici') "$($d.cozum_durumu)"
 
-    Write-Host ''; Write-Host 'S8: Sorun Giderici çalışırken kullanıcı işi sürdürürse karar uygulanmaz'
+    Write-Host ''; Write-Host 'S8: Incident Manager çalışırken kullanıcı işi sürdürürse karar uygulanmaz'
     $g = Test-Gorevi '9204-yaris' 'denetim'
     Takildi $g 'x'; Gorev-Kaydet $g
     # Ajan "çalışırken" kullanıcı Devam der: sahte ajan çıktısını basmadan önce durum.json'u değiştir
@@ -296,7 +296,7 @@ try {
     Sorun-Gider (Gorev-Oku '9204-yaris')
     [IO.File]::WriteAllText($sahteAjan, (@('@echo off', '>> "%~dp0cagrilar.log" echo %*', 'type "%~dp0sahte-cikti.txt"') -join "`r`n") + "`r`n", $ascii)
     $d = Gorev-Oku '9204-yaris'
-    Dogrula 'iş kullanıcının sürdürdüğü aşamada, Sorun Giderici kararı yazılmadı' ($d.asama -eq 'denetim' -and -not $d.cozum_durumu -and -not (Test-Path (Join-Path (Gorev-Klasoru $d.id) 'cozum-1.md'))) "$($d.asama) $($d.cozum_durumu)"
+    Dogrula 'iş kullanıcının sürdürdüğü aşamada, Incident Manager kararı yazılmadı' ($d.asama -eq 'denetim' -and -not $d.cozum_durumu -and -not (Test-Path (Join-Path (Gorev-Klasoru $d.id) 'cozum-1.md'))) "$($d.asama) $($d.cozum_durumu)"
 
     Write-Host ''; Write-Host 'S9: doğrulama komutu güvenlik süzgeci'
     foreach ($k in @('flutter analyze', 'cd app && flutter test', 'cd "kelime labirenti" && flutter analyze', 'npm test', 'npm run build', 'python -m pytest -q', 'dotnet test', 'node --test', '.\gradlew.bat test')) {

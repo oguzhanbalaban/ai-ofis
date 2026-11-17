@@ -1,5 +1,5 @@
 ﻿<#
-talep-ekle.ps1 - Ekibin altyapı çalışanlarına (sistem yöneticisi + network) sunucu / kurulum talebi ekler.
+talep-ekle.ps1 - Ekibin altyapı çalışanlarına (System Administrator + Network Engineer) sunucu / kurulum talebi ekler.
 Talep git deposu gerektirmez. Ekip en geç birkaç dakika içinde (genellikle 20 sn) talebi alır.
 
 Örnekler:
@@ -7,7 +7,7 @@ Talep git deposu gerektirmez. Ekip en geç birkaç dakika içinde (genellikle 20
       -Kabul "6400 portu ana makineden açık","CMC açılıyor" `
       -Dogrulama 'powershell -NoProfile -Command "if (-not (Test-NetConnection 192.0.2.10 -Port 6400 -InformationLevel Quiet)) { exit 1 }"'
 
-  -Hedef      ilgili makineler (ayarlar.json > altyapi.makineler adları; boşsa yönetici belirler)
+  -Hedef      ilgili makineler (ayarlar.json > altyapi.makineler adları; boşsa Engineering Manager belirler)
   -Kabul      kabul ölçütleri (birden çok: "a","b")
   -Dogrulama  ana makinede çalışacak kontrol komutları (cmd.exe; başarısızlıkta 0 dışı kodla çıkmalı)
   -Oncelik    1 = en acil, 3 = düşük (varsayılan 2)
@@ -37,14 +37,14 @@ $id = '{0:D4}-{1}' -f $no, (Slug $Baslik)
 $gk = Gorev-Klasoru $id
 New-Item -ItemType Directory -Force $gk | Out-Null
 
-$hedefMetni = '(belirtilmedi; yönetici belirlesin)'
+$hedefMetni = '(belirtilmedi; Engineering Manager belirlesin)'
 if ($hedefler.Count -gt 0) { $hedefMetni = $hedefler -join ', ' }
-$kabulMetni = '- (belirtilmedi; yönetici planda test edilebilir ölçütler belirlesin)'
+$kabulMetni = '- (belirtilmedi; Engineering Manager planda test edilebilir ölçütler belirlesin)'
 if ($Kabul.Count -gt 0) { $kabulMetni = ($Kabul | ForEach-Object { "- $_" }) -join "`n" }
 $md = @"
 # $Baslik
 
-- Tür: sunucu / kurulum talebi (sistem yöneticisi + network)
+- Tür: sunucu / kurulum talebi (System Administrator + Network Engineer)
 - Hedef makineler: $hedefMetni
 - Öncelik: $Oncelik
 - Eklenme: $((Get-Date).ToString('dd.MM.yyyy HH:mm'))
@@ -59,7 +59,7 @@ $kabulMetni
 
 ## Notlar ve yanıtlar
 
-(Yönetici soru sorarsa yanıtlarını buraya yazıp dosyayı kaydet; ekip kendiliğinden devam eder.)
+(Engineering Manager soru sorarsa yanıtlarını buraya yazıp dosyayı kaydet; ekip kendiliğinden devam eder.)
 "@
 Metin-Yaz (Join-Path $gk 'gorev.md') $md
 

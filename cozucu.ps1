@@ -1,15 +1,15 @@
 ﻿<#
-cozucu.ps1 - Sorun Giderici: kullanıcıya soru sorulmadan takılan işleri (asama = takildi) inceler. ekip.ps1 dot-source eder.
+cozucu.ps1 - Incident Manager: kullanıcıya soru sorulmadan takılan işleri (asama = takildi) inceler. ekip.ps1 dot-source eder.
 
 Döngü her turda, sıradaki görevi ilerletmeden önce:
-  1. Yardim-Gorevleri-Kontrol  Sorun Gidericinin açtığı yardım işi bittiyse takılan işi kaldığı yerden sürdürür.
+  1. Yardim-Gorevleri-Kontrol  Incident Managerʼın açtığı yardım işi bittiyse takılan işi kaldığı yerden sürdürür.
   2. Cozulecek-Gorev / Sorun-Gider  incelenmemiş bir takılma varsa bir ajan adımı olarak çalışır (salt okunur):
        YONLENDIR     kadrodan birine yardım işi açar (sistem/ag -> altyapı talebi, diğerleri -> uzman işi); iş bitince 1. adım sürdürür
        YENIDEN_DENE  işi takıldığı aşamadan (tur sınırı dolduysa bir tur daha vererek, notuyla) yeniden yürütür; BEKLE_DK erteler
        AKTAR         işi doğru akışa (altyapı / uzman) taşır; yazılım çalışma ağacı korunur
        KULLANICI     kullanıcıya ne yapması gerektiğini bildirir (iş takılı kalır; panelden "Devam" ile sürer)
      DOGRULAMA_EKLE satırları güvenli biçimdeyse (Dogrulama-Guvenli-mi) görevin doğrulama komutlarına eklenir.
-Takildi() bu modül işi üstlenecekse telefona "takıldı" bildirimi göndermez; Sorun Giderici kararına göre bildirir.
+Takildi() bu modül işi üstlenecekse telefona "takıldı" bildirimi göndermez; Incident Manager kararına göre bildirir.
 Sınırlar: ayarlar.json > sorun_giderici (etkin, gorev_basina_en_fazla, en_eski_saat). Kullanıcının "Devam" demesi
 hakkı sıfırlar. Yardım işinin kendisi takılırsa ona yeni yardım işi açılmaz (zincir olmasın).
 #>
@@ -54,7 +54,7 @@ function Cozulecek-Gorev {
     return ($adaylar | Sort-Object @{ e = { [int]$_.oncelik } }, @{ e = { $_.id } } | Select-Object -First 1)
 }
 
-# Ortak "sürdür" mantığı (durum.ps1 -Devam, Sorun Giderici ve yardım işi bitince)
+# Ortak "sürdür" mantığı (durum.ps1 -Devam, Incident Manager ve yardım işi bitince)
 function Gorev-Surdur($G, [string]$Not = '', [string]$Kim = 'kullanıcı', [string]$NotBasligi = 'Kullanıcının notu') {
     $gk = Gorev-Klasoru $G.id
     $bekleyen = Join-Path $gk 'bekleyen-geri-bildirim.md'
@@ -70,7 +70,7 @@ function Gorev-Surdur($G, [string]$Not = '', [string]$Kim = 'kullanıcı', [stri
         if ($notMd) { $f = Join-Path (Tur-Klasoru $G) 'geri-bildirim.md'; Metin-Yaz $f ($notMd + (Metin-Oku $f)) }
         $G.asama = $d
     } elseif (Test-Path -LiteralPath $bekleyen) {
-        # Tur sınırına takılmıştı: bir tur hakkı daha ver, son geri bildirimle geliştiriciye dön
+        # Tur sınırına takılmıştı: bir tur hakkı daha ver, son geri bildirimle Software Developerʼa dön
         $gb = $notMd + (Metin-Oku $bekleyen)
         $G.max_tur = [int]$G.tur + 1
         $G.tur = [int]$G.tur + 1
@@ -113,6 +113,74 @@ function Arac-Durumu-Metni {
     $l += '- Not: denetim/inceleme/doğrulama adımlarında işi yapan araç/model (görevin "uygulayan" ya da "gelistirici" alanı) atlanır; zincirde başka uygun araç varsa onunla çalışır.'
     return ($l -join "`n")
 }
+# ---------------------------------------------------------------- kök neden kategorileri (başarısız / takılan / iptal edilen işler)
+$script:KokNedenKategorileri = [ordered]@{
+    arac_limiti = 'Araç / kota sınırı'; arac_hatasi = 'Araç / giriş hatası'; ortam_eksik = 'Ortam / kurulum eksik'
+    gereksinim_belirsiz = 'Gereksinim belirsiz / bilgi eksik'; kabul_karsilanamaz = 'Kabul ölçütü karşılanamaz'
+    kod_hatasi = 'Kod / test hatası'; yanlis_yonlendirme = 'Yanlış ekip / kapsam'; zaman_asimi = 'Zaman aşımı / takılan süreç'
+    kullanici_karari = 'Kullanıcı vazgeçti / öncelik değişti'; sistem_hatasi = 'Ekip sistemi hatası (betik, dosya kilidi)'; diger = 'Diğer'
+}
+function Kok-Neden-Kaydet($G, [string]$Metin, [string]$Kaynak, $R, [string]$Ozet = '') {
+    $kod = (Deger-Temizle (Alan-Oku $Metin 'KATEGORI')).ToLowerInvariant()
+    if (-not $KokNedenKategorileri.Contains($kod)) { return $false }
+    if (-not $Ozet) { $Ozet = Bolum-Oku $Metin 'Özet' }
+    $arac = ''; if ($R) { $arac = '{0}/{1}' -f $R.arac, $R.model }
+    Ayarla $G 'kok_neden' ([pscustomobject][ordered]@{
+        kategori = $kod; ad = $KokNedenKategorileri[$kod]; alt = (Kisalt (Alan-Oku $Metin 'ALT_NEDEN') 140)
+        ozet = (Kisalt $Ozet 500); onlem = (Kisalt (Bolum-Oku $Metin 'Önlem') 500); asama = [string]$G.asama
+        zaman = (Simdi); kaynak = $Kaynak; arac = $arac
+    })
+    return $true
+}
+# Ofis boştayken kategorilenecek iş: takılan (Incident Manager incelemiş) ya da iptal edilen, son N gün içinde güncellenmiş
+function Kategorilenecek-Gorev {
+    $c = Cozucu-Ayari
+    if (-not $c.etkin) { return $null }
+    $gun = 7; if ($Ayar.sorun_giderici -and $Ayar.sorun_giderici.kategori_gun) { $gun = [int]$Ayar.sorun_giderici.kategori_gun }
+    $simdi = Get-Date
+    foreach ($g in (Gorevleri-Listele)) {
+        $a = [string]$g.asama
+        if ($a -ne 'iptal' -and $a -ne 'takildi') { continue }
+        if ($g.kok_neden -and [string]$g.kok_neden.asama -eq $a) { continue }
+        if ($a -eq 'takildi' -and -not $g.cozum_inceleme) { continue }   # takılanı önce Sorun-Gider inceler (kategoriyi o da yazar)
+        $gz = $null; try { $gz = [datetime]$g.guncelleme } catch {}
+        if (-not $gz -or ($simdi - $gz).TotalDays -gt $gun) { continue }
+        if ($g.kategori_sonraki -and ([datetime]$g.kategori_sonraki) -gt $simdi) { continue }
+        return $g
+    }
+    return $null
+}
+function Kok-Neden-Belirle($G) {
+    $script:AktifGorev = $G.id
+    $script:AktifAdim = 'kategori'
+    $script:IptalIzleme = $false   # iptal edilmiş görev üzerinde çalışılıyor; ajanı durdurma
+    Kalp 'çalışıyor'
+    try {
+        $liste = ($KokNedenKategorileri.Keys | ForEach-Object { "- $_ : $($KokNedenKategorileri[$_])" }) -join "`n"
+        $istem = Sablon-Doldur 'sorun-kategori.md' @{
+            KATEGORILER = $liste; DURUM = (Takilan-Durum-Metni $G); GOREV = (Kirp (Gorev-Metni $G) 4000)
+            GECMIS = (Gecmis-Metni $G 20); RAPORLAR = (Kirp (Son-Raporlar-Metni $G) 8000); GUNLUK = (Son-Gunluk-Metni $G)
+        }
+        $r = Ajan-Cagir -Rol 'sorun-giderici' -Istem $istem -Klasor (Gorev-Klasoru $G.id) -KayitKlasoru (Kayit-Klasoru $G) -Etiket 'kategori'
+        $disk = Gorev-Diskten $G.id
+        if (-not $disk) { return }
+        $G = $disk
+        if (-not $r.basarili -or -not (Kok-Neden-Kaydet $G $r.metin 'kategori' $r)) {
+            Ayarla $G 'kategori_sonraki' ((Get-Date).AddHours(2).ToString('o'))
+            Gunluk "Incident Manager #$($G.id) için kök neden belirleyemedi: $(Kisalt ([string]$r.hata) 160)" 'UYARI'
+            Gorev-Kaydet $G
+            return
+        }
+        Metin-Yaz (Join-Path (Gorev-Klasoru $G.id) 'kok-neden.md') (("# Kök neden · {0} · {1}/{2}" -f (Get-Date).ToString('dd.MM.yyyy HH:mm'), $r.arac, $r.model) + "`n`n" + $r.metin)
+        Gorev-Kaydet $G
+        Gunluk "Incident Manager #$($G.id) kök nedeni: $($G.kok_neden.kategori) ($($G.kok_neden.alt))"
+    } finally {
+        $script:IptalIzleme = $true
+        $script:AktifGorev = ''
+        $script:AktifAdim = ''
+    }
+}
+
 function Takilan-Durum-Metni($G) {
     $tip = [string]$G.tip; if (-not $tip) { $tip = 'yazilim' }
     $l = @(
@@ -237,19 +305,19 @@ function Yeni-Gorev-Klasoru([string]$Baslik) {
     }
     throw 'Yeni görev numarası alınamadı'
 }
-# Yardım işi: Sorun Giderici (takılan iş için) ya da Yönetici (ekip içi yardım isteği / plan ön işi, yardim.ps1) açar.
+# Yardım işi: Incident Manager (takılan iş için) ya da Engineering Manager (ekip içi yardım isteği / plan ön işi, yardim.ps1) açar.
 # $Ek: yeni görevin durum.json'una eklenecek alanlar (ör. ise_alim_aranan)
 function Yardim-Gorevi-Ac($G, [string]$Hedef, $Uye, [string]$Baslik, [string]$Talep, [string]$Kabul, [string]$Teshis,
-    [string]$Acan = 'Sorun Giderici', [string]$NedenBasligi = 'Takılmanın nedeni (Sorun Giderici)', [hashtable]$Ek = @{}) {
+    [string]$Acan = 'Incident Manager', [string]$NedenBasligi = 'Takılmanın nedeni (Incident Manager)', [hashtable]$Ek = @{}) {
     $altyapi = @('sistem', 'ag') -contains $Hedef
     if (-not $Baslik) { $Baslik = 'Yardım: ' + [string]$G.baslik }
     $Baslik = Kisalt $Baslik 110
     $id = Yeni-Gorev-Klasoru $Baslik
     $gk = Gorev-Klasoru $id
-    $kabulMetni = '- (belirtilmedi; Yönetici planda ölçüt belirlesin)'
+    $kabulMetni = '- (belirtilmedi; Engineering Manager planda ölçüt belirlesin)'
     if ($Kabul) { $kabulMetni = $Kabul }
-    $tur = 'uzman işi'; if ($altyapi) { $tur = 'sunucu / kurulum talebi (sistem yöneticisi + network)' }
-    $kime = '(Yönetici seçer; uygun kimse yoksa İK işe alır)'
+    $tur = 'uzman işi'; if ($altyapi) { $tur = 'sunucu / kurulum talebi (System Administrator + Network Engineer)' }
+    $kime = '(Engineering Manager seçer; uygun kimse yoksa İK işe alır)'
     if ($Hedef -and $Uye) { $kime = "$($Uye.ad) ($Hedef)" }
     $md = @(
         "# $Baslik", '',
@@ -262,7 +330,7 @@ function Yardim-Gorevi-Ac($G, [string]$Hedef, $Uye, [string]$Baslik, [string]$Ta
         "## $NedenBasligi", '', $Teshis, '',
         '## Kabul ölçütleri', '', $kabulMetni, '',
         '## Notlar ve yanıtlar', '',
-        '(Yönetici soru sorarsa yanıtlarını buraya yazıp dosyayı kaydet; ekip kendiliğinden devam eder.)'
+        '(Engineering Manager soru sorarsa yanıtlarını buraya yazıp dosyayı kaydet; ekip kendiliğinden devam eder.)'
     ) -join "`n"
     Metin-Yaz (Join-Path $gk 'gorev.md') $md
     $d = [ordered]@{
@@ -277,7 +345,7 @@ function Yardim-Gorevi-Ac($G, [string]$Hedef, $Uye, [string]$Baslik, [string]$Ta
     }
     foreach ($k in $Ek.Keys) { $d[$k] = $Ek[$k] }
     Json-Yaz ([pscustomobject]$d) (Join-Path $gk 'durum.json')
-    Gunluk "$Acan yardım işi açtı: $id ($(if ($Hedef) { $Hedef } else { 'Yönetici seçer' })) <- $($G.id)"
+    Gunluk "$Acan yardım işi açtı: $id ($(if ($Hedef) { $Hedef } else { 'Engineering Manager seçer' })) <- $($G.id)"
     return $id
 }
 # Yazılım işi başka akışa aktarılırken çalışma ağacındaki emek silinmesin: ağaç calisma\<no>-yazilim'e taşınır
@@ -292,8 +360,8 @@ function Yazilim-Agacini-Koru($G) {
     return $yeni
 }
 
-# ---------------------------------------------------------------- Sorun Giderici adımı
-function Cozum-Kullaniciya($G, [string]$Metin, [string]$Teshis, $R, [string]$Olay = 'Sorun Giderici kullanıcıya bıraktı') {
+# ---------------------------------------------------------------- Incident Manager adımı
+function Cozum-Kullaniciya($G, [string]$Metin, [string]$Teshis, $R, [string]$Olay = 'Incident Manager kullanıcıya bıraktı') {
     Ayarla $G 'cozum_durumu' 'kullanici'
     Ayarla $G 'cozum_kullaniciya' (Kirp $Metin 1500)
     Gecmis-Ekle $G $Olay $Teshis $R
@@ -303,7 +371,7 @@ function Sorun-Gider($G) {
     $script:AktifGorev = $G.id
     $script:AktifAdim = 'cozum'
     Kalp 'çalışıyor'
-    Gunluk "Sorun Giderici #$($G.id) takılmasını inceliyor ($($G.son_hata))"
+    Gunluk "Incident Manager #$($G.id) takılmasını inceliyor ($($G.son_hata))"
     try {
         Kadro-Rolleri-Yukle
         $yardimKurali = 'YONLENDIR ile yardım işi açabilirsin.'
@@ -316,18 +384,18 @@ function Sorun-Gider($G) {
         $r = Ajan-Cagir -Rol 'sorun-giderici' -Istem $istem -Klasor (Gorev-Klasoru $G.id) -KayitKlasoru (Kayit-Klasoru $G) -Etiket 'cozum'
         # Ajan çalışırken kullanıcı işi sürdürmüş ya da iptal etmiş olabilir: güncel kaydın üzerine kararı uygula
         $disk = Gorev-Diskten $G.id
-        if (-not $disk -or [string]$disk.asama -ne 'takildi') { Gunluk "Sorun Giderici kararı uygulanmadı: #$($G.id) artık takılı değil ($($disk.asama))" 'UYARI'; return }
+        if (-not $disk -or [string]$disk.asama -ne 'takildi') { Gunluk "Incident Manager kararı uygulanmadı: #$($G.id) artık takılı değil ($($disk.asama))" 'UYARI'; return }
         $G = $disk
         if (-not $r.basarili) {
             $hata = [int]$G.cozum_hata + 1
             Ayarla $G 'cozum_hata' $hata
             Ayarla $G 'cozum_sonraki' ((Get-Date).AddMinutes(30).ToString('o'))
-            Gunluk "Sorun Giderici çalışamadı (#$($G.id), $hata. deneme): $($r.hata)" 'UYARI'
+            Gunluk "Incident Manager çalışamadı (#$($G.id), $hata. deneme): $($r.hata)" 'UYARI'
             if ($hata -ge 3) {
                 Ayarla $G 'cozum_inceleme' (Simdi)
                 Ayarla $G 'cozum_durumu' 'incelenemedi'
-                Gecmis-Ekle $G 'Sorun Giderici inceleyemedi' $r.hata
-                Bildir -Baslik "Görev takıldı: $($G.baslik)" -Metin ('#{0}: {1} Sorun Giderici de inceleyemedi. Devam için panelde "Devam".' -f (No-Kisa $G.id), (Kisalt ([string]$G.son_hata) 140)) -Anahtar "takildi-$($G.id)" -Onem 'yuksek' -AralikDk 0
+                Gecmis-Ekle $G 'Incident Manager inceleyemedi' $r.hata
+                Bildir -Baslik "Görev takıldı: $($G.baslik)" -Metin ('#{0}: {1} Incident Manager de inceleyemedi. Devam için panelde "Devam".' -f (No-Kisa $G.id), (Kisalt ([string]$G.son_hata) 140)) -Anahtar "takildi-$($G.id)" -Onem 'yuksek' -AralikDk 0
             }
             Gorev-Kaydet $G
             return
@@ -336,11 +404,12 @@ function Sorun-Gider($G) {
         $sira = [int]$G.cozum_sayisi + 1
         $karar = Karar-Oku $r.metin
         $teshis = Bolum-Oku $r.metin 'Teşhis'; if (-not $teshis) { $teshis = Kisalt $r.metin 400 }
+        [void](Kok-Neden-Kaydet $G $r.metin 'inceleme' $r $teshis)
         $dog = Dogrulama-Ekle $G $r.metin
         $ek = ''
         if ($dog.eklenen.Count) { $ek += "`n`n> Doğrulama komutlarına eklendi: " + ($dog.eklenen -join ' | ') }
         if ($dog.reddedilen.Count) { $ek += "`n`n> Güvenlik süzgecinden geçmediği için eklenmedi: " + ($dog.reddedilen -join ' | ') }
-        $ust = '# Sorun Giderici · {0} · {1}/{2}' -f (Get-Date).ToString('dd.MM.yyyy HH:mm'), $r.arac, $r.model
+        $ust = '# Incident Manager · {0} · {1}/{2}' -f (Get-Date).ToString('dd.MM.yyyy HH:mm'), $r.arac, $r.model
         Metin-Yaz (Join-Path $gk ('cozum-{0}.md' -f $sira)) ($ust + "`n`n" + $r.metin + $ek)
         Ayarla $G 'cozum_sayisi' $sira
         Ayarla $G 'cozum_inceleme' (Simdi)
@@ -348,7 +417,7 @@ function Sorun-Gider($G) {
         Ayarla $G 'cozum_hata' 0
         Ayarla $G 'cozum_teshis' (Kisalt $teshis 400)
         Ayarla $G 'sorun-giderici' ('{0}/{1}' -f $r.arac, $r.model)
-        if ($dog.eklenen.Count) { Gecmis-Ekle $G 'Sorun Giderici doğrulama komutu ekledi' ($dog.eklenen -join ' | ') }
+        if ($dog.eklenen.Count) { Gecmis-Ekle $G 'Incident Manager doğrulama komutu ekledi' ($dog.eklenen -join ' | ') }
         $hedef = Kadro-Anahtar-Coz (Alan-Oku $r.metin 'HEDEF')
         if ($karar -eq 'YONLENDIR' -and $G.ana_gorev) { $karar = 'KULLANICI_ZINCIR' }
         switch ($karar) {
@@ -356,20 +425,20 @@ function Sorun-Gider($G) {
                 $u = Kadro-Uye $hedef
                 $talep = Bolum-Oku $r.metin 'Talep'
                 if (-not $u -or -not $talep -or @('lider', 'gelistirici', 'denetci', 'sorun-giderici') -contains $hedef) {
-                    # Geçersiz hedef: işi yapan ekibe Sorun Gidericinin notuyla yeniden dene
-                    Gorev-Surdur $G ((Bolum-Oku $r.metin 'Not') + "`n`n" + $teshis).Trim() 'Sorun Giderici' 'Sorun Gidericinin notu'
+                    # Geçersiz hedef: işi yapan ekibe Incident Managerʼın notuyla yeniden dene
+                    Gorev-Surdur $G ((Bolum-Oku $r.metin 'Not') + "`n`n" + $teshis).Trim() 'Incident Manager' 'Incident Managerʼın notu'
                     Ayarla $G 'cozum_durumu' 'yeniden_denendi'
                     break
                 }
                 $yid = Yardim-Gorevi-Ac $G $hedef $u (Alan-Oku $r.metin 'BASLIK') $talep (Bolum-Oku $r.metin 'Kabul') $teshis
                 Ayarla $G 'yardim_gorevi' $yid
                 Ayarla $G 'cozum_durumu' 'yardim_bekleniyor'
-                Gecmis-Ekle $G 'Sorun Giderici yardım işi açtı' ('#{0} → {1}: {2}' -f (No-Kisa $yid), $u.ad, (Kisalt $teshis 200)) $r
-                Bildir -Baslik "Sorun Giderici devrede: $($G.baslik)" -Metin (Gizli-Maskele ('#{0} takılmıştı: {1} {2} için #{3} açıldı; bitince iş kendiliğinden sürecek.' -f (No-Kisa $G.id), (Kisalt $teshis 100), $u.ad, (No-Kisa $yid))) -Anahtar "cozum-$($G.id)" -AralikDk 0
+                Gecmis-Ekle $G 'Incident Manager yardım işi açtı' ('#{0} → {1}: {2}' -f (No-Kisa $yid), $u.ad, (Kisalt $teshis 200)) $r
+                Bildir -Baslik "Incident Manager devrede: $($G.baslik)" -Metin (Gizli-Maskele ('#{0} takılmıştı: {1} {2} için #{3} açıldı; bitince iş kendiliğinden sürecek.' -f (No-Kisa $G.id), (Kisalt $teshis 100), $u.ad, (No-Kisa $yid))) -Anahtar "cozum-$($G.id)" -AralikDk 0
             }
             'YENIDEN_DENE' {
                 $not = Bolum-Oku $r.metin 'Not'; if (-not $not) { $not = $teshis }
-                Gorev-Surdur $G $not 'Sorun Giderici' 'Sorun Gidericinin notu'
+                Gorev-Surdur $G $not 'Incident Manager' 'Incident Managerʼın notu'
                 $bekle = [int](Sayi (Deger-Temizle (Alan-Oku $r.metin 'BEKLE_DK')))
                 if ($bekle -gt 0) { Ayarla $G 'sonraki_deneme' ((Get-Date).AddMinutes([Math]::Min($bekle, 1440)).ToString('o')) }
                 Ayarla $G 'cozum_durumu' 'yeniden_denendi'
@@ -377,7 +446,7 @@ function Sorun-Gider($G) {
             'AKTAR' {
                 $tur = (Deger-Temizle (Alan-Oku $r.metin 'TUR')).ToLowerInvariant()
                 if (@('altyapi', 'uzman') -notcontains $tur -or $tur -eq [string]$G.tip) {
-                    Cozum-Kullaniciya $G ("Sorun Giderici işi başka bir ekibe aktarmak istedi ama hedef geçersiz ('$tur'). " + $teshis) $teshis $r
+                    Cozum-Kullaniciya $G ("Incident Manager işi başka bir ekibe aktarmak istedi ama hedef geçersiz ('$tur'). " + $teshis) $teshis $r
                     break
                 }
                 $agac = ''
@@ -390,21 +459,21 @@ function Sorun-Gider($G) {
                 # Temiz bir tur klasörüyle başlasın
                 $G.tur = [int]$G.tur + 1
                 $G.max_tur = [int]$G.tur + [int]$Ayar.gorev.max_tur - 1
-                if ($tur -eq 'altyapi') { Altyapiya-Aktar $G 'Sorun Giderici işi altyapı ekibine aktardı' $r }
+                if ($tur -eq 'altyapi') { Altyapiya-Aktar $G 'Incident Manager işi altyapı ekibine aktardı' $r }
                 else {
                     $s = Kadro-Anahtar-Coz (Alan-Oku $r.metin 'SORUMLU')
                     if (-not (Kadro-Uye $s)) { $s = '' }
-                    Uzmana-Aktar $G 'Sorun Giderici işi uzmana aktardı' $r $s ''
+                    Uzmana-Aktar $G 'Incident Manager işi uzmana aktardı' $r $s ''
                     if ($agac) { Ayarla $G 'kaynak_klasor' $agac }
                 }
                 $not = Bolum-Oku $r.metin 'Not'
-                if ($not -or $agac) { Gorev-Notu-Ekle $G 'Sorun Gidericinin notu' ((($not + "`n`n") + $(if ($agac) { "Önceki yazılım çalışması: ``$agac``" } else { '' })).Trim()) }
+                if ($not -or $agac) { Gorev-Notu-Ekle $G 'Incident Managerʼın notu' ((($not + "`n`n") + $(if ($agac) { "Önceki yazılım çalışması: ``$agac``" } else { '' })).Trim()) }
                 Ayarla $G 'cozum_durumu' 'aktarildi'
-                Bildir -Baslik "Sorun Giderici işi aktardı: $($G.baslik)" -Metin (Gizli-Maskele ('#{0}: {1} ekibine aktarıldı. {2}' -f (No-Kisa $G.id), $(if ($tur -eq 'altyapi') { 'altyapı' } else { 'uzman' }), (Kisalt $teshis 120))) -Anahtar "cozum-$($G.id)" -AralikDk 0
+                Bildir -Baslik "Incident Manager işi aktardı: $($G.baslik)" -Metin (Gizli-Maskele ('#{0}: {1} ekibine aktarıldı. {2}' -f (No-Kisa $G.id), $(if ($tur -eq 'altyapi') { 'altyapı' } else { 'uzman' }), (Kisalt $teshis 120))) -Anahtar "cozum-$($G.id)" -AralikDk 0
             }
             'KULLANICI_ZINCIR' {
                 $t = Bolum-Oku $r.metin 'Talep'; if (-not $t) { $t = $teshis }
-                Cozum-Kullaniciya $G ("Bu bir yardım işi; Sorun Giderici zincir olmasın diye yeni yardım işi açmadı. Önerdiği: " + $t) $teshis $r
+                Cozum-Kullaniciya $G ("Bu bir yardım işi; Incident Manager zincir olmasın diye yeni yardım işi açmadı. Önerdiği: " + $t) $teshis $r
             }
             'KULLANICI' {
                 $k = Bolum-Oku $r.metin 'Kullanıcıya'; if (-not $k) { $k = $teshis }
@@ -412,18 +481,18 @@ function Sorun-Gider($G) {
             }
             default {
                 Metin-Yaz (Join-Path $gk 'cozum-gecersiz.md') $r.metin
-                Cozum-Kullaniciya $G ("Sorun Giderici geçerli bir karar veremedi. Takılma nedeni: " + [string]$G.son_hata) $teshis $r 'Sorun Giderici karar veremedi'
+                Cozum-Kullaniciya $G ("Incident Manager geçerli bir karar veremedi. Takılma nedeni: " + [string]$G.son_hata) $teshis $r 'Incident Manager karar veremedi'
             }
         }
         Gorev-Kaydet $G
-        Gunluk "Sorun Giderici #$($G.id): $karar"
+        Gunluk "Incident Manager #$($G.id): $karar"
     } finally {
         $script:AktifGorev = ''
         $script:AktifAdim = ''
     }
 }
 
-# Sorun Gidericinin açtığı yardım işleri: bitince takılan işi sürdür, iptal edilirse kullanıcıya bildir
+# Incident Managerʼın açtığı yardım işleri: bitince takılan işi sürdür, iptal edilirse kullanıcıya bildir
 function Yardim-Gorevleri-Kontrol {
     $liste = @(Gorevleri-Listele)
     foreach ($g in $liste) {
@@ -443,7 +512,7 @@ function Yardim-Gorevleri-Kontrol {
                 $ozet = [string]$y.ozet; if (-not $ozet) { $ozet = 'Yardım işi tamamlandı.' }
                 $not = "Takılmayı gidermek için açılan #$($y.id) ($($y.baslik)) tamamlandı.`n`n$ozet"
                 if ($sonuc) { $not += "`n`n" + (Kirp (Gizli-Maskele $sonuc) 2500) }
-                Gorev-Surdur $g $not 'Sorun Giderici' 'Yardım işi tamamlandı'
+                Gorev-Surdur $g $not 'Incident Manager' 'Yardım işi tamamlandı'
                 Ayarla $g 'cozum_durumu' 'yardim_tamam'
                 Gorev-Kaydet $g
                 Gunluk "Yardım işi #$($y.id) bitti; #$($g.id) sürdürülüyor ($($g.asama))"

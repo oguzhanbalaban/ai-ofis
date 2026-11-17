@@ -30,7 +30,11 @@
                    "lider":  [
                                  {
                                      "arac":  "claude",
-                                     "model":  "opus"
+                                     "model":  "claude-opus-5-5"
+                                 },
+                                 {
+                                     "arac":  "claude",
+                                     "model":  "claude-fable-5-2"
                                  },
                                  {
                                      "arac":  "codex",
@@ -121,6 +125,53 @@
                                           }
                                       ]
                },
+    "model_katalogu":  {
+        "aciklama":  "Panelde model seçicide görünen modeller. Kısaltmalar (opus, sonnet) Claude CLI sürümünün en güncel modeline gider.",
+        "claude":  [
+            {
+                "model":  "claude-opus-5-5",
+                "ad":  "Claude Opus 5.5",
+                "not":  "en güçlü genel model"
+            },
+            {
+                "model":  "claude-fable-5-2",
+                "ad":  "Claude Fable 5.2",
+                "not":  "en yeni model"
+            },
+            {
+                "model":  "claude-sonnet-5-5",
+                "ad":  "Claude Sonnet 5.5",
+                "not":  "hızlı ve dengeli"
+            },
+            {
+                "model":  "claude-haiku-5-5",
+                "ad":  "Claude Haiku 5.5",
+                "not":  "en hızlı, en ucuz"
+            },
+            {
+                "model":  "opus",
+                "ad":  "Opus (en güncel)",
+                "not":  "CLI'nin en güncel Opus modeli"
+            },
+            {
+                "model":  "sonnet",
+                "ad":  "Sonnet (en güncel)",
+                "not":  "CLI'nin en güncel Sonnet modeli"
+            }
+        ],
+        "codex":  [
+            {
+                "model":  "gpt-6.1-sol",
+                "ad":  "GPT-6.1 Sol",
+                "not":  "Codex; korumalı alanda komut çalıştırır, görsel üretir"
+            },
+            {
+                "model":  "gpt-6-astra",
+                "ad":  "GPT-6 Astra",
+                "not":  "Codex"
+            }
+        ]
+    },
     "gorev":  {
                   "max_tur":  3,
                   "max_degisen_dosya":  60,

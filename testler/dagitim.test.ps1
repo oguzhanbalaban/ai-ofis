@@ -25,16 +25,18 @@ try {
         Dogrula ($b.Length -ge 3 -and $b[0] -eq 239 -and $b[1] -eq 187 -and $b[2] -eq 191) "$($f.Name) UTF-8 BOM"
     }
     $a = Json (Join-Path $kaynak 'ayarlar.json'); $k = Json (Join-Path $kaynak 'kadro.json')
-    Dogrula (@($k.uyeler).Count -eq 14) 'Tam kadro: kaynak sistemdeki 14 çalışan (Sorun Giderici ve Test Uzmanı dahil)'
+    Dogrula (@($k.uyeler).Count -eq 14) 'Tam kadro: kaynak sistemdeki 14 çalışan (Incident Manager ve QA Engineer dahil)'
     Dogrula (@($k.uyeler | Where-Object { $_.ise_alinma -or $_.ise_alan }).Count -eq 0) 'İşe alım geçmişi anonim'
     Dogrula (@($a.altyapi.makineler).Count -eq 0 -and -not $a.altyapi.vmrun -and -not $a.altyapi.baglanti_bilgileri -and -not $a.bildirim.telefon.ntfy_konu -and -not $a.claude.kullanim_dosyasi -and -not $a.gorev.yeni_proje_kok) 'Ayarlar kişisel envanter, yol ve bildirim adresi içermiyor'
     Dogrula (@((Json (Join-Path $kaynak 'projeler.json')).projeler).Count -eq 0) 'Dağıtımda boş proje listesi'
-    Dogrula ((@($k.uyeler | Where-Object { $_.anahtar -eq 'lider' })[0].ad -eq 'Yönetici') -and $a.roller.'sorun-giderici' -and $a.sorun_giderici.etkin) 'Yönetici adı, Sorun Giderici rolü ve ayarı tanımlı'
+    Dogrula ((@($k.uyeler | Where-Object { $_.anahtar -eq 'lider' })[0].ad -eq 'Engineering Manager') -and $a.roller.'sorun-giderici' -and $a.sorun_giderici.etkin) 'Engineering Manager adı, Incident Manager rolü ve ayarı tanımlı'
     Dogrula (@($a.roller.PSObject.Properties | Where-Object { @($_.Value)[0].arac -ne 'claude' }).Count -eq 0) 'Yerleşik rol zincirleri Claude öncelikli'
     $tester = @($k.uyeler | Where-Object { $_.anahtar -eq 'tester' })[0]
-    Dogrula ($a.yardimlasma.etkin -and [int]$a.yardimlasma.gorev_basina_en_fazla -gt 0 -and [int]$a.yardimlasma.derinlik -gt 0 -and $tester -and $tester.yetki -eq 'tam' -and $tester.uzman_isi -and @($tester.araclar)[0].arac -eq 'claude') 'Ekip içi yardımlaşma ayarı ve Test Uzmanı (tam yetki, Claude önce) tanımlı'
+    Dogrula ($a.yardimlasma.etkin -and [int]$a.yardimlasma.gorev_basina_en_fazla -gt 0 -and [int]$a.yardimlasma.derinlik -gt 0 -and $tester -and $tester.yetki -eq 'tam' -and $tester.uzman_isi -and @($tester.araclar)[0].arac -eq 'claude') 'Ekip içi yardımlaşma ayarı ve QA Engineer (tam yetki, Claude önce) tanımlı'
+    $liderZ = @($a.roller.lider | ForEach-Object { '{0}/{1}' -f $_.arac, $_.model })
+    Dogrula (($liderZ -join ',') -like 'claude/claude-opus-5-5,claude/claude-fable-5-2,*' -and @($a.model_katalogu.claude).Count -ge 4 -and @($a.model_katalogu.codex).Count -ge 1 -and @($k.uyeler | Where-Object { -not $_.rol_tr }).Count -eq 0) 'Engineering Manager zinciri Opus 5.5 > Fable 5.2, model kataloğu ve tüm kadroda Türkçe unvan (rol_tr)'
     $istemler = @(Get-ChildItem -LiteralPath (Join-Path $kaynak 'istemler') -Filter '*.md' -File -Recurse)
-    Dogrula ($istemler.Count -eq 27) '18 akış ve 9 kadro istemi'
+    Dogrula ($istemler.Count -eq 28) '19 akış ve 9 kadro istemi'
     foreach ($uye in $k.uyeler) {
         if ($uye.istem) { Dogrula (Test-Path -LiteralPath (Join-Path $kaynak $uye.istem)) "$($uye.anahtar) talimatı mevcut" }
     }
@@ -107,6 +109,7 @@ try {
             if ($z.Count -ne ($sira.Count * 2) -or @($z | Where-Object { $_.arac -notin $sira }).Count) { throw "Araç zinciri hatası: $secim" }
         }
         Dogrula ($zincirler.Count -eq 20) "$secim seçimi: 6 rol ve 14 kadro zinciri"
+        Dogrula (@($sira | Where-Object { @($aa.model_katalogu.$_ | Where-Object { $_.model -eq 'model-a' }).Count -eq 0 }).Count -eq 0) "$secim seçimi: kurulumda seçilen modeller panel kataloğunda"
     }
 
     # Tam kurulum, gerçek Read-Host yerine sıralı yanıtlar kullanır.
@@ -209,7 +212,7 @@ try {
     $arsiv = [IO.Compression.ZipFile]::OpenRead((Join-Path $paket 'dagitim\ai-ofis.zip'))
     try {
         $adlar = @($arsiv.Entries | ForEach-Object { $_.FullName })
-        Dogrula ($adlar.Count -eq 65) 'ZIP 65 dağıtım dosyası içeriyor'
+        Dogrula ($adlar.Count -eq 66) 'ZIP 66 dağıtım dosyası içeriyor'
         Dogrula (@($adlar | Where-Object { $_ -match '\.yerel\.|ozel-not|^durum/|^gorevler/|^raporlar/' }).Count -eq 0) 'ZIP kişisel ayarları ve ek kullanıcı dosyalarını dışlıyor'
     } finally { $arsiv.Dispose() }
     Write-Host "TAMAM: $script:kontrol kontrol geçti. Gerçek ağ/VM/masaüstü/zamanlanmış görev işlemi yapılmadı."

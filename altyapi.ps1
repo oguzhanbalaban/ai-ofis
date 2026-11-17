@@ -2,8 +2,8 @@
 altyapi.ps1 - Sunucu / kurulum talepleri (durum.json > tip = "altyapi"). ekip.ps1 dot-source eder.
 
 Roller (ayarlar.json > roller):
-  sistem : SİSTEM YÖNETİCİSİ - sunucu, işletim sistemi, servis, kurulum, VM, veritabanı sunucusu
-  ag     : NETWORK ÇALIŞANI  - IP/DNS, VMware ağları, port, konuk güvenlik duvarı, bağlantı
+  sistem : SYSTEM ADMINISTRATOR - sunucu, işletim sistemi, servis, kurulum, VM, veritabanı sunucusu
+  ag     : NETWORK ENGINEER  - IP/DNS, VMware ağları, port, konuk güvenlik duvarı, bağlantı
 Bu iki rol yalnızca kullanıcının görevlendirdiği makinelerde tam yetkiyle çalışır: uygulama ve doğrulama adımları
 onay beklemeden, sandbox'sız çalışır (Ajan-Cagir -TamYetki). Sınırlar, istemlere eklenen ayarlar.json > altyapi.kurallar
 metinleridir (teknik engel değil, talimattır). Ana makinede yönetici hakkı olmadığından UAC isteyen işler zaten yapılamaz.
@@ -19,8 +19,8 @@ Aşama adları yazılım görevleriyle aynıdır (durum.ps1 -Devam/-Iptal, rapor
 #>
 
 $script:AltyapiRolleri = @{
-    sistem = @{ ad = 'SİSTEM YÖNETİCİSİ'; tanim = 'Sunucular, işletim sistemleri, servisler, yazılım kurulumları, VM yönetimi (vmrun) ve veritabanı sunucuları senin sorumluluğunda.' }
-    ag     = @{ ad = 'NETWORK ÇALIŞANI'; tanim = 'IP/DNS/hosts, VMware ağları (NAT / host-only), portlar, konuk güvenlik duvarı kuralları ve makineler arası bağlantı (ping, port, HTTP, ODBC) senin sorumluluğunda.' }
+    sistem = @{ ad = 'SYSTEM ADMINISTRATOR'; tanim = 'Sunucular, işletim sistemleri, servisler, yazılım kurulumları, VM yönetimi (vmrun) ve veritabanı sunucuları senin sorumluluğunda.' }
+    ag     = @{ ad = 'NETWORK ENGINEER'; tanim = 'IP/DNS/hosts, VMware ağları (NAT / host-only), portlar, konuk güvenlik duvarı kuralları ve makineler arası bağlantı (ping, port, HTTP, ODBC) senin sorumluluğunda.' }
 }
 
 # ---------------------------------------------------------------- yardımcılar
@@ -121,13 +121,13 @@ function Gizli-Maskele([string]$Metin) {
     return ($Metin -replace '(?i)((?:parola|şifre|sifre|password|passwd|pwd)\s*[:=]\s*)\S+', '$1***')
 }
 
-function Altyapi-Soru($G, [string]$Metin, $Sonuc, [string]$Olay = 'yönetici soru sordu') {
+function Altyapi-Soru($G, [string]$Metin, $Sonuc, [string]$Olay = 'Engineering Manager soru sordu') {
     Metin-Yaz (Join-Path (Gorev-Klasoru $G.id) 'sorular.md') $Metin
     Gecmis-Ekle $G $Olay '' $Sonuc
     $G.asama = 'bekliyor_kullanici'
     $G.deneme = 0
     Ayarla $G 'soru_zamani' (Simdi)
-    Bildir -Baslik "Yönetici soru soruyor: $($G.baslik)" -Metin ("#{0}: sorular.md dosyasını oku, yanıtını ofis panelinden ya da gorev.md'ye ekleyerek ver; ekip kendiliğinden devam eder." -f $G.id) -Anahtar "soru-$($G.id)" -Onem 'yuksek'
+    Bildir -Baslik "Engineering Manager soru soruyor: $($G.baslik)" -Metin ("#{0}: sorular.md dosyasını oku, yanıtını ofis panelinden ya da gorev.md'ye ekleyerek ver; ekip kendiliğinden devam eder." -f $G.id) -Anahtar "soru-$($G.id)" -Onem 'yuksek'
 }
 
 # Yazılım akışına gelmiş bir sunucu / kurulum işini altyapı ekibine aktarır (lider KARAR: ALTYAPI dediğinde).
@@ -155,7 +155,7 @@ function Altyapiya-Aktar($G, [string]$Neden, $Sonuc = $null) {
     $G.deneme = 0
     Ayarla $G 'sonraki_deneme' $null
     Ayarla $G 'son_hata' ''
-    Gunluk "Görev $($G.id): altyapı ekibine (sistem yöneticisi + network) aktarıldı"
+    Gunluk "Görev $($G.id): altyapı ekibine (System Administrator + Network Engineer) aktarıldı"
 }
 
 # ---------------------------------------------------------------- adımlar
@@ -175,7 +175,7 @@ function Altyapi-Plan($G) {
         GOREV = (Gorev-Metni $G); ORTAM = (Altyapi-Ortam); KESIF = (Metin-Oku (Join-Path $gk 'kesif.md')); BASLANGIC_VM = (Baslangic-VM-Metni $G)
     }
     $r = Ajan-Cagir -Rol 'lider' -Istem $istem -Klasor (Altyapi-Calisma $G) -KayitKlasoru (Kayit-Klasoru $G) -Etiket 'plan'
-    if (-not $r.basarili) { Adim-Basarisiz $G "Yönetici plan yazamadı: $($r.hata)"; return }
+    if (-not $r.basarili) { Adim-Basarisiz $G "Engineering Manager plan yazamadı: $($r.hata)"; return }
     Ayarla $G 'lider' ('{0}/{1}' -f $r.arac, $r.model)
     switch (Karar-Oku $r.metin) {
         'PLAN_HAZIR' {
@@ -227,7 +227,7 @@ function Altyapi-Kontrol($G) {
     $komutlar = @()
     if ($G.dogrulama) { $komutlar += @($G.dogrulama | Where-Object { $_ }) }
     [void]$rapor.AppendLine('### Doğrulama komutları')
-    if (-not $komutlar) { [void]$rapor.AppendLine('- (talepte doğrulama komutu yok; doğrulamayı destek rolü ve yönetici yapacak)') }
+    if (-not $komutlar) { [void]$rapor.AppendLine('- (talepte doğrulama komutu yok; doğrulamayı destek rolü ve Engineering Manager yapacak)') }
     $i = 0
     foreach ($k in $komutlar) {
         $i++
@@ -301,18 +301,18 @@ function Altyapi-Kabul($G) {
         UYGULAMA_OZET = (Metin-Oku (Join-Path $tk 'uygulama-ozet.md')); KONTROL = (Metin-Oku (Join-Path $tk 'kontrol.md')); DOGRULAMA = $dog
     }
     $r = Ajan-Cagir -Rol 'lider' -Istem $istem -Klasor (Altyapi-Calisma $G) -KayitKlasoru $tk -Etiket 'kabul'
-    if (-not $r.basarili) { Adim-Basarisiz $G "Yönetici son kararı veremedi: $($r.hata)"; return }
+    if (-not $r.basarili) { Adim-Basarisiz $G "Engineering Manager son kararı veremedi: $($r.hata)"; return }
     Metin-Yaz (Join-Path $tk 'kabul.md') $r.metin
     switch (Karar-Oku $r.metin) {
         'KABUL' {
             Ayarla $G 'ozet' (Alan-Oku $r.metin 'OZET')
-            Asama-Gec $G 'tamamla' 'yönetici kabul etti' '' $r
+            Asama-Gec $G 'tamamla' 'Engineering Manager kabul etti' '' $r
         }
         'RET' {
-            Gecmis-Ekle $G 'yönetici reddetti' '' $r
-            Yeni-Tur $G ("## Yönetici reddetti`n`n" + $r.metin) 'yönetici reddetti'
+            Gecmis-Ekle $G 'Engineering Manager reddetti' '' $r
+            Yeni-Tur $G ("## Engineering Manager reddetti`n`n" + $r.metin) 'Engineering Manager reddetti'
         }
-        'SORU_VAR' { Altyapi-Soru $G $r.metin $r 'yönetici kullanıcıdan bilgi istedi' }
+        'SORU_VAR' { Altyapi-Soru $G $r.metin $r 'Engineering Manager kullanıcıdan bilgi istedi' }
         default { Adim-Basarisiz $G "Kabul çıktısında KARAR satırı yok ($($r.arac))" }
     }
 }
@@ -324,7 +324,7 @@ function Altyapi-Tamamla($G) {
     $k = Altyapi-Kesif
     $md = @(
         "# Sonuç: $($G.baslik)", '', $ozet, '',
-        "- Sorumlu: $($G.sorumlu) ($($G.uygulayan)) | Destek: $($G.destek) ($($G.dogrulayan)) | Yönetici: $($G.lider) | Tur: $($G.tur)",
+        "- Sorumlu: $($G.sorumlu) ($($G.uygulayan)) | Destek: $($G.destek) ($($G.dogrulayan)) | Engineering Manager: $($G.lider) | Tur: $($G.tur)",
         "- Raporlar: tur$($G.tur)\uygulama-ozet.md, tur$($G.tur)\kontrol.md, tur$($G.tur)\dogrulama.md, tur$($G.tur)\kabul.md",
         "- Çalışma klasörü (ajanların betik ve günlükleri): $($G.calisma_klasoru)", '',
         '## Son durum', '', $k.metin

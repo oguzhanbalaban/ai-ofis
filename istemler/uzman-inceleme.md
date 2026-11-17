@@ -31,7 +31,7 @@ KARAR: ONAY
 
 ---
 
-# YÖNETİCİNİN BRİFİ
+# ENGINEERING MANAGER'IN BRİFİ
 
 {PLAN}
 

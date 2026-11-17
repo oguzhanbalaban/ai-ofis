@@ -4,11 +4,11 @@ yardim.ps1 - Ekip içi yardımlaşma (ayarlar.json > yardimlasma). ekip.ps1 dot-
 Bir ajan işi sırasında kendi yapamayacağı ama ekipte başkasının yapabileceği bir şeye ihtiyaç duyarsa, çıktısının sonuna
 ```yardim {json}``` bloğu ekler (talimatı ortak.ps1 > Yardim-Istem-Ekle her uygun istemin sonuna koyar). Adım başarısız sayılmaz:
   1. Yardim-Istegi-Kaydet     görev 'yardim' aşamasına geçer (dönüş aşaması saklanır); istek gorevler\<no>\yardim-istek-N.md
-  2. Yardim-Yonlendir         Yönetici değerlendirir: ATA (kadrodan birine yardım işi), YANIT, ISE_ALIM ya da KULLANICI
+  2. Yardim-Yonlendir         Engineering Manager değerlendirir: ATA (kadrodan birine yardım işi), YANIT, ISE_ALIM ya da KULLANICI
   3. Yardim-Bekleyenleri-Kontrol  yardım işleri bitince görev dönüş aşamasından sürer; sonuçlar yardim-sonuclari.md'ye yazılır
      ve bu görevin sonraki her ajan isteminde "EKİPTEN GELEN YARDIM" bölümü olarak yer alır.
-Yönetici planda ön iş de isteyebilir: "YARDIM: <anahtar> | <iş>" satırları (Plan-Yardimlari) geliştirmeden önce açılır.
-Test Uzmanı (tester) yazılım işlerinde ek inceleme, uzman işlerinde inceleyen ya da sorumlu olarak çalışır (Tester-Calistir).
+Engineering Manager planda ön iş de isteyebilir: "YARDIM: <anahtar> | <iş>" satırları (Plan-Yardimlari) geliştirmeden önce açılır.
+QA Engineer (tester) yazılım işlerinde ek inceleme, uzman işlerinde inceleyen ya da sorumlu olarak çalışır (Tester-Calistir).
 Sınırlar: görev başına en fazla yardimlasma.gorev_basina_en_fazla istek; yardım zinciri en fazla yardimlasma.derinlik.
 #>
 
@@ -25,7 +25,7 @@ function Yardimlasma-Ayari {
 function Rol-Ad([string]$Rol) {
     $u = Kadro-Uye $Rol
     if ($u) { return [string]$u.ad }
-    if ($Rol -eq 'lider') { return 'Yönetici' }
+    if ($Rol -eq 'lider') { return 'Engineering Manager' }
     return $Rol
 }
 # Yardım işi verilebilecekler: sistem / ag (altyapı talebi) ve uzman işi alan herkes (uzman işi)
@@ -79,13 +79,13 @@ function Yardim-Istegi-Kaydet($G, $Y) {
     Ayarla $G 'son_hata' ''
     $kim = Kadro-Anahtar-Coz ([string]$i.kim)
     if ([string]$Y.rol -eq 'lider' -and (Yardim-Atanabilir $kim) -and (Yardim-Derinligi $G) -lt $a.derinlik) {
-        # Yönetici kendisi istedi ve kimin yapacağını söyledi: ayrıca değerlendirme adımına gerek yok
+        # Engineering Manager kendisi istedi ve kimin yapacağını söyledi: ayrıca değerlendirme adımına gerek yok
         $is = [string]$i.ne; if ($i.neden) { $is += "`n`nNeden: $($i.neden)" }
-        [void](Yardim-Isleri-Ac $G @([pscustomobject]@{ kim = $kim; baslik = ''; is = $is; kabul = $kabul; neden = [string]$i.neden; aranan = '' }) 'Yönetici' ([string]$G.asama))
+        [void](Yardim-Isleri-Ac $G @([pscustomobject]@{ kim = $kim; baslik = ''; is = $is; kabul = $kabul; neden = [string]$i.neden; aranan = '' }) 'Engineering Manager' ([string]$G.asama))
         return $true
     }
     $G.asama = 'yardim'
-    Gunluk "Görev $($G.id): $($Y.rol) yardım istedi; Yönetici değerlendirecek ($(Kisalt ([string]$i.ne) 120))"
+    Gunluk "Görev $($G.id): $($Y.rol) yardım istedi; Engineering Manager değerlendirecek ($(Kisalt ([string]$i.ne) 120))"
     return $true
 }
 
@@ -111,7 +111,7 @@ function Yardim-Isleri-Ac($G, $Isler, [string]$Acan, [string]$Donus) {
     return $ids
 }
 function Yardim-Yanitla($G, [string]$Yanit, [string]$Donus, $R, [string]$Olay) {
-    Yardim-Sonucu-Ekle $G ('Yöneticinin yanıtı (yardım isteği {0}: {1})' -f $G.yardim_sayisi, (Kisalt ([string]$G.yardim_istek) 120)) $Yanit
+    Yardim-Sonucu-Ekle $G ('Engineering Managerʼın yanıtı (yardım isteği {0}: {1})' -f $G.yardim_sayisi, (Kisalt ([string]$G.yardim_istek) 120)) $Yanit
     Asama-Gec $G $Donus $Olay (Kisalt $Yanit 200) $R
 }
 function Yardim-Durum-Metni($G) {
@@ -123,7 +123,7 @@ function Yardim-Durum-Metni($G) {
     return ($l -join "`n")
 }
 
-# Görev 'yardim' aşamasında: Yönetici isteği değerlendirir
+# Görev 'yardim' aşamasında: Engineering Manager isteği değerlendirir
 function Yardim-Yonlendir($G) {
     $a = Yardimlasma-Ayari
     $gk = Gorev-Klasoru $G.id
@@ -144,8 +144,8 @@ function Yardim-Yonlendir($G) {
         GOREV = (Kirp (Gorev-Metni $G) 5000); ONCEKI = ($onceki -join "`n`n"); ZINCIR_KURALI = $zincir
     }
     $r = Ajan-Cagir -Rol 'lider' -Istem $istem -Klasor $gk -KayitKlasoru (Kayit-Klasoru $G) -Etiket 'yardim'
-    if (-not $r.basarili) { Adim-Basarisiz $G "Yönetici yardım isteğini değerlendiremedi: $($r.hata)"; return }
-    Metin-Yaz (Join-Path $gk "yardim-karar-$n.md") (("# Yöneticinin kararı · yardım isteği {0} · {1} · {2}/{3}" -f $n, (Get-Date).ToString('dd.MM.yyyy HH:mm'), $r.arac, $r.model) + "`n`n" + $r.metin)
+    if (-not $r.basarili) { Adim-Basarisiz $G "Engineering Manager yardım isteğini değerlendiremedi: $($r.hata)"; return }
+    Metin-Yaz (Join-Path $gk "yardim-karar-$n.md") (("# Engineering Managerʼın kararı · yardım isteği {0} · {1} · {2}/{3}" -f $n, (Get-Date).ToString('dd.MM.yyyy HH:mm'), $r.arac, $r.model) + "`n`n" + $r.metin)
     Ayarla $G 'lider' ('{0}/{1}' -f $r.arac, $r.model)
     $karar = Karar-Oku $r.metin
     if ($zincirSiniri -and ($karar -eq 'ATA' -or $karar -eq 'ISE_ALIM')) { $karar = 'YANIT' }
@@ -157,31 +157,31 @@ function Yardim-Yonlendir($G) {
             $kim = Kadro-Anahtar-Coz (Alan-Oku $r.metin 'KIM')
             $is = Bolum-Oku $r.metin 'İş'
             if ((Yardim-Atanabilir $kim) -and $is -and $kim -ne [string]$G.yardim_isteyen) {
-                [void](Yardim-Isleri-Ac $G @([pscustomobject]@{ kim = $kim; baslik = (Alan-Oku $r.metin 'BASLIK'); is = $is; kabul = (Bolum-Oku $r.metin 'Kabul'); neden = $neden; aranan = '' }) "Yönetici ($isteyen istedi)" $donus)
+                [void](Yardim-Isleri-Ac $G @([pscustomobject]@{ kim = $kim; baslik = (Alan-Oku $r.metin 'BASLIK'); is = $is; kabul = (Bolum-Oku $r.metin 'Kabul'); neden = $neden; aranan = '' }) "Engineering Manager ($isteyen istedi)" $donus)
                 break
             }
             $y = Bolum-Oku $r.metin 'Yanıt'; if (-not $y) { $y = $is }; if (-not $y) { $y = Bolum-Oku $r.metin 'Gerekçe' }
-            Yardim-Yanitla $G $y $donus $r "Yönetici yanıtladı (atama geçersizdi: '$kim')"
+            Yardim-Yanitla $G $y $donus $r "Engineering Manager yanıtladı (atama geçersizdi: '$kim')"
         }
         'ISE_ALIM' {
             $aranan = Alan-Oku $r.metin 'ARANAN'
             $is = Bolum-Oku $r.metin 'İş'; if (-not $is) { $is = [string]$G.yardim_istek }
-            if (-not $aranan) { Yardim-Yanitla $G ((Bolum-Oku $r.metin 'Gerekçe') + "`n`n" + $is).Trim() $donus $r 'Yönetici yanıtladı'; break }
-            [void](Yardim-Isleri-Ac $G @([pscustomobject]@{ kim = ''; baslik = (Alan-Oku $r.metin 'BASLIK'); is = $is; kabul = (Bolum-Oku $r.metin 'Kabul'); neden = $neden; aranan = $aranan }) "Yönetici ($isteyen istedi)" $donus)
+            if (-not $aranan) { Yardim-Yanitla $G ((Bolum-Oku $r.metin 'Gerekçe') + "`n`n" + $is).Trim() $donus $r 'Engineering Manager yanıtladı'; break }
+            [void](Yardim-Isleri-Ac $G @([pscustomobject]@{ kim = ''; baslik = (Alan-Oku $r.metin 'BASLIK'); is = $is; kabul = (Bolum-Oku $r.metin 'Kabul'); neden = $neden; aranan = $aranan }) "Engineering Manager ($isteyen istedi)" $donus)
         }
         'KULLANICI' {
             $k = Bolum-Oku $r.metin 'Kullanıcıya'; if (-not $k) { $k = Kirp $r.metin 1500 }
-            Metin-Yaz (Join-Path $gk 'sorular.md') ("## $isteyen ekip içinde yardım istedi; Yönetici bunu sana soruyor`n`n**İstek:** $($G.yardim_istek)`n`n" + $k)
-            Gecmis-Ekle $G 'Yönetici yardım isteğini sana sordu' '' $r
+            Metin-Yaz (Join-Path $gk 'sorular.md') ("## $isteyen ekip içinde yardım istedi; Engineering Manager bunu sana soruyor`n`n**İstek:** $($G.yardim_istek)`n`n" + $k)
+            Gecmis-Ekle $G 'Engineering Manager yardım isteğini sana sordu' '' $r
             Ayarla $G 'soru_donus_asama' $donus
             $G.asama = 'bekliyor_kullanici'
             $G.deneme = 0
             Ayarla $G 'soru_zamani' (Simdi)
-            Bildir -Baslik "Yönetici soru soruyor: $($G.baslik)" -Metin (Gizli-Maskele ('#{0}: {1} Yanıtını panelden ver; iş kaldığı yerden sürer.' -f (No-Kisa $G.id), (Kisalt $k 140))) -Anahtar "soru-$($G.id)" -Onem 'yuksek'
+            Bildir -Baslik "Engineering Manager soru soruyor: $($G.baslik)" -Metin (Gizli-Maskele ('#{0}: {1} Yanıtını panelden ver; iş kaldığı yerden sürer.' -f (No-Kisa $G.id), (Kisalt $k 140))) -Anahtar "soru-$($G.id)" -Onem 'yuksek'
         }
         'YANIT' {
             $y = Bolum-Oku $r.metin 'Yanıt'; if (-not $y) { $y = Bolum-Oku $r.metin 'İş' }; if (-not $y) { $y = Kirp $r.metin 2000 }
-            Yardim-Yanitla $G $y $donus $r 'Yönetici yanıtladı'
+            Yardim-Yanitla $G $y $donus $r 'Engineering Manager yanıtladı'
         }
         default {
             Metin-Yaz (Join-Path $gk 'yardim-karar-gecersiz.md') $r.metin
@@ -222,7 +222,7 @@ function Yardim-Bekleyenleri-Kontrol {
     }
 }
 
-# Yöneticinin planındaki ön işler: "YARDIM: <anahtar> | <iş>"
+# Engineering Managerʼın planındaki ön işler: "YARDIM: <anahtar> | <iş>"
 function Plan-Yardimlari($G, [string]$Metin) {
     $l = @()
     $a = Yardimlasma-Ayari
@@ -232,14 +232,14 @@ function Plan-Yardimlari($G, [string]$Metin) {
         $kim = Kadro-Anahtar-Coz $m.Groups[1].Value
         $is = $m.Groups[2].Value.Trim().Trim('`', '*', ' ')
         if (-not (Yardim-Atanabilir $kim) -or -not $is -or $is.StartsWith('<')) { Gunluk "Plan yardım satırı atlandı: $($m.Value.Trim())" 'UYARI'; continue }
-        $l += [pscustomobject]@{ kim = $kim; baslik = (Kisalt $is 90); is = $is; kabul = ''; neden = 'Yönetici planında, iş başlamadan önce gereken ön iş olarak istedi.'; aranan = '' }
+        $l += [pscustomobject]@{ kim = $kim; baslik = (Kisalt $is 90); is = $is; kabul = ''; neden = 'Engineering Manager planında, iş başlamadan önce gereken ön iş olarak istedi.'; aranan = '' }
         if ($l.Count -ge 3) { break }
     }
     return , $l
 }
 
-# ---------------------------------------------------------------- Test Uzmanı
-# Testçi test edilen git ağacında değişiklik bıraktıysa geri alır: geliştiricinin işi index'tedir (kontrol / diff adımları
+# ---------------------------------------------------------------- QA Engineer
+# Testçi test edilen git ağacında değişiklik bıraktıysa geri alır: Software Developerʼın işi index'tedir (kontrol / diff adımları
 # "git add -A" yaptı); index'e eklenmemiş değişiklikler ve izlenmeyen (yok sayılmayan) dosyalar testçinindir.
 function Test-Sonrasi-Agaci-Temizle([string]$Wt) {
     $degisen = Git-Calistir $Wt @('diff', '--name-only') -Sessiz                         # index'e göre değişen izlenen dosyalar
