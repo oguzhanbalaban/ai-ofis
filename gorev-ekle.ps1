@@ -43,7 +43,7 @@ $id = '{0:D4}-{1}' -f $no, (Slug $Baslik)
 $gk = Gorev-Klasoru $id
 New-Item -ItemType Directory -Force $gk | Out-Null
 
-$kabulMetni = '- (belirtilmedi; lider planda test edilebilir ölçütler belirlesin)'
+$kabulMetni = '- (belirtilmedi; yönetici planda test edilebilir ölçütler belirlesin)'
 if ($Kabul.Count -gt 0) { $kabulMetni = ($Kabul | ForEach-Object { "- $_" }) -join "`n" }
 $md = @"
 # $Baslik
@@ -62,7 +62,7 @@ $kabulMetni
 
 ## Notlar ve yanıtlar
 
-(Lider soru sorarsa yanıtlarını buraya yazıp dosyayı kaydet; ekip kendiliğinden devam eder.)
+(Yönetici soru sorarsa yanıtlarını buraya yazıp dosyayı kaydet; ekip kendiliğinden devam eder.)
 "@
 Metin-Yaz (Join-Path $gk 'gorev.md') $md
 

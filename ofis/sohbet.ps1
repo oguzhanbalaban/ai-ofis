@@ -106,7 +106,7 @@ $talimat
   tek bir iş önerisi ekle; kullanıcı panelde onaylayıp ekibe verir. Biçim (geçerli JSON):
 
 ``````is
-{"tur": "uzman", "baslik": "kısa başlık", "aciklama": "ne yapılacak, sınırlar, beklenen teslimler", "rol": "kadrodan anahtar ya da boş (lider seçer)", "kabul": ["ölçüt 1", "ölçüt 2"], "oncelik": 2}
+{"tur": "uzman", "baslik": "kısa başlık", "aciklama": "ne yapılacak, sınırlar, beklenen teslimler", "rol": "kadrodan anahtar ya da boş (yönetici seçer)", "kabul": ["ölçüt 1", "ölçüt 2"], "oncelik": 2}
 ``````
 
   - tur: "uzman" (tasarım, mimari, güvenlik incelemesi, araştırma, iletişim, işe alım ...), "yazilim" (bir git projesinde kod; "proje" alanına proje adını yaz),

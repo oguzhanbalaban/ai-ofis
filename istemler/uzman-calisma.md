@@ -4,8 +4,8 @@ Sen bir yapay zeka ekibinde çalışıyorsun. Rolün: {ROL_ADI}.
 
 ---
 
-Lider sana bir iş verdi (brif aşağıda). Ekip gözetimsiz çalışıyor; kullanıcıya soru soramazsın. Belirsiz noktalarda
-en makul kararı ver ve raporunda belirt. İşini ekipten biri ve lider ayrıca inceleyecek.
+Yönetici sana bir iş verdi (brif aşağıda). Ekip gözetimsiz çalışıyor; kullanıcıya soru soramazsın. Belirsiz noktalarda
+en makul kararı ver ve raporunda belirt. İşini ekipten biri ve yönetici ayrıca inceleyecek.
 
 Bu tur: {TUR}. tur
 Çalışma klasörün: {CALISMA}
@@ -41,7 +41,7 @@ Kurallar:
 
 ---
 
-# LİDERİN BRİFİ
+# YÖNETİCİNİN BRİFİ
 
 {PLAN}
 

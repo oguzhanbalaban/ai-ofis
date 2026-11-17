@@ -16,7 +16,7 @@
                            "altyapi":  240
                        },
     "gunluk_sinir":  {
-                         "claude":  40,
+                         "claude":  100,
                          "codex":  60,
                          "gemini":  40
                      },
@@ -40,6 +40,10 @@
                              ],
                    "gelistirici":  [
                                        {
+                                           "arac":  "claude",
+                                           "model":  "sonnet"
+                                       },
+                                       {
                                            "arac":  "codex",
                                            "model":  "gpt-6.1-sol",
                                            "efor":  "high"
@@ -48,13 +52,13 @@
                                            "arac":  "codex",
                                            "model":  "gpt-6-astra",
                                            "efor":  "high"
-                                       },
-                                       {
-                                           "arac":  "claude",
-                                           "model":  "sonnet"
                                        }
                                    ],
                    "denetci":  [
+                                   {
+                                       "arac":  "claude",
+                                       "model":  "opus"
+                                   },
                                    {
                                        "arac":  "claude",
                                        "model":  "sonnet"
@@ -67,13 +71,13 @@
                                ],
                    "sistem":  [
                                   {
+                                      "arac":  "claude",
+                                      "model":  "sonnet"
+                                  },
+                                  {
                                       "arac":  "codex",
                                       "model":  "gpt-6.1-sol",
                                       "efor":  "high"
-                                  },
-                                  {
-                                      "arac":  "claude",
-                                      "model":  "sonnet"
                                   },
                                   {
                                       "arac":  "codex",
@@ -87,6 +91,10 @@
                                   "model":  "sonnet"
                               },
                               {
+                                  "arac":  "claude",
+                                  "model":  "opus"
+                              },
+                              {
                                   "arac":  "codex",
                                   "model":  "gpt-6-astra",
                                   "efor":  "high"
@@ -96,14 +104,35 @@
                                   "model":  "gpt-6.1-sol",
                                   "efor":  "high"
                               }
-                          ]
+                          ],
+                   "sorun-giderici":  [
+                                          {
+                                              "arac":  "claude",
+                                              "model":  "opus"
+                                          },
+                                          {
+                                              "arac":  "claude",
+                                              "model":  "sonnet"
+                                          },
+                                          {
+                                              "arac":  "codex",
+                                              "model":  "gpt-6.1-sol",
+                                              "efor":  "high"
+                                          }
+                                      ]
                },
     "gorev":  {
                   "max_tur":  3,
                   "max_degisen_dosya":  60,
                   "diff_karakter_siniri":  80000,
-                  "lider_kabul":  true
+                  "lider_kabul":  true,
+                  "yeni_proje_kok":  ""
               },
+    "sorun_giderici":  {
+                           "etkin":  true,
+                           "gorev_basina_en_fazla":  2,
+                           "en_eski_saat":  72
+                       },
     "korunan_desenler":  [
                              ".env",
                              ".env.*",

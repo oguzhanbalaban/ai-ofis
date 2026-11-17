@@ -20,6 +20,7 @@
   --yesil:#17784a; --yesil-z:#e0f3e8; --sari:#8f5b00; --sari-z:#fcefd3; --kirmizi:#b42318; --kirmizi-z:#fde6e2; --mavi:#2455c3; --mavi-z:#e4ecfb; --gri-z:#edeae5;
   --lider:#c2410c; --lider-z:#fdebe0; --gelistirici:#2563eb; --gelistirici-z:#e5edfd; --denetci:#0e8459; --denetci-z:#ddf3e9;
   --sistem:#7c3aed; --sistem-z:#efe7fd; --ag:#0e7490; --ag-z:#dcf1f5;
+  --claude:#eb6834; --codex:#1baf7a;
   --duvar-ust:#efe9df; --duvar-alt:#e4dccd; --supurgelik:#cbbda6; --tahta1:#d2bc9c; --tahta2:#c6ae8b;
   --ahsap:#b58758; --ahsap-koyu:#946a43; --isimlik:#efe3cf; --sandalye:#4b5263; --monitor:#2a2e35; --ekran:#141b24; --ten:#efc4a0; --golge:rgba(60,40,10,.14);
   --klavye:#d4d7dd; --kupa-kulp:#9aa0a8; --cerceve-d:#8a6d4b; --pano-ic:#fbf7ef; --gok:#bfe0fb; --bulut:#ffffff;
@@ -31,6 +32,7 @@
     --yesil:#5fd394; --yesil-z:#14352a; --sari:#f2c063; --sari-z:#382c12; --kirmizi:#ff8b7b; --kirmizi-z:#3d1c19; --mavi:#8fb3ff; --mavi-z:#1b2944; --gri-z:#262a30;
     --lider:#fb923c; --lider-z:#38220f; --gelistirici:#7aa7ff; --gelistirici-z:#1a2846; --denetci:#4fd1a1; --denetci-z:#11342a;
     --sistem:#b39dfa; --sistem-z:#2a1f45; --ag:#5fd0e6; --ag-z:#10303a;
+    --claude:#d95926; --codex:#199e70;
     --duvar-ust:#23272e; --duvar-alt:#1e2228; --supurgelik:#2d3138; --tahta1:#2a2520; --tahta2:#25211c;
     --ahsap:#7a5a3b; --ahsap-koyu:#5e442c; --isimlik:#3a3127; --sandalye:#3a404c; --monitor:#0d0f13; --ekran:#090c11; --ten:#d8ab86; --golge:rgba(0,0,0,.35);
     --klavye:#41464f; --kupa-kulp:#6b717a; --cerceve-d:#5d4a35; --pano-ic:#2a2c2f; --gok:#1d3550; --bulut:#c9d6e3;
@@ -257,6 +259,84 @@ details.gunluk summary { cursor:pointer; font-weight:650; font-size:14px; }
 .gunluk pre { margin:10px 0 0; max-height:320px; overflow:auto; font-size:11.5px; line-height:1.55; background:var(--kart2); border:1px solid var(--cizgi); border-radius:8px; padding:8px 10px; white-space:pre-wrap; overflow-wrap:anywhere; }
 .gunluk .g-uyari { color:var(--sari); } .gunluk .g-hata { color:var(--kirmizi); } .gunluk .g-bildirim { color:var(--mavi); }
 
+/* ---------- kullanım panosu (token / bağlam) */
+.kul-ust { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 10px; margin:0 0 10px; }
+.kul-ust h2 { font-size:15px; font-weight:650; }
+.kul-ust .soluk { font-size:12.5px; }
+.donem { display:inline-flex; margin-left:auto; border:1px solid var(--cizgi); border-radius:9px; overflow:hidden; background:var(--kart); align-self:center; }
+.donem button { appearance:none; border:0; background:none; padding:5px 12px; font-size:12.5px; font-weight:600; color:var(--soluk); cursor:pointer; }
+.donem button + button { border-left:1px solid var(--cizgi); }
+.donem button[aria-pressed="true"] { background:var(--mavi-z); color:var(--mavi); }
+.donem button:focus-visible { outline:2px solid var(--vurgu); outline-offset:-2px; }
+.kul-kpi { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-bottom:14px; }
+.kul-kpi .s-deger { font-size:21px; }
+.kul-kpi .s-alt { font-size:11.5px; color:var(--soluk); margin-top:1px; line-height:1.35; }
+.kul-izgara { display:grid; grid-template-columns:minmax(0, 1.6fr) minmax(0, 1fr); gap:14px; align-items:start; }
+.kul-yan { display:flex; flex-direction:column; gap:14px; min-width:0; }
+.lejant { display:flex; flex-wrap:wrap; gap:4px 14px; font-size:12px; color:var(--soluk); margin:-4px 0 8px; }
+.lejant span { display:inline-flex; align-items:center; gap:6px; }
+.lejant i { width:10px; height:10px; border-radius:2px; display:inline-block; }
+.i-claude { background:var(--claude); } .i-codex { background:var(--codex); } .i-diger { background:var(--soluk); }
+.tablo-sar { overflow-x:auto; }
+table.kul-tablo { width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
+.kul-tablo th { text-align:left; font-size:11.5px; font-weight:600; color:var(--soluk); padding:6px 8px; border-bottom:1px solid var(--cizgi); white-space:nowrap; }
+.kul-tablo td { padding:7px 8px; border-bottom:1px solid var(--cizgi); vertical-align:middle; }
+.kul-tablo tr:last-child td { border-bottom:0; }
+.kul-tablo .sag { text-align:right; white-space:nowrap; }
+.kul-tablo .hata-yazi { color:var(--kirmizi); }
+.kul-ad { display:flex; align-items:center; gap:7px; font-weight:600; white-space:nowrap; }
+.kul-ad .rol-nokta { width:9px; height:9px; border-radius:50%; background:var(--rol, var(--soluk)); flex:none; }
+.kul-ad small { font-weight:400; color:var(--soluk); }
+.tok-hucre { min-width:150px; }
+.tok-sayi { font-weight:650; }
+.tok-sayi small { font-weight:400; color:var(--soluk); }
+.yigin { display:flex; gap:2px; height:10px; margin-top:3px; }
+.yigin i { display:block; height:100%; min-width:2px; }
+.yigin i:last-child { border-radius:0 4px 4px 0; }
+.yigin .c-claude { background:var(--claude); } .yigin .c-codex { background:var(--codex); } .yigin .c-diger { background:var(--soluk); }
+.baglam { display:flex; align-items:center; gap:7px; min-width:118px; }
+.baglam .bc { flex:1; height:6px; border-radius:3px; background:var(--gri-z); overflow:hidden; min-width:44px; }
+.baglam .bc i { display:block; height:100%; border-radius:0 3px 3px 0; background:color-mix(in srgb, var(--yazi) 45%, var(--gri-z)); }
+.baglam b { font-weight:600; font-size:12px; white-space:nowrap; min-width:38px; text-align:right; }
+.baglam.yuksek b { color:var(--sari); }
+.kul-grafik { position:relative; }
+.kul-grafik svg { display:block; width:100%; height:auto; }
+.kul-grafik .eksen { font-size:10.5px; fill:var(--soluk); font-family:"Segoe UI", system-ui, sans-serif; }
+.kul-grafik .izgara { stroke:var(--cizgi); stroke-width:1; }
+.kul-grafik .bant { fill:transparent; cursor:default; }
+.kul-grafik .bant.ust { fill:color-mix(in srgb, var(--yazi) 6%, transparent); }
+.kul-ipucu { position:absolute; z-index:5; pointer-events:none; padding:6px 9px; border-radius:8px; background:var(--kart); border:1px solid var(--cizgi);
+  box-shadow:var(--golge-k); font-size:12px; line-height:1.5; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.kul-ipucu b { font-weight:650; }
+.kul-ipucu i { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px; }
+.kul-liste { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
+.kul-liste li { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px; align-items:baseline; padding:6px 0; border-bottom:1px solid var(--cizgi); font-size:13px; }
+.kul-liste li:last-child { border-bottom:0; }
+.kul-liste .baglanti { text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kul-liste .sayi { font-variant-numeric:tabular-nums; white-space:nowrap; color:var(--soluk); font-size:12.5px; }
+.kul-not { font-size:12px; color:var(--soluk); margin-top:10px; }
+.kul-bos { color:var(--soluk); font-size:13px; padding:14px 0; text-align:center; }
+details.kul-son { margin-top:14px; }
+details.kul-son summary { cursor:pointer; font-weight:650; font-size:14px; }
+details.kul-son .tablo-sar { margin-top:8px; }
+@media (max-width: 900px) { .kul-izgara { grid-template-columns:minmax(0, 1fr); } }
+@media (max-width: 560px) {
+  .kul-tablo .gizle-m, .kul-ad small { display:none; }
+  .kul-tablo td, .kul-tablo th { padding:6px 5px; }
+  .kul-ad { white-space:normal; }
+  .tok-hucre { min-width:80px; } .baglam { min-width:70px; gap:5px; } .baglam .bc { min-width:24px; } .baglam b { min-width:30px; }
+}
+/* "İş ver" formu ve Sorun Giderici rozetleri */
+.ekle-bilgi { margin:0; }
+.oneri-cip { display:flex; align-items:center; gap:8px; padding:6px 8px 6px 12px; border-radius:9px; background:var(--mavi-z); color:var(--mavi); font-size:13px; }
+.oneri-cip .kapat { width:24px; height:24px; font-size:16px; margin-left:auto; }
+.ekle-ileri summary { cursor:pointer; font-size:13px; font-weight:600; }
+.ekle-ileri .alan { margin-top:6px; }
+.gk-rozet.yonetici { background:var(--lider-z); color:var(--lider); }
+.gk-rozet.cozum { background:color-mix(in srgb, #a16207 16%, var(--kart)); color:#a16207; }
+@media (prefers-color-scheme: dark) { .gk-rozet.cozum { color:#facc15; } }
+.gk-cozum { font-size:12px; color:var(--soluk); overflow-wrap:anywhere; }
+
 /* ---------- çekmece */
 .perde { position:fixed; inset:0; background:rgba(10,12,16,.35); z-index:40; }
 .cekmece { position:fixed; top:0; right:0; bottom:0; width:min(760px, 100vw); background:var(--kart); z-index:41; border-left:1px solid var(--cizgi);
@@ -425,6 +505,25 @@ dialog.diyalog.kucuk { width:min(420px, calc(100vw - 32px)); }
     <div class="bolum-baslik"><h2 id="panoBaslik">Görev panosu</h2><span class="soluk" id="panoAlt"></span></div>
     <div class="pano" id="pano"></div>
   </section>
+  <section aria-labelledby="kulBaslik">
+    <div class="kul-ust"><h2 id="kulBaslik">Token ve bağlam kullanımı</h2><span class="soluk" id="kulAlt">Yükleniyor…</span>
+      <div class="donem" role="group" aria-label="Dönem"><button type="button" data-gun="1" aria-pressed="false">Bugün</button><button type="button" data-gun="7" aria-pressed="true">7 gün</button><button type="button" data-gun="30" aria-pressed="false">30 gün</button></div></div>
+    <div class="kul-kpi" id="kulKpi"></div>
+    <div class="kul-izgara">
+      <div class="kart"><h2>Çalışanlara göre</h2>
+        <div class="lejant" aria-hidden="true"><span><i class="i-claude"></i>Claude</span><span><i class="i-codex"></i>Codex</span></div>
+        <div class="tablo-sar"><table class="kul-tablo" id="kulTablo"></table></div>
+        <div class="kul-not">Token = önbelleksiz giriş + önbellek okuma/yazma + çıkış. Bağlam = çağrının en büyük isteğinin modelin bağlam penceresine oranı (Claude 200 B, Codex 258 B); %80'i aşan çağrılar sarı gösterilir.</div>
+      </div>
+      <div class="kul-yan">
+        <div class="kart"><h2 id="kulGrafikBaslik">Günlere göre token</h2>
+          <div class="lejant" aria-hidden="true"><span><i class="i-claude"></i>Claude</span><span><i class="i-codex"></i>Codex</span></div>
+          <div class="kul-grafik" id="kulGrafik"></div></div>
+        <div class="kart"><h2>En çok tüketen işler</h2><ul class="kul-liste" id="kulGorevler"></ul></div>
+      </div>
+    </div>
+    <details class="kart kul-son"><summary>Son ajan çağrıları</summary><div class="tablo-sar"><table class="kul-tablo" id="kulSon"></table></div></details>
+  </section>
   <section class="alt-izgara">
     <div class="kart"><h2>Bugün</h2><div class="sayac-izgara" id="sayaclar"></div><ul class="kilit-liste" id="kilitler"></ul></div>
     <div class="kart"><h2>Son bildirimler</h2><ul class="bildirimler" id="bildirimler"></ul></div>
@@ -451,29 +550,19 @@ dialog.diyalog.kucuk { width:min(420px, calc(100vw - 32px)); }
 <dialog class="diyalog" id="ekleDiyalog" aria-labelledby="ekleBaslik">
   <form class="diyalog-ic" id="ekleForm" novalidate>
     <h2 id="ekleBaslik">Ekibe iş ver</h2>
-    <fieldset class="oncelik"><legend>Tür</legend>
-      <label><input type="radio" name="tur" value="yazilim" checked> Yazılım görevi</label>
-      <label><input type="radio" name="tur" value="altyapi"> Sunucu / kurulum talebi</label>
-      <label><input type="radio" name="tur" value="uzman"> Uzman işi (tasarım, mimari, güvenlik, iletişim, işe alım…)</label>
-    </fieldset>
-    <label class="alan alan-uzman" hidden>Kime <span class="ipucu">boş bırakırsan lider uygun çalışanı seçer; kimse uygun değilse İK yeni birini işe alır</span>
-      <select name="rol" id="ekleRol"></select></label>
-    <label class="alan alan-uzman" hidden>İlgili klasör <span class="ipucu">isteğe bağlı; çalışanın okuyacağı klasör (ör. bir proje)</span>
-      <input name="klasor" autocomplete="off" maxlength="400"></label>
-    <label class="alan alan-yazilim">Proje <span class="ipucu">projeler.json'daki ad ya da bir git deposunun klasörü</span>
-      <input name="proje" list="projeListesi" autocomplete="off" maxlength="400"></label>
-    <fieldset class="oncelik alan-altyapi" hidden><legend>Hedef makineler <span class="ipucu">boş bırakırsan lider seçer</span></legend>
-      <div class="hedefler" id="hedefKutulari"></div>
-    </fieldset>
-    <div class="kutu uyari alan-altyapi" hidden>Sistem yöneticisi ve network çalışanı bu talebi onay beklemeden, tam yetkiyle uygular: VM açıp kapatabilir, yazılım kurabilir, konuk ayarlarını değiştirebilir. Sınırlar ayarlar.json &gt; altyapi.kurallar içinde.</div>
-    <datalist id="projeListesi"></datalist>
+    <div class="kutu ekle-bilgi">İşi <b>Yönetici</b> alır, okur ve kimin yapacağına kendisi karar verir: yazılım ekibi, sistem yöneticisi + network ya da kadrodaki bir uzman. Uygun kimse yoksa İK işe alım yapar. Sunucu işlerinde ekip onay beklemeden tam yetkiyle çalışır (sınırlar ayarlar.json &gt; altyapi.kurallar).</div>
+    <div class="oneri-cip" id="ekleOneri" hidden></div>
     <label class="alan">Başlık <input name="baslik" required maxlength="120" autocomplete="off"></label>
-    <label class="alan">Açıklama <span class="ipucu">ne yapılacak, hangi dosyalar, sınırlar</span>
+    <label class="alan">Açıklama <span class="ipucu">ne yapılacak; ilgili dosyalar, makineler, sınırlar</span>
       <textarea name="aciklama" rows="5" required maxlength="8000"></textarea></label>
-    <label class="alan">Kabul ölçütleri <span class="ipucu">her satıra bir ölçüt</span>
+    <label class="alan">İlgili proje ya da klasör <span class="ipucu">isteğe bağlı; Yönetici dikkate alır (kayıtlı bir proje adı ya da klasör yolu)</span>
+      <input name="ipucu" list="projeListesi" autocomplete="off" maxlength="400"></label>
+    <datalist id="projeListesi"></datalist>
+    <label class="alan">Kabul ölçütleri <span class="ipucu">isteğe bağlı; her satıra bir ölçüt</span>
       <textarea name="kabul" rows="3"></textarea></label>
-    <label class="alan">Doğrulama komutları <span class="ipucu" id="dogrulamaIpucu">isteğe bağlı; projenin komutlarına eklenir, her satıra bir komut (ör. npm test)</span>
-      <textarea name="dogrulama" rows="2"></textarea></label>
+    <details class="ekle-ileri"><summary>Doğrulama komutları (isteğe bağlı)</summary>
+      <label class="alan"><span class="ipucu">her satıra bir komut; işin çalışma klasöründe cmd.exe ile çalışır, başarısızsa 0 dışı kodla çıkmalı (ör. npm test)</span>
+        <textarea name="dogrulama" rows="2" aria-label="Doğrulama komutları"></textarea></label></details>
     <fieldset class="oncelik"><legend>Öncelik</legend>
       <label><input type="radio" name="oncelik" value="1"> 1 · Acil</label>
       <label><input type="radio" name="oncelik" value="2" checked> 2 · Normal</label>
@@ -482,7 +571,7 @@ dialog.diyalog.kucuk { width:min(420px, calc(100vw - 32px)); }
     <div class="form-hata" id="ekleHata" hidden></div>
     <div class="diyalog-alt">
       <button class="dugme" type="button" id="ekleVazgec">Vazgeç</button>
-      <button class="dugme birincil" type="submit" id="ekleGonder">Görevi ekle</button>
+      <button class="dugme birincil" type="submit" id="ekleGonder">Yöneticiye ver</button>
     </div>
   </form>
 </dialog>
@@ -537,7 +626,7 @@ const GLIF_KUM = ['####', ' ## ', ' ## ', '####'];
 
 const VARSAYILAN_RENK = { lider: '#c2410c', gelistirici: '#2563eb', denetci: '#0e8459', sistem: '#7c3aed', ag: '#0e7490' };
 const rolRengi = r => (/^#[0-9a-f]{6}$/i.test(r.renk || '') ? r.renk : VARSAYILAN_RENK[r.anahtar]) || '#64748b';
-const KISA_AD = { lider: 'Lider', mimar: 'Mimar', gelistirici: 'Geliştirici', denetci: 'Denetçi', sistem: 'Sistem', ag: 'Network', guvenlik: 'Güvenlik',
+const KISA_AD = { lider: 'Yönetici', 'sorun-giderici': 'S. Giderici', mimar: 'Mimar', gelistirici: 'Geliştirici', denetci: 'Denetçi', sistem: 'Sistem', ag: 'Network', guvenlik: 'Güvenlik',
   'tasarimci-ui': 'UI/UX', 'tasarimci-grafik': 'Grafik', ik: 'İK', iletisim: 'İletişim', 'ses-tasarimci': 'Ses' };
 const kisaAd = r => KISA_AD[r.anahtar] || String(r.ad || r.anahtar).split(/\s+/)[0].slice(0, 14);
 function aracRengi(a) {
@@ -1278,8 +1367,26 @@ function takildiOlayi(no, rolA) {
   alarmBitis = an() + 15000;
   const k = kisiler.get(rolA) || kisiler.get('lider');
   if (k) k.balon = { metin: `❗ #${no} takıldı`, bitis: an() + 6000 };
+  // Sorun Giderici devredeyse takılan işi o üstlenir
+  const sg = kisiler.get('sorun-giderici');
+  if (sg && !sg.gitti && veri && veri.sorun_giderici && veri.sorun_giderici.etkin) zamanla(2200, () => { sg.balon = { metin: `🔍 #${no}'ye bakıyorum`, bitis: an() + 3200 }; });
 }
-function soruOlayi(no) { olayBildir(`Lider soru soruyor (#${no}) ❓`); }
+function soruOlayi(no) { olayBildir(`Yönetici soru soruyor (#${no}) ❓`); }
+function cozumOlayi(g, no) {
+  const y = String(g.yardim_gorevi || '').split('-')[0];
+  const m = {
+    yardim_bekleniyor: [`Sorun Giderici #${no} için yardım işi açtı${y ? ` (#${y})` : ''} 🔧`, `🔧 #${y || no} açtım`],
+    yeniden_denendi: [`Sorun Giderici #${no} işini yeniden yürüttü 🔁`, '🔁 Bir daha deneyelim'],
+    aktarildi: [`Sorun Giderici #${no} işini doğru ekibe aktardı ↪️`, '↪️ Aktardım'],
+    kullanici: [`Sorun Giderici #${no} işini sana bıraktı 🙋`, '🙋 Senin kararın'],
+    yardim_tamam: [`Yardım geldi, #${no} yeniden yürüyor ✅`, '✅ Devam!'],
+    incelenemedi: [`Sorun Giderici #${no} işini inceleyemedi`, '😕 İnceleyemedim'],
+  }[g.cozum_durumu];
+  if (!m) return;
+  olayBildir(m[0]);
+  const k = kisiler.get('sorun-giderici');
+  if (k && !k.gitti) k.balon = { metin: m[1], bitis: an() + 3500 };
+}
 function yeniIsOlayi(g, no) {
   olayBildir(`Yeni iş geldi: #${no} ${g.baslik || ''}`.trim());
   const lider = kisiler.get('lider'); if (!lider || lider.gitti) return;
@@ -1358,6 +1465,7 @@ function guncelle(v) {
     for (const g of v.gorevler || []) {
       const e = eski.get(g.id), no = String(g.id).split('-')[0];
       if (!e) { if (g.asama === 'yeni') yeniIsOlayi(g, no); continue; }
+      if (g.cozum_durumu && e.cozum_durumu !== g.cozum_durumu) cozumOlayi(g, no);
       if (e.asama === g.asama) continue;
       if (g.asama === 'tamam') kutlamaOlayi(no);
       else if (g.asama === 'takildi') takildiOlayi(no, g.sorumlu);
@@ -1722,13 +1830,13 @@ return {
 const ANAHTAR = '__OFIS_ANAHTARI__';
 const ONIZLEME = '__ONIZLEME_ANAHTARI__';
 const FAALIYET_ADI = { plan: 'Plan', gelistirme: 'Geliştirme', kontrol: 'Kontrol', denetim: 'Denetim', kabul: 'Kabul', bosta: 'Boşta', bekliyor: 'Bekliyor', soru: 'Soru sordu',
-  kesif: 'Keşif', uygulama: 'Uygulama', dogrulama: 'Doğrulama', calisma: 'Çalışıyor', inceleme: 'İnceleme', ise_alim: 'İşe alım' };
+  kesif: 'Keşif', uygulama: 'Uygulama', dogrulama: 'Doğrulama', calisma: 'Çalışıyor', inceleme: 'İnceleme', ise_alim: 'İşe alım', cozum: 'Sorun inceleme' };
 const YETKI_ADI = { oku: 'salt okunur', yaz: 'korumalı alan', tam: 'tam yetki' };
 // kadro.json'dan (İK'nın da yazabildiği) gelen metni SVG şablonuna koymadan önce kaçışla
 const kac = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const renkGecerli = r => /^#[0-9a-fA-F]{6}$/.test(r || '') ? r : '';
 const koyuMu = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-const ASAMA_ADI = { yeni: 'Sırada', plan: 'Planlanıyor', gelistirme: 'Geliştiriliyor', kontrol: 'Kontrol ediliyor', denetim: 'Denetleniyor', kabul: 'Lider onayında',
+const ASAMA_ADI = { yeni: 'Sırada', plan: 'Planlanıyor', gelistirme: 'Geliştiriliyor', kontrol: 'Kontrol ediliyor', denetim: 'Denetleniyor', kabul: 'Yönetici onayında',
   tamamla: 'Commit ediliyor', tamam: 'Tamamlandı', takildi: 'Takıldı', bekliyor_kullanici: 'Senden yanıt bekliyor', iptal: 'İptal' };
 const SUTUNLAR = [
   { a: 'yeni', ad: 'Yeni', asamalar: ['yeni'] },
@@ -1742,12 +1850,13 @@ const SUTUNLAR = [
 ];
 const AKTIF_ASAMALAR = ['yeni', 'plan', 'gelistirme', 'kontrol', 'denetim', 'kabul', 'tamamla'];
 const DOSYA_ADI = {
-  'gelistirici-ozet.md': 'Geliştirici özeti', 'kontrol.md': 'Otomatik kontrol', 'denetim.md': 'Denetim raporu', 'kabul.md': 'Lider kararı',
+  'gelistirici-ozet.md': 'Geliştirici özeti', 'kontrol.md': 'Otomatik kontrol', 'denetim.md': 'Denetim raporu', 'kabul.md': 'Yönetici kararı',
   'geri-bildirim.md': 'Bu turun geri bildirimi', 'degisiklik.diff': 'Diff', 'degisiklik-u0.diff': 'Diff (bağlamsız)',
   'uygulama-ozet.md': 'Uygulama raporu', 'dogrulama.md': 'Doğrulama raporu', 'kesif.md': 'Keşif (VM / ağ durumu)', 'sonuc.md': 'Sonuç',
   'calisma-ozet.md': 'Çalışanın raporu', 'inceleme.md': 'İnceleme raporu',
 };
-const ROL_ADI = { sistem: 'Sistem Yöneticisi', ag: 'Network', yok: 'yok', lider: 'Lider' };
+const ROL_ADI = { sistem: 'Sistem Yöneticisi', ag: 'Network', yok: 'yok', lider: 'Yönetici', 'sorun-giderici': 'Sorun Giderici' };
+const KARAR_ADI = { YAZILIM: 'yazılım ekibine verdi', ALTYAPI: 'sistem yöneticisi + network ekibine verdi', UZMAN: 'uzmana verdi', ISE_ALIM: 'İK işe alım yapacak', SORU_VAR: 'sana soru sordu' };
 function rolAdi(k) {
   if (!k) return '';
   const r = veri && (veri.roller || []).find(x => x.anahtar === k);
@@ -1913,8 +2022,9 @@ function kisiAyrintisi(r, v) {
       E('li', { class: (z.neden ? 'kisitli' : '') + (z.kimlik === r.arac ? ' secili' : ''), title: z.neden || 'kullanılabilir' },
         E('span', { class: 'zn' }), E('span', { class: 'zk', text: aracMetni(z.kimlik) }), z.neden ? E('span', { class: 'zneden', text: z.neden }) : null))) : null,
     (sure.textContent || r.not) ? E('div', { class: 'mb-alt' }, sure, r.not ? E('span', { text: r.not }) : null) : null,
+    r.bugun && r.bugun.cagri ? E('div', { class: 'mb-alt' }, E('span', { text: `Bugün ${r.bugun.cagri} ajan çağrısı · ${sayiKisa(r.bugun.toplam)} token` })) : null,
     r.uzmanlik ? E('div', { class: 'kk-uzm', text: r.uzmanlik }) : null,
-    r.uzman_isi ? E('div', { class: 'kk-dugmeler' }, E('button', { class: 'dugme kucuk', type: 'button', text: 'Bu çalışana iş ver', onclick: () => ekleAc({ tur: 'uzman', rol: r.anahtar }) })) : null,
+    r.uzman_isi ? E('div', { class: 'kk-dugmeler' }, E('button', { class: 'dugme kucuk', type: 'button', text: 'Bu çalışana iş ver', title: 'İş Yöneticiye bu çalışan önerilerek verilir', onclick: () => ekleAc({ rol: r.anahtar }) })) : null,
   ].filter(Boolean);
 }
 
@@ -2047,7 +2157,7 @@ function mesajEl(s, m) {
 }
 function oneriEl(o) {
   const tur = { uzman: 'Uzman işi', yazilim: 'Yazılım görevi', altyapi: 'Sunucu / kurulum talebi' }[o.tur] || 'İş';
-  const kime = o.tur === 'uzman' ? (o.rol ? rolAdi(o.rol) : 'lider seçer') : o.tur === 'yazilim' ? (o.proje || 'proje seçilecek') : ((o.hedef || []).join(', ') || 'lider seçer');
+  const kime = o.tur === 'uzman' ? (o.rol ? rolAdi(o.rol) : 'Yönetici seçer') : o.tur === 'yazilim' ? (o.proje || 'Yönetici seçer') : ((o.hedef || []).join(', ') || 'Yönetici seçer');
   return E('div', { class: 'sb-oneri' },
     E('span', { class: 'soluk', text: `Önerilen iş · ${tur} · ${kime}` }), E('b', { text: o.baslik }),
     o.aciklama ? E('span', { text: o.aciklama.length > 240 ? o.aciklama.slice(0, 240) + '…' : o.aciklama }) : null,
@@ -2098,7 +2208,7 @@ function sohbetleriGuncelle(v) {
 // ---------------------------------------------------------------- pano
 let panoImza = '';
 function panoCiz(gorevler) {
-  const imza = JSON.stringify(gorevler.map(g => [g.id, g.asama, g.tur, g.max_tur, g.son_zaman, g.aktif, g.son_hata, g.sonraki_deneme, g.baslik]));
+  const imza = JSON.stringify(gorevler.map(g => [g.id, g.asama, g.tur, g.max_tur, g.son_zaman, g.aktif, g.son_hata, g.sonraki_deneme, g.baslik, g.tip, g.cozuluyor, g.cozum_durumu]));
   if (imza === panoImza) return;
   panoImza = imza;
   const pano = $('#pano');
@@ -2120,26 +2230,38 @@ function gorevKarti(g) {
   const rozetler = [];
   const altyapi = g.tip === 'altyapi';
   const uzman = g.tip === 'uzman';
+  const genel = g.tip === 'genel';
+  const takili = g.asama === 'takildi';
+  if (genel) rozetler.push(E('span', { class: 'gk-rozet yonetici', text: 'Yöneticide' }));
   if (altyapi) rozetler.push(E('span', { class: 'gk-rozet altyapi', text: 'altyapı' }));
   if (uzman) rozetler.push(E('span', { class: 'gk-rozet altyapi', text: 'uzman' }));
+  if (g.ana_gorev) rozetler.push(E('span', { class: 'gk-rozet cozum', text: `#${noKisa(g.ana_gorev)} için yardım`, title: 'Sorun Giderici bu işi takılan bir iş için açtı' }));
   if (g.aktif) rozetler.push(E('span', { class: 'gk-rozet calisiyor', text: 'çalışılıyor' }));
+  if (g.cozuluyor) rozetler.push(E('span', { class: 'gk-rozet calisiyor', text: 'Sorun Giderici bakıyor' }));
+  else if (takili && g.cozum_durumu === 'yardim_bekleniyor') rozetler.push(E('span', { class: 'gk-rozet cozum', text: `yardım bekliyor: #${noKisa(g.yardim_gorevi)}` }));
+  else if (takili && g.cozum_durumu === 'kullanici') rozetler.push(E('span', { class: 'gk-rozet soru', text: 'seni bekliyor' }));
   if (g.asama === 'bekliyor_kullanici') rozetler.push(E('span', { class: 'gk-rozet soru', text: 'soru' }));
   if (g.asama === 'iptal') rozetler.push(E('span', { class: 'gk-rozet iptal', text: 'iptal' }));
   if (g.asama === 'tamamla') rozetler.push(E('span', { class: 'gk-rozet calisiyor', text: 'commit' }));
   if (Number(g.oncelik) === 1 && !['tamam', 'iptal'].includes(g.asama)) rozetler.push(E('span', { class: 'gk-rozet acil', text: 'acil' }));
-  let hata = '';
+  let hata = '', cozum = '';
   if (g.son_hata && !['tamam', 'iptal'].includes(g.asama)) hata = g.son_hata;
+  if (takili && g.cozum_durumu === 'kullanici' && g.cozum_kullaniciya) cozum = '🙋 ' + g.cozum_kullaniciya;
+  else if (takili && g.cozum_durumu === 'yardim_bekleniyor' && g.cozum_teshis) cozum = '🔧 ' + g.cozum_teshis;
+  if (cozum.length > 180) cozum = cozum.slice(0, 180) + '…';
   let alt = g.son_olay ? `${tarihSaat(g.son_zaman)} · ${g.son_olay}` : `eklendi ${tarihSaat(g.olusturma)}`;
   if (g.sonraki_deneme && new Date(g.sonraki_deneme) > new Date()) alt += ` · yeniden deneme ${saatMetni(g.sonraki_deneme)}`;
   return E('button', { class: 'gkart' + (g.aktif ? ' aktif' : '') + (g.asama === 'iptal' ? ' soluk-kart' : ''), type: 'button', onclick: () => gorevAc(g.id), title: ASAMA_ADI[g.asama] || g.asama },
     E('div', { class: 'gk-ust' }, E('span', { class: 'gk-no', text: '#' + noKisa(g.id) }), ...rozetler),
     E('div', { class: 'gk-baslik', text: g.baslik }),
-    E('div', { class: 'gk-meta', text: altyapi ? `${(g.hedef || []).join(', ') || 'hedef: lider seçer'} · tur ${g.tur}/${g.max_tur}`
-      : uzman ? `${rolAdi(g.sorumlu || g.hedef_rol) || 'lider seçer'} · tur ${g.tur}/${g.max_tur}` : `${g.proje} · tur ${g.tur}/${g.max_tur}` }),
+    E('div', { class: 'gk-meta', text: genel ? 'Yönetici okuyup kime vereceğine karar veriyor'
+      : altyapi ? `${(g.hedef || []).join(', ') || 'hedef: Yönetici seçer'} · tur ${g.tur}/${g.max_tur}`
+      : uzman ? `${rolAdi(g.sorumlu || g.hedef_rol) || 'Yönetici seçer'} · tur ${g.tur}/${g.max_tur}` : `${g.proje} · tur ${g.tur}/${g.max_tur}` }),
     altyapi && g.sorumlu ? E('div', { class: 'gk-dal', text: `sorumlu: ${rolAdi(g.sorumlu)}${g.destek && g.destek !== 'yok' ? ' · destek: ' + rolAdi(g.destek) : ''}` }) : null,
     uzman && g.inceleyen && g.inceleyen !== 'yok' ? E('div', { class: 'gk-dal', text: `inceleyen: ${rolAdi(g.inceleyen)}` }) : null,
     g.dal ? E('div', { class: 'gk-dal mono', text: g.dal, title: g.dal }) : null,
     hata ? E('div', { class: 'gk-hata', text: hata.length > 160 ? hata.slice(0, 160) + '…' : hata }) : null,
+    cozum ? E('div', { class: 'gk-cozum', text: cozum }) : null,
     E('div', { class: 'gk-son', text: alt }));
 }
 
@@ -2177,12 +2299,19 @@ function uyarilariCiz(v) {
     E('span', { text: d.calisiyor ? 'Şu an çalışan adım bitince ekip bekleyecek.' : (d.durdur_metni || 'DURDUR dosyası var.') }),
     E('span', { class: 'bosluk' }), E('button', { class: 'dugme kucuk', type: 'button', text: '▶ Sürdür', onclick: () => duraklatSurdur('surdur') })));
   for (const g of v.gorevler.filter(x => x.asama === 'bekliyor_kullanici')) parcalar.push(E('div', { class: 'serit uyari' },
-    E('b', { text: `Lider soru soruyor: #${noKisa(g.id)} ${g.baslik}` }), E('span', { class: 'bosluk' }),
+    E('b', { text: `Yönetici soru soruyor: #${noKisa(g.id)} ${g.baslik}` }), E('span', { class: 'bosluk' }),
     E('button', { class: 'dugme kucuk', type: 'button', text: 'Soruyu aç ve yanıtla', onclick: () => gorevAc(g.id, 'soru') })));
+  // Takılan işler: Sorun Giderici ilgileniyorsa bilgi şeridi, kullanıcıya kaldıysa kırmızı şerit
+  const sg = v.sorun_giderici || {};
   const takilan = v.gorevler.filter(x => x.asama === 'takildi');
-  if (takilan.length) parcalar.push(E('div', { class: 'serit hata' }, E('b', { text: `${takilan.length} görev takıldı.` }),
-    E('span', { text: takilan.map(g => `#${noKisa(g.id)} ${g.baslik}`).join(', ') }), E('span', { class: 'bosluk' }),
-    E('button', { class: 'dugme kucuk', type: 'button', text: 'İncele', onclick: () => gorevAc(takilan[0].id) })));
+  const sende = takilan.filter(g => !sg.etkin || ['kullanici', 'incelenemedi', 'yardim_iptal'].includes(g.cozum_durumu) || (Number(g.cozum_sayisi) || 0) >= (sg.en_fazla || 2) && g.cozum_durumu !== 'yardim_bekleniyor');
+  const onda = takilan.filter(g => !sende.includes(g));
+  if (onda.length) parcalar.push(E('div', { class: 'serit bilgi' }, E('b', { text: `Sorun Giderici ${onda.length} takılan işle ilgileniyor.` }),
+    E('span', { text: onda.map(g => `#${noKisa(g.id)} ${g.cozuluyor ? 'inceleniyor' : g.cozum_durumu === 'yardim_bekleniyor' ? `yardım bekliyor (#${noKisa(g.yardim_gorevi)})` : 'sırada'}`).join(' · ') }),
+    E('span', { class: 'bosluk' }), E('button', { class: 'dugme kucuk', type: 'button', text: 'Aç', onclick: () => gorevAc(onda[0].id, 'cozum') })));
+  if (sende.length) parcalar.push(E('div', { class: 'serit hata' }, E('b', { text: `${sende.length} takılan iş seni bekliyor.` }),
+    E('span', { text: sende.map(g => `#${noKisa(g.id)} ${g.baslik}`).join(', ') }), E('span', { class: 'bosluk' }),
+    E('button', { class: 'dugme kucuk', type: 'button', text: 'İncele', onclick: () => gorevAc(sende[0].id) })));
   if (!baglantiVar) parcalar.unshift(E('div', { class: 'serit hata' }, E('b', { text: 'Panel sunucusuna ulaşılamıyor.' }),
     E('span', { text: 'Sunucu kapanmış olabilir. Masaüstündeki "AI Ekip Ofisi" kısayoluna tıkla; sayfa kendiliğinden yeniden bağlanır.' })));
   kap.replaceChildren(...parcalar);
@@ -2312,73 +2441,213 @@ async function ofisKapatAc() {
   } catch (e) { tost('İşlem başarısız: ' + e.message, true); }
   finally { od.disabled = false; yenile(); }
 }
-function ekleTurGuncelle() {
-  const f = $('#ekleForm'), tur = f.tur.value;
-  for (const el of f.querySelectorAll('.alan-yazilim')) el.hidden = tur !== 'yazilim';
-  for (const el of f.querySelectorAll('.alan-altyapi')) el.hidden = tur !== 'altyapi';
-  for (const el of f.querySelectorAll('.alan-uzman')) el.hidden = tur !== 'uzman';
-  $('#dogrulamaIpucu').textContent = {
-    altyapi: 'isteğe bağlı; ana makinede cmd.exe ile çalışır, başarısızsa 0 dışı kodla çıkmalı (ör. powershell -NoProfile -Command "if (-not (Test-NetConnection 192.0.2.10 -Port 8080 -InformationLevel Quiet)) { exit 1 }")',
-    uzman: 'isteğe bağlı; çalışma klasöründe cmd.exe ile çalışır, başarısızsa 0 dışı kodla çıkmalı (çoğu tasarım işinde gerekmez)',
-    yazilim: 'isteğe bağlı; projenin komutlarına eklenir, her satıra bir komut (ör. npm test)',
-  }[tur];
-  $('#ekleGonder').textContent = { altyapi: 'Talebi ekle', uzman: 'İşi ver', yazilim: 'Görevi ekle' }[tur];
+// "İş ver": tür seçilmez; iş doğrudan Yöneticiye gider (/api/is-ver), Yönetici kime vereceğine kendisi karar verir.
+// Bir çalışanın kartından ya da sohbet önerisinden açılırsa o çalışan Yöneticiye yalnızca öneri olarak iletilir.
+function ekleOneriCiz(rol) {
+  const f = $('#ekleForm'), kap = $('#ekleOneri');
+  f.dataset.rol = rol || '';
+  if (!rol) { kap.hidden = true; kap.replaceChildren(); return; }
+  kap.hidden = false;
+  kap.replaceChildren(E('span', { text: `Önerilen çalışan: ${rolAdi(rol)} (Yönetici uygun görmezse başkasına verir)` }),
+    E('button', { class: 'kapat', type: 'button', 'aria-label': 'Öneriyi kaldır', text: '×', onclick: () => ekleOneriCiz('') }));
 }
 function ekleAc(on) {
-  on = on && (on.tur || on.oneri) ? on : null;   // tıklama olayıyla da çağrılır
+  on = on && (on.rol || on.oneri) ? on : null;   // tıklama olayıyla da çağrılır
   const f = $('#ekleForm');
   $('#ekleHata').hidden = true;
-  if (!f.proje.value && veri && veri.projeler.length) f.proje.value = veri.projeler[0].ad;
-  const kutular = $('#hedefKutulari');
-  const secili = new Set([...kutular.querySelectorAll('input:checked')].map(x => x.value));
-  kutular.replaceChildren(...((veri && veri.makineler) || []).map(m => E('label', { title: m.aciklama || '' },
-    E('input', { type: 'checkbox', name: 'hedef', value: m.ad, checked: secili.has(m.ad) }), ` ${m.ad} `, E('small', { text: m.ip }))));
-  const sec = $('#ekleRol'), onceki = sec.value;
-  sec.replaceChildren(E('option', { value: '', text: 'Lider seçsin' }),
-    ...((veri && veri.roller) || []).filter(r => r.uzman_isi).map(r => E('option', { value: r.anahtar, text: `${r.ad} — ${r.departman || ''}`, title: r.uzmanlik || '' })));
-  sec.value = onceki;
-  if (on && on.tur) { f.tur.value = on.tur; sec.value = on.rol || ''; }
+  let rol = on && on.rol ? on.rol : '';
   if (on && on.oneri) {   // sohbette bir çalışanın önerdiği iş: formu doldur, kullanıcı gözden geçirip gönderir
     const o = on.oneri;
-    f.tur.value = ['uzman', 'yazilim', 'altyapi'].includes(o.tur) ? o.tur : 'uzman';
     f.baslik.value = o.baslik || ''; f.aciklama.value = o.aciklama || ''; f.kabul.value = (o.kabul || []).join('\n'); f.dogrulama.value = '';
     f.oncelik.value = String(o.oncelik || 2);
-    if (f.tur.value === 'uzman') { sec.value = o.rol || ''; f.klasor.value = o.klasor || ''; }
-    if (f.tur.value === 'yazilim' && o.proje) f.proje.value = o.proje;
-    if (f.tur.value === 'altyapi') for (const x of f.querySelectorAll('input[name=hedef]')) x.checked = (o.hedef || []).includes(x.value);
+    f.ipucu.value = o.proje || o.klasor || (o.hedef || []).join(', ') || '';
+    rol = o.rol || '';
   }
-  ekleTurGuncelle();
+  ekleOneriCiz(rol);
   $('#ekleDiyalog').showModal();
-  (f.tur.value === 'yazilim' && !f.proje.value ? f.proje : f.baslik).focus();
+  f.baslik.focus();
 }
 async function ekleGonder(ev) {
   ev.preventDefault();
   const f = $('#ekleForm'), hata = $('#ekleHata');
-  const tur = f.tur.value, altyapi = tur === 'altyapi', uzman = tur === 'uzman';
   const satirlar = s => s.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
   const govde = {
-    baslik: f.baslik.value.trim(), aciklama: f.aciklama.value.trim(),
+    baslik: f.baslik.value.trim(), aciklama: f.aciklama.value.trim(), ipucu: f.ipucu.value.trim(), rol: f.dataset.rol || '',
     kabul: satirlar(f.kabul.value), dogrulama: satirlar(f.dogrulama.value), oncelik: Number(f.oncelik.value || 2),
   };
-  if (altyapi) govde.hedef = [...f.querySelectorAll('input[name=hedef]:checked')].map(x => x.value);
-  else if (uzman) { govde.rol = f.rol.value; govde.klasor = f.klasor.value.trim(); }
-  else govde.proje = f.proje.value.trim();
-  const eksik = [tur === 'yazilim' && !govde.proje && 'proje', !govde.baslik && 'başlık', !govde.aciklama && 'açıklama'].filter(Boolean);
+  const eksik = [!govde.baslik && 'başlık', !govde.aciklama && 'açıklama'].filter(Boolean);
   if (eksik.length) { hata.textContent = `Şu alanlar boş olamaz: ${eksik.join(', ')}`; hata.hidden = false; return; }
-  const dug = $('#ekleGonder'); dug.disabled = true; dug.textContent = 'Ekleniyor…'; hata.hidden = true;
+  const dug = $('#ekleGonder'); dug.disabled = true; dug.textContent = 'Veriliyor…'; hata.hidden = true;
   try {
-    const r = await api(altyapi ? '/api/talep-ekle' : uzman ? '/api/uzman-ekle' : '/api/gorev-ekle', govde);
+    const r = await api('/api/is-ver', govde);
     $('#ekleDiyalog').close();
-    f.baslik.value = ''; f.aciklama.value = ''; f.kabul.value = ''; f.dogrulama.value = '';
-    for (const x of f.querySelectorAll('input[name=hedef]')) x.checked = false;
-    const ad = altyapi ? 'Talep' : uzman ? 'İş' : 'Görev';
-    if (uzman) { f.klasor.value = ''; }
-    tost((r.id ? `${ad} eklendi: #${noKisa(r.id)} ${govde.baslik}` : `${ad} eklendi.`) + '\nEkip en geç birkaç dakika içinde (genellikle 20 sn) işi alır.');
+    f.baslik.value = ''; f.aciklama.value = ''; f.kabul.value = ''; f.dogrulama.value = ''; f.ipucu.value = '';
+    ekleOneriCiz('');
+    tost((r.id ? `İş Yöneticiye verildi: #${noKisa(r.id)} ${govde.baslik}` : 'İş Yöneticiye verildi.') + '\nYönetici birkaç dakika içinde (genellikle 20 sn) okuyup kime vereceğine karar verir.');
     yenile();
   } catch (e) {
-    hata.textContent = 'Görev eklenemedi: ' + e.message + (e.veri && e.veri.cikti && e.veri.cikti !== e.message ? '\n' + e.veri.cikti : '');
+    hata.textContent = 'İş verilemedi: ' + e.message + (e.veri && e.veri.cikti && e.veri.cikti !== e.message ? '\n' + e.veri.cikti : '');
     hata.hidden = false;
-  } finally { dug.disabled = false; ekleTurGuncelle(); }
+  } finally { dug.disabled = false; dug.textContent = 'Yöneticiye ver'; }
+}
+
+// ---------------------------------------------------------------- kullanım panosu (token / bağlam; /api/kullanim)
+const kullanim = { gun: 7, veri: null, zamanlayici: null };
+try { const g = Number(localStorage.getItem('aiOfisKullanimGun')); if ([1, 7, 30].includes(g)) kullanim.gun = g; } catch (e) { /* tarayıcı depolaması yok */ }
+const sayiKisa = n => new Intl.NumberFormat('tr-TR', { notation: 'compact', maximumFractionDigits: 1 }).format(Number(n) || 0);
+const sayiTam = n => new Intl.NumberFormat('tr-TR').format(Number(n) || 0);
+const ARAC_AD = { claude: 'Claude', codex: 'Codex', diger: 'Diğer' };
+const ETIKET_AD = { plan: 'plan', gelistirme: 'geliştirme', denetim: 'denetim', kabul: 'kabul', yonlendirme: 'yönlendirme', cozum: 'sorun inceleme', calisma: 'çalışma',
+  inceleme: 'inceleme', uygulama: 'uygulama', dogrulama: 'doğrulama', ise_alim: 'işe alım', sohbet: 'sohbet' };
+const etiketAdi = e => ETIKET_AD[e] || (String(e || '').startsWith('inceleme-') ? 'ek inceleme' : String(e || '').startsWith('sohbet') ? 'sohbet' : e);
+const GUN_KISA = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
+async function kullanimYukle() {
+  clearTimeout(kullanim.zamanlayici);
+  try { const d = await api('/api/kullanim?gun=' + kullanim.gun); kullanim.veri = d; kullanimCiz(d); }
+  catch (e) { $('#kulAlt').textContent = 'Kullanım verisi alınamadı: ' + e.message; }
+  finally { kullanim.zamanlayici = setTimeout(kullanimYukle, document.hidden ? 120000 : 30000); }
+}
+function kullanimDonem(gun) {
+  kullanim.gun = gun;
+  try { localStorage.setItem('aiOfisKullanimGun', String(gun)); } catch (e) { /* yok say */ }
+  for (const b of document.querySelectorAll('.donem button')) b.setAttribute('aria-pressed', String(Number(b.dataset.gun) === gun));
+  kullanimYukle();
+}
+function rolNoktasi(r) {
+  const nokta = E('span', { class: 'rol-nokta' });
+  const renk = renkGecerli(koyuMu() ? (r.renk_koyu || r.renk) : r.renk);
+  nokta.style.setProperty('--rol', renk || PikselOfis.rolRengi({ anahtar: r.anahtar, renk: '' }));
+  return nokta;
+}
+function kullanimCiz(d) {
+  for (const b of document.querySelectorAll('.donem button')) b.setAttribute('aria-pressed', String(Number(b.dataset.gun) === d.gun));
+  const o = d.ozet;
+  $('#kulAlt').textContent = `${d.gun === 1 ? 'bugün' : `son ${d.gun} gün`} · ${o.cagri} ajan çağrısı` + (d.ilk_kayit ? ` · kayıtlar ${tarihSaat(d.ilk_kayit)} tarihinden beri` : '');
+  // ---- özet kutuları
+  const ar = Object.fromEntries((d.araclar || []).map(a => [a.arac, a]));
+  const h = d.haklar || {}, cl = h.claude || {}, cx = h.codex || {};
+  const kutu = (etiket, deger, alt, baslik) => E('div', { class: 'sayac', title: baslik || '' },
+    E('div', { class: 's-etiket', text: etiket }), E('div', { class: 's-deger', text: deger }), alt ? E('div', { class: 's-alt', text: alt }) : null);
+  const clAlt = [`bugün ${cl.bugun || 0}/${cl.sinir || '∞'} çağrı`, cl.kalan_yuzde != null ? `hesapta %${cl.kalan_yuzde} kaldı` : null].filter(Boolean).join(' · ');
+  const cxAlt = [`bugün ${cx.bugun || 0}/${cx.sinir || '∞'} çağrı`, cx.bes_saat ? `5 saatlik hak %${Math.round(cx.bes_saat.yuzde)}` : null, cx.haftalik ? `haftalık %${Math.round(cx.haftalik.yuzde)}` : null].filter(Boolean).join(' · ');
+  const clKutu = kutu('Claude', sayiKisa((ar.claude || {}).toplam), clAlt,
+    `${(ar.claude || {}).cagri || 0} çağrı · ${sayiTam((ar.claude || {}).toplam)} token${o.maliyet_usd ? ` · API fiyatıyla karşılığı ~$${o.maliyet_usd.toFixed(2)} (abonelikte ayrıca ödenmez)` : ''}`);
+  const cxKutu = kutu('Codex', sayiKisa((ar.codex || {}).toplam), cxAlt,
+    `${(ar.codex || {}).cagri || 0} çağrı · ${sayiTam((ar.codex || {}).toplam)} token${cx.guncelleme ? ` · hak yüzdeleri ${tarihSaat(cx.guncelleme)} itibarıyla` : ''}`);
+  $('#kulKpi').replaceChildren(
+    kutu('Toplam token', sayiKisa(o.toplam), `önbelleksiz giriş ${sayiKisa(o.giris)} · önbellek ${sayiKisa(o.onbellek_okuma + o.onbellek_yazma)} · çıkış ${sayiKisa(o.cikis)}`, `${sayiTam(o.toplam)} token`),
+    clKutu, cxKutu,
+    kutu('Ajan çağrısı', String(o.cagri), `${o.basarisiz} başarısız · toplam ${sureMetni(o.sure_sn)} çalışma`),
+    kutu('En dolu bağlam', o.tepe_yuzde > 0 ? `%${o.tepe_yuzde.toLocaleString('tr-TR')}` : '—', o.tepe_rol ? `${rolAdi(o.tepe_rol)} · tek istekte pencerenin oranı` : 'tek istekte bağlam penceresinin oranı'));
+  // ---- çalışanlara göre tablo
+  const roller = d.roller || [];
+  const tablo = $('#kulTablo');
+  if (!roller.length) { tablo.replaceChildren(E('tbody', {}, E('tr', {}, E('td', { class: 'kul-bos', text: 'Bu dönemde ajan çağrısı yok.' })))); }
+  else {
+    const enBuyuk = Math.max(1, ...roller.map(r => Number(r.toplam) || 0));
+    const bas = E('thead', {}, E('tr', {}, E('th', { text: 'Çalışan' }), E('th', { class: 'sag', text: 'Çağrı' }), E('th', { class: 'sag gizle-m', text: 'Süre' }),
+      E('th', { text: 'Token' }), E('th', { class: 'sag gizle-m', text: 'Giriş · önbellek · çıkış' }), E('th', { text: 'En dolu bağlam' })));
+    const govde = E('tbody', {}, ...roller.map(r => {
+      const parcalar = ['claude', 'codex', 'diger'].filter(a => Number(r[a]) > 0).map(a => {
+        const i = E('i', { class: 'c-' + a, title: `${ARAC_AD[a]}: ${sayiTam(r[a])} token (%${Math.round(r[a] / Math.max(1, r.toplam) * 100)})` });
+        i.style.flex = `${r[a]} 1 0`; return i;
+      });
+      const yig = E('div', { class: 'yigin' }, ...parcalar); yig.style.width = `${Math.max(2, r.toplam / enBuyuk * 100)}%`;
+      const bcI = E('i'); bcI.style.width = `${Math.min(100, r.tepe_yuzde || 0)}%`;
+      const baglam = r.tepe_yuzde != null
+        ? E('div', { class: 'baglam' + (r.tepe_yuzde >= 80 ? ' yuksek' : ''), title: `En dolu istek ${sayiTam(r.tepe_token)} token (%${r.tepe_yuzde}); ortalama %${r.ort_yuzde}` },
+          E('span', { class: 'bc' }, bcI), E('b', { text: `${r.tepe_yuzde >= 80 ? '⚠ ' : ''}%${Math.round(r.tepe_yuzde)}` }))
+        : E('span', { class: 'soluk', text: 'ölçülmedi', title: 'Bu çalışanın bu dönemdeki kayıtlarında bağlam ölçümü yok (eski kayıtlar yalnızca toplamı içerir)' });
+      return E('tr', { title: (r.modeller || []).join(', ') },
+        E('td', {}, E('div', { class: 'kul-ad' }, rolNoktasi(r), r.ad, r.sohbet ? E('small', { text: `· ${r.sohbet} sohbet` }) : null)),
+        E('td', { class: 'sag' }, String(r.cagri), r.basarisiz ? E('span', { class: 'hata-yazi', title: 'başarısız çağrı', text: ` (${r.basarisiz}✕)` }) : null),
+        E('td', { class: 'sag gizle-m', text: sureMetni(r.sure_sn) }),
+        E('td', { class: 'tok-hucre' }, E('div', { class: 'tok-sayi', title: `${sayiTam(r.toplam)} token` }, sayiKisa(r.toplam)), r.toplam ? yig : null),
+        E('td', { class: 'sag gizle-m', text: `${sayiKisa(r.giris)} · ${sayiKisa(r.onbellek_okuma + r.onbellek_yazma)} · ${sayiKisa(r.cikis)}` }),
+        E('td', {}, baglam));
+    }));
+    tablo.replaceChildren(bas, govde);
+  }
+  // ---- zaman grafiği
+  $('#kulGrafikBaslik').textContent = d.gun === 1 ? 'Saatlere göre token (bugün)' : `Günlere göre token (son ${d.gun} gün)`;
+  kullanimGrafik(d);
+  // ---- en çok tüketen işler
+  const gl = d.gorevler || [];
+  $('#kulGorevler').replaceChildren(...(gl.length ? gl.map(g => E('li', {},
+    E('button', { class: 'baglanti', type: 'button', text: `#${noKisa(g.id)} ${g.baslik || ''}`, title: g.baslik || g.id, onclick: () => gorevAc(g.id) }),
+    E('span', { class: 'sayi', text: `${sayiKisa(g.toplam)} · ${g.cagri} çağrı` }))) : [E('li', {}, E('span', { class: 'soluk', text: 'Bu dönemde görev çağrısı yok.' }))]));
+  // ---- son çağrılar
+  const son = d.son || [];
+  $('#kulSon').replaceChildren(
+    E('thead', {}, E('tr', {}, E('th', { text: 'Zaman' }), E('th', { text: 'Çalışan' }), E('th', { text: 'Adım' }), E('th', { class: 'gizle-m', text: 'Görev' }),
+      E('th', { class: 'gizle-m', text: 'Araç' }), E('th', { class: 'sag', text: 'Token' }), E('th', { class: 'sag', text: 'Bağlam' }), E('th', { class: 'sag gizle-m', text: 'Süre' }))),
+    E('tbody', {}, ...son.map(c => E('tr', {},
+      E('td', { text: tarihSaat(c.zaman) }), E('td', { text: rolAdi(c.rol) }),
+      E('td', {}, etiketAdi(c.etiket), c.basarili ? null : E('span', { class: 'hata-yazi', title: c.hata || '', text: ' · başarısız' })),
+      E('td', { class: 'gizle-m' }, c.gorev ? E('button', { class: 'baglanti', type: 'button', text: '#' + noKisa(c.gorev), onclick: () => gorevAc(c.gorev) }) : E('span', { class: 'soluk', text: '—' })),
+      E('td', { class: 'gizle-m mono', text: aracMetni(c.arac) }), E('td', { class: 'sag', text: sayiKisa(c.toplam) }),
+      E('td', { class: 'sag', text: c.yuzde != null ? `%${Math.round(c.yuzde)}` : '—' }), E('td', { class: 'sag gizle-m', text: sureMetni(c.sure_sn) })))));
+}
+function kullanimGrafik(d) {
+  const kap = $('#kulGrafik');
+  const seri = d.seri || [];
+  const enBuyuk = Math.max(0, ...seri.map(s => s.claude + s.codex + s.diger));
+  if (!enBuyuk) { kap.replaceChildren(E('div', { class: 'kul-bos', text: 'Bu dönemde ölçülen token yok.' })); return; }
+  const W = 480, H = 190, sol = 44, sag = 6, ust = 8, alt = 22, pw = W - sol - sag, ph = H - ust - alt;
+  // Eksen: 0 ve iki yuvarlak ara değer
+  const ad = 10 ** Math.floor(Math.log10(enBuyuk)); const tavan = Math.ceil(enBuyuk / ad / 2) * ad * 2 || enBuyuk;
+  const y = v => ust + ph - v / tavan * ph;
+  const ns = 'http://www.w3.org/2000/svg';
+  const S = (et, oz) => { const el = document.createElementNS(ns, et); for (const [k, v] of Object.entries(oz || {})) el.setAttribute(k, v); return el; };
+  const svg = S('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${d.gun === 1 ? 'Bugün saatlere' : `Son ${d.gun} günde günlere`} göre Claude ve Codex token kullanımı; en yüksek ${sayiTam(enBuyuk)} token` });
+  for (const v of [0, tavan / 2, tavan]) {
+    svg.append(S('line', { class: 'izgara', x1: sol, x2: W - sag, y1: y(v), y2: y(v) }));
+    const t = S('text', { class: 'eksen', x: sol - 6, y: y(v) + 3.5, 'text-anchor': 'end' }); t.textContent = sayiKisa(v); svg.append(t);
+  }
+  const n = seri.length, bant = pw / n, bg = Math.max(2, Math.min(22, bant * 0.64));
+  const ipucu = E('div', { class: 'kul-ipucu', hidden: true });
+  const etiket = s => d.gun === 1 ? `${s.anahtar}:00` : (() => { const t = new Date(s.anahtar + 'T12:00:00'); return `${GUN_KISA[t.getDay()]} ${iki(t.getDate())}.${iki(t.getMonth() + 1)}`; })();
+  const xEtiketAdim = d.gun === 1 ? 3 : d.gun === 7 ? 1 : 5;
+  seri.forEach((s, i) => {
+    const x0 = sol + i * bant, xb = x0 + (bant - bg) / 2;
+    const parcalar = [['claude', s.claude], ['codex', s.codex], ['diger', s.diger]].filter(p => p[1] > 0);
+    let taban = y(0);
+    parcalar.forEach(([a, v], j) => {
+      const yuk = v / tavan * ph;
+      const enUst = j === parcalar.length - 1;
+      const bosluk = j > 0 ? 2 : 0;   // yığın parçaları arasında 2 px yüzey boşluğu
+      const hh = Math.max(0.5, yuk - bosluk), yt = taban - bosluk - hh;
+      const renk = a === 'claude' ? 'var(--claude)' : a === 'codex' ? 'var(--codex)' : 'var(--soluk)';
+      if (enUst && hh > 2) {   // yalnızca veri ucu (üst) 4 px yuvarlak
+        const r = Math.min(4, bg / 2, hh);
+        svg.append(S('path', { d: `M${xb},${yt + hh} V${yt + r} Q${xb},${yt} ${xb + r},${yt} H${xb + bg - r} Q${xb + bg},${yt} ${xb + bg},${yt + r} V${yt + hh} Z`, fill: renk }));
+      } else svg.append(S('rect', { x: xb, y: yt, width: bg, height: hh, fill: renk }));
+      taban = yt;
+    });
+    if (i % xEtiketAdim === 0 || n <= 7) { const t = S('text', { class: 'eksen', x: x0 + bant / 2, y: H - 6, 'text-anchor': 'middle' }); t.textContent = etiket(s); svg.append(t); }
+    // Üzerine gelince ayrıntı (işaret çubuktan geniş: bütün sütun)
+    const hedef = S('rect', { class: 'bant', x: x0, y: ust, width: bant, height: ph });
+    const goster = () => {
+      for (const b of svg.querySelectorAll('.bant.ust')) b.classList.remove('ust');
+      hedef.classList.add('ust');
+      const top = s.claude + s.codex + s.diger;
+      ipucu.replaceChildren(E('b', { text: d.gun === 1 ? `Bugün ${s.anahtar}:00–${s.anahtar}:59` : etiket(s) }), E('br'),
+        E('span', {}, E('i', { class: 'i-claude' }), `Claude ${sayiTam(s.claude)}`), E('br'),
+        E('span', {}, E('i', { class: 'i-codex' }), `Codex ${sayiTam(s.codex)}`), E('br'),
+        E('span', { class: 'soluk', text: `${sayiTam(top)} token · ${s.cagri} çağrı` }));
+      ipucu.hidden = false;
+      const kb = kap.getBoundingClientRect(), sb = svg.getBoundingClientRect();
+      const px = (x0 + bant / 2) / W * sb.width + (sb.left - kb.left);
+      const sagaTas = px > kb.width * 0.6;
+      ipucu.style.left = (sagaTas ? Math.max(0, px - ipucu.offsetWidth - 10) : px + 10) + 'px';
+      ipucu.style.top = '4px';
+    };
+    hedef.addEventListener('mouseenter', goster);
+    hedef.addEventListener('click', goster);
+    svg.append(hedef);
+  });
+  svg.addEventListener('mouseleave', () => { ipucu.hidden = true; for (const b of svg.querySelectorAll('.bant.ust')) b.classList.remove('ust'); });
+  kap.replaceChildren(svg, ipucu);
 }
 
 // ---------------------------------------------------------------- görev çekmecesi
@@ -2422,14 +2691,14 @@ function cekmeceCiz() {
   // eylemler
   const ey = $('#ckEylemler'); ey.replaceChildren();
   if (g.asama === 'takildi' || g.asama === 'bekliyor_kullanici') {
-    const not = E('textarea', { rows: 2, placeholder: 'Geliştiriciye/lidere notun (isteğe bağlı)', maxlength: 4000 });
+    const not = E('textarea', { rows: 2, placeholder: 'Geliştiriciye / Yöneticiye notun (isteğe bağlı)', maxlength: 4000 });
     const dug = E('button', { class: 'dugme birincil kucuk', type: 'button', text: '▶ Devam ettir' });
     dug.onclick = async () => {
       dug.disabled = true;
       try { const r = await api('/api/devam', { id: g.id, not: not.value.trim() }); tost(ciktiOzeti(r) || 'Görev sürdürülüyor.'); not.value = ''; await cekmeceYukle(); yenile(); }
       catch (e) { tost('Devam ettirilemedi: ' + e.message, true); } finally { dug.disabled = false; }
     };
-    const aciklama = g.asama === 'bekliyor_kullanici' ? 'Soruyu yanıtlamadan devam ettirirsen lider yeniden plan yazar.' :
+    const aciklama = g.asama === 'bekliyor_kullanici' ? (d.tip === 'genel' ? 'Soruyu yanıtlamadan devam ettirirsen Yönetici işi elindeki bilgiyle yönlendirir.' : 'Soruyu yanıtlamadan devam ettirirsen Yönetici yeniden plan yazar.') :
       (d.bekleyen_geri_bildirim ? 'Tur sınırına takıldı: devam ettirirsen son geri bildirimle bir tur hakkı daha verilir.' : `Takıldığı aşamadan (${ASAMA_ADI[g.takildi_asama] || 'geliştirme'}) yeniden denenir.`);
     ey.append(E('div', { class: 'devam-form' }, E('div', { class: 'soluk', text: aciklama }), not, E('div', {}, dug)));
   }
@@ -2444,22 +2713,28 @@ function cekmeceCiz() {
     ey.append(ip);
   }
   // sekmeler
-  const altyapi = d.tip === 'altyapi', uzman = d.tip === 'uzman';
-  const sekmeler = [['ozet', 'Özet'], ['gorev', altyapi ? 'Talep' : uzman ? 'İş' : 'Görev'], ['plan', uzman ? 'Brif' : 'Plan']];
+  const altyapi = d.tip === 'altyapi', uzman = d.tip === 'uzman', genel = d.tip === 'genel';
+  const sekmeler = [['ozet', 'Özet'], ['gorev', altyapi ? 'Talep' : (uzman || genel) ? 'İş' : 'Görev']];
+  if (!genel) sekmeler.push(['plan', uzman ? 'Brif' : 'Plan']);
+  if (d.yonlendirme_md) sekmeler.push(['yonlendirme', 'Yönetici kararı']);
   if (d.sorular_md) sekmeler.push(['soru', 'Soru']);
+  if ((d.cozumler || []).length) sekmeler.push(['cozum', `Sorun Giderici (${d.cozumler.length})`]);
   sekmeler.push(['turlar', `Turlar (${d.turlar.length})`]);
   if (altyapi || uzman) {
     const teslim = (d.ciktilar || []).filter(f => f.yol.startsWith('cikti/')).length;
     sekmeler.push(['ciktilar', `Çıktılar (${uzman ? teslim : (d.ciktilar || []).length})`]);
     if (d.sonuc_md) sekmeler.push(['sonuc', 'Sonuç']);
     if (altyapi) sekmeler.push(['kesif', 'Keşif']);
-  } else sekmeler.push(['diff', 'Diff']);
+  } else if (!genel) sekmeler.push(['diff', 'Diff']);
   if (!sekmeler.some(s => s[0] === cekmece.sekme)) cekmece.sekme = 'ozet';
   $('#ckSekmeler').replaceChildren(...sekmeler.map(([k, ad]) => E('button', { class: 'sekme', type: 'button', role: 'tab', 'aria-selected': String(k === cekmece.sekme),
     onclick: () => { cekmece.sekme = k; cekmeceCiz(); } }, ad, k === 'soru' && g.asama === 'bekliyor_kullanici' ? E('span', { class: 'sekme-isaret' }) : null)));
   const ic = $('#ckIcerik');
   ic.replaceChildren(...({ ozet: ozetSekmesi, gorev: () => [md(d.gorev_md || '(gorev.md boş)')], plan: planSekmesi, soru: soruSekmesi, turlar: turlarSekmesi, diff: diffSekmesi,
-    ciktilar: ciktilarSekmesi, sonuc: () => [md(d.sonuc_md)], kesif: () => [E('div', { class: 'soluk', text: 'Talep başındaki durum; her turun güncel keşfi Turlar sekmesinde.' }), md(d.kesif_md || '(henüz keşif yapılmadı)')] }[cekmece.sekme])(d, g));
+    ciktilar: ciktilarSekmesi, sonuc: () => [md(d.sonuc_md)],
+    yonlendirme: () => [E('div', { class: 'soluk', text: '"İş ver" ile gelen işi Yönetici okudu ve kime vereceğine karar verdi. Ham çıktı:' }), md(d.yonlendirme_md)],
+    cozum: () => d.cozumler.slice().reverse().flatMap((c, i) => [i ? E('hr', { class: 'ayrac' }) : null, md(c.md)].filter(Boolean)),
+    kesif: () => [E('div', { class: 'soluk', text: 'Talep başındaki durum; her turun güncel keşfi Turlar sekmesinde.' }), md(d.kesif_md || '(henüz keşif yapılmadı)')] }[cekmece.sekme])(d, g));
   ic.scrollTop = 0;
 }
 function ozetSekmesi(d, g) {
@@ -2468,24 +2743,40 @@ function ozetSekmesi(d, g) {
   if (g.son_hata) parca.push(E('div', { class: 'kutu hata', text: g.son_hata }));
   if (g.sonraki_deneme && new Date(g.sonraki_deneme) > new Date()) parca.push(E('div', { class: 'kutu uyari', text: `Son adım başarısız oldu; ${tarihSaat(g.sonraki_deneme)} civarı yeniden denenecek (deneme ${g.deneme}).` }));
   if (d.bekleyen_geri_bildirim) parca.push(E('div', { class: 'kutu uyari', text: 'Tur sınırına ulaşıldı. Devam ettirirsen aşağıdaki son geri bildirimle bir tur hakkı daha verilir (Turlar sekmesinde son tura bak).' }));
+  // Sorun Giderici: takılan işin durumu
+  const sgAyar = (veri && veri.sorun_giderici) || {};
+  const kart = ((veri && veri.gorevler) || []).find(x => x.id === g.id) || {};
+  const sgBaglanti = (id, metin) => E('button', { class: 'baglanti', type: 'button', text: metin || `#${noKisa(id)}`, onclick: () => gorevAc(id) });
+  if (g.asama === 'takildi') {
+    if (kart.cozuluyor) parca.push(E('div', { class: 'kutu' }, '🔍 Sorun Giderici şu an bu takılmayı inceliyor.'));
+    else if (g.cozum_durumu === 'yardim_bekleniyor') parca.push(E('div', { class: 'kutu' }, `🔧 Sorun Giderici: ${g.cozum_teshis || ''} Takılmayı gidermek için `, sgBaglanti(g.yardim_gorevi), ' açıldı; bitince bu iş kendiliğinden sürecek.'));
+    else if (g.cozum_durumu === 'kullanici') parca.push(E('div', { class: 'kutu uyari' }, E('b', { text: 'Sorun Giderici: ekipte bunu çözebilecek kimse yok. Senin yapman gereken: ' }), g.cozum_kullaniciya || g.cozum_teshis || ''));
+    else if (g.cozum_durumu === 'incelenemedi') parca.push(E('div', { class: 'kutu uyari', text: 'Sorun Giderici bu takılmayı inceleyemedi (araç sorunu); "Devam ettir" ile sürdürebilirsin.' }));
+    else if (sgAyar.etkin && (Number(g.cozum_sayisi) || 0) < (sgAyar.en_fazla || 2)) parca.push(E('div', { class: 'kutu', text: '🔍 Sorun Giderici bu takılmayı birazdan inceleyecek: ekipte giderebilecek biri varsa ona iş açar, yoksa sana ne yapman gerektiğini yazar.' }));
+  }
+  if (g.ana_gorev) parca.push(E('div', { class: 'kutu' }, 'Bu iş, takılan ', sgBaglanti(g.ana_gorev), ' için Sorun Giderici tarafından açıldı; bitince o iş kendiliğinden sürer.'));
   const satir = (dt, dd) => dd ? [E('dt', { text: dt }), E('dd', {}, dd)] : [];
   const altyapi = d.tip === 'altyapi', uzman = d.tip === 'uzman';
   // Görevde araç kullanan her çalışan (durum.json'da rol anahtarı = "arac/model")
   const ekip = ((veri && veri.roller) || []).filter(r => typeof g[r.anahtar] === 'string' && g[r.anahtar].includes('/'))
     .map(r => `${r.ad.toLocaleLowerCase('tr-TR')} ${aracMetni(g[r.anahtar])}`).join(' · ');
-  const turSatirlari = altyapi
-    ? [...satir('Tür', 'Sunucu / kurulum talebi (tam yetkili altyapı ekibi)'), ...satir('Hedef', (g.hedef || []).join(', ') || 'lider belirler'),
+  const turSatirlari = d.tip === 'genel'
+    ? [...satir('Tür', 'Yöneticiye verildi; Yönetici kime vereceğine karar veriyor'), ...satir('İpucu', g.ipucu ? E('code', { text: g.ipucu }) : null),
+      ...satir('Önerilen çalışan', g.istenen_rol ? rolAdi(g.istenen_rol) : null)]
+    : altyapi
+    ? [...satir('Tür', 'Sunucu / kurulum talebi (tam yetkili altyapı ekibi)'), ...satir('Hedef', (g.hedef || []).join(', ') || 'Yönetici belirler'),
       ...satir('Sorumlu', g.sorumlu ? rolAdi(g.sorumlu) : null), ...satir('Destek', g.destek ? rolAdi(g.destek) : null),
       ...satir('Çalışma klasörü', g.calisma_klasoru ? E('code', { text: g.calisma_klasoru }) : null)]
     : uzman
-    ? [...satir('Tür', 'Uzman işi'), ...satir('İstenen çalışan', g.hedef_rol ? rolAdi(g.hedef_rol) : 'lider seçer'),
-      ...satir('Sorumlu', g.sorumlu ? rolAdi(g.sorumlu) : null), ...satir('İnceleyen', g.inceleyen ? (g.inceleyen === 'yok' ? 'yalnızca lider' : rolAdi(g.inceleyen)) : null),
+    ? [...satir('Tür', 'Uzman işi'), ...satir('İstenen çalışan', g.hedef_rol ? rolAdi(g.hedef_rol) : 'Yönetici seçer'),
+      ...satir('Sorumlu', g.sorumlu ? rolAdi(g.sorumlu) : null), ...satir('İnceleyen', g.inceleyen ? (g.inceleyen === 'yok' ? 'yalnızca Yönetici' : rolAdi(g.inceleyen)) : null),
       ...satir('İlgili klasör', g.kaynak_klasor ? E('code', { text: g.kaynak_klasor }) : null),
       ...satir('Çıktı klasörü', g.calisma_klasoru ? E('code', { text: g.calisma_klasoru + '\\cikti' }) : null)]
     : satir('Proje', `${g.proje} (${g.klasor})`);
   if (g.ik_notu) parca.push(E('div', { class: 'kutu', text: g.ik_notu }));
   parca.push(E('dl', { class: 'kv' },
     ...turSatirlari,
+    ...satir('Yönlendirme', g.yonlendirme_karari ? `Yönetici ${KARAR_ADI[g.yonlendirme_karari] || g.yonlendirme_karari}` : null),
     ...satir('Aşama', d.asama_adi), ...satir('Tur', `${g.tur} / ${g.max_tur}`),
     ...satir('Dal', g.dal ? E('code', { text: g.dal }) : null), ...satir('Temel commit', g.temel_commit ? E('code', { text: String(g.temel_commit).slice(0, 10) }) : null),
     ...satir('Commit', g.commit ? E('code', { text: g.commit }) : null), ...satir('Son kontrol', g.son_kontrol),
@@ -2555,11 +2846,11 @@ async function ciktiGoster(f, url, kap) {
 }
 function planSekmesi(d) {
   if (d.plan_md) return [md(d.plan_md)];
-  if (d.plan_gecersiz_md) return [E('div', { class: 'kutu uyari', text: 'Liderin son plan çıktısı geçersizdi (KARAR satırı yok). Ham çıktı:' }), md(d.plan_gecersiz_md)];
+  if (d.plan_gecersiz_md) return [E('div', { class: 'kutu uyari', text: 'Yöneticinin son çıktısı geçersizdi (KARAR satırı yok). Ham çıktı:' }), md(d.plan_gecersiz_md)];
   return [E('div', { class: 'soluk', text: 'Plan henüz yazılmadı.' })];
 }
 function soruSekmesi(d, g) {
-  const parca = [E('div', { class: 'soluk', text: `Liderin soruları${d.sorular_zaman ? ' · ' + tarihSaat(d.sorular_zaman) : ''}` }), md(d.sorular_md)];
+  const parca = [E('div', { class: 'soluk', text: `Yöneticinin soruları${d.sorular_zaman ? ' · ' + tarihSaat(d.sorular_zaman) : ''}` }), md(d.sorular_md)];
   if (g.asama === 'bekliyor_kullanici') {
     const ta = E('textarea', { rows: 6, placeholder: 'Yanıtların… (gorev.md dosyasının sonuna "Yanıt" başlığıyla eklenir)', maxlength: 8000 });
     const dug = E('button', { class: 'dugme birincil', type: 'button', text: 'Yanıtı gönder' });
@@ -2711,7 +3002,7 @@ $('#dugmeDuraklat').addEventListener('click', () => (veri && PikselOfis.ofisKapa
 $('#ofisDugme').addEventListener('click', () => ofisKapatAc());
 $('#dugmeEkle').addEventListener('click', ekleAc);
 $('#ekleForm').addEventListener('submit', ekleGonder);
-for (const r of document.querySelectorAll('#ekleForm input[name=tur]')) r.addEventListener('change', ekleTurGuncelle);
+for (const b of document.querySelectorAll('.donem button')) b.addEventListener('click', () => kullanimDonem(Number(b.dataset.gun)));
 $('#ekleVazgec').addEventListener('click', () => $('#ekleDiyalog').close());
 $('#ckKapat').addEventListener('click', cekmeceKapat);
 $('#perde').addEventListener('click', cekmeceKapat);
@@ -2728,9 +3019,10 @@ PikselOfis.baglan({
   olay: olayEkle,
 });
 olaylariCiz();
-document.addEventListener('visibilitychange', () => { if (!document.hidden) yenile(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { yenile(); kullanimYukle(); } });
 setInterval(saniyelik, 1000);
 yenile();
+kullanimYukle();
 </script>
 </body>
 </html>

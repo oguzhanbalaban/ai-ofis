@@ -1,15 +1,30 @@
 {
     "surum":  1,
-    "aciklama":  "Ekibin kadrosu. Yerleşik rollerin (lider, gelistirici, denetci, sistem, ag) araçları ayarlar.json \u003e roller içinde; diğerlerinin araçları burada (araclar). İK yeni çalışanları bu dosyaya ekler. yetki: oku | yaz (korumalı alan) | tam (sandbox\u0027sız).",
+    "aciklama":  "Ekibin kadrosu. Yerleşik rollerin (lider = Yönetici, sorun-giderici, gelistirici, denetci, sistem, ag) araçları ayarlar.json \u003e roller içinde; diğerlerinin araçları burada (araclar). İK yeni çalışanları bu dosyaya ekler. yetki: oku | yaz (korumalı alan) | tam (sandbox\u0027sız).",
     "uyeler":  [
                    {
                        "anahtar":  "lider",
-                       "ad":  "Lider",
+                       "ad":  "Yönetici",
                        "departman":  "Yönetim",
                        "yerlesik":  true,
                        "uzman_isi":  false,
                        "yetki":  "oku",
-                       "uzmanlik":  "İşleri planlar, doğru çalışana yönlendirir, son kabul/ret kararını verir; gerektiğinde İK\u0027dan işe alım ister.",
+                       "uzmanlik":  "Gelen her işi alır ve kimin yapacağına karar verir (yazılım, sunucu/kurulum ya da uzman işi); planlar ve son kabul/ret kararını verir; gerektiğinde İK\u0027dan işe alım ister.",
+                       "ise_alinma":  null,
+                       "ise_alan":  null
+                   },
+                   {
+                       "anahtar":  "sorun-giderici",
+                       "ad":  "Sorun Giderici",
+                       "departman":  "Yönetim",
+                       "yerlesik":  true,
+                       "uzman_isi":  false,
+                       "yetki":  "oku",
+                       "renk":  "#a16207",
+                       "renk_koyu":  "#facc15",
+                       "uzmanlik":  "Soru sorulmadan takılan işleri izler: nedenini teşhis eder, takılmayı giderebilecek bir çalışan varsa ona iş açar (ör. sistem yöneticisine kurulum), geçici sorunlarda yeniden denetir; ekipte çözebilecek kimse yoksa kullanıcıya ne yapması gerektiğini yazar.",
+                       "istem":  "istemler\\kadro\\sorun-giderici.md",
+                       "faaliyet_metni":  "Takılan işi inceliyor",
                        "ise_alinma":  null,
                        "ise_alan":  null
                    },
@@ -95,13 +110,22 @@
                        "faaliyet_metni":  "Güvenlik incelemesi yapıyor",
                        "araclar":  [
                                        {
+                                           "arac":  "claude",
+                                           "model":  "sonnet"
+                                       },
+                                       {
+                                           "arac":  "claude",
+                                           "model":  "opus"
+                                       },
+                                       {
                                            "arac":  "codex",
                                            "model":  "gpt-6.1-sol",
                                            "efor":  "high"
                                        },
                                        {
-                                           "arac":  "claude",
-                                           "model":  "sonnet"
+                                           "arac":  "codex",
+                                           "model":  "gpt-6-astra",
+                                           "efor":  "high"
                                        }
                                    ],
                        "ise_alinma":  null,
@@ -120,13 +144,13 @@
                        "faaliyet_metni":  "Arayüz tasarlıyor",
                        "araclar":  [
                                        {
+                                           "arac":  "claude",
+                                           "model":  "sonnet"
+                                       },
+                                       {
                                            "arac":  "codex",
                                            "model":  "gpt-6.1-sol",
                                            "efor":  "high"
-                                       },
-                                       {
-                                           "arac":  "claude",
-                                           "model":  "sonnet"
                                        }
                                    ],
                        "ise_alinma":  null,

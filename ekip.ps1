@@ -1,12 +1,14 @@
 ﻿<#
 ekip.ps1 - AI Ekip görev adımları ve ana döngü (baslat.ps1 dot-source eder).
 
-Görev yaşam döngüsü (gorevler\<id>\durum.json -> asama):
-  yeni -> plan (lider) -> gelistirme (geliştirici) -> kontrol (betik: testler + taramalar)
-       -> denetim (denetçi) -> kabul (lider) -> tamamla (commit) -> tamam
+Görev yaşam döngüsü (gorevler\<id>\durum.json -> asama). Yönetici = rol anahtarı "lider".
+  "İş ver" ile gelen işler (tip = genel): Yönetici işi okuyup yazılım / altyapı / uzman akışına yönlendirir (yonlendirme.ps1)
+  yeni -> plan (Yönetici) -> gelistirme (geliştirici) -> kontrol (betik: testler + taramalar)
+       -> denetim (denetçi) -> kabul (Yönetici) -> tamamla (commit) -> tamam
   Kontrol/denetim/kabul geçmezse geri bildirimle yeni tura dönülür (en fazla gorev.max_tur).
-  Bir adım tekrar tekrar başarısız olursa ya da tur sınırı dolarsa: takildi (kullanıcıya bildirim).
-  Lider soru sorarsa: bekliyor_kullanici (gorev.md güncellenince kendiliğinden plan'a döner).
+  Bir adım tekrar tekrar başarısız olursa ya da tur sınırı dolarsa: takildi. Sorun Giderici (cozucu.ps1) takılmayı
+  inceler: kadrodan birine yardım işi açar, yeniden dener, işi doğru ekibe aktarır ya da kullanıcıya ne yapacağını bildirir.
+  Yönetici soru sorarsa: bekliyor_kullanici (gorev.md güncellenince kendiliğinden plan'a döner).
 #>
 
 $script:AktifAsamalar = @('yeni', 'plan', 'gelistirme', 'kontrol', 'denetim', 'kabul', 'tamamla')
@@ -14,6 +16,10 @@ $script:AktifAsamalar = @('yeni', 'plan', 'gelistirme', 'kontrol', 'denetim', 'k
 . (Join-Path $PSScriptRoot 'altyapi.ps1')
 # Kadro, uzman işleri (tip = uzman), İK işe alımı, e-posta: uzman.ps1 (+ posta.ps1)
 . (Join-Path $PSScriptRoot 'uzman.ps1')
+# Türü seçilmeden verilen işler (tip = genel): Yöneticinin yönlendirmesi
+. (Join-Path $PSScriptRoot 'yonlendirme.ps1')
+# Takılan işler: Sorun Giderici
+. (Join-Path $PSScriptRoot 'cozucu.ps1')
 
 # ---------------------------------------------------------------- yardımcılar
 function Tur-Klasoru($G) {
@@ -45,11 +51,17 @@ function Takildi($G, [string]$Neden) {
     $G.asama = 'takildi'
     Ayarla $G 'son_hata' (Kisalt $Neden 500)
     Ayarla $G 'sonraki_deneme' $null
+    Ayarla $G 'takildi_zamani' (Simdi)
+    if ([string]$G.cozum_durumu -ne 'yardim_bekleniyor') { Ayarla $G 'cozum_durumu' '' }
     Sayac-Artir 'takilan'
     Gunluk "Görev $($G.id) TAKILDI: $Neden" 'UYARI'
-    Bildir -Baslik "Görev takıldı: $($G.baslik)" -Metin ('#{0}: {1} Devam için: durum.ps1 -Devam {0}' -f $G.id, (Kisalt $Neden 160)) -Anahtar "takildi-$($G.id)" -Onem 'yuksek' -AralikDk 30
+    # Sorun Giderici üstlenecekse kullanıcıyı hemen rahatsız etme; kararına göre o bildirir (cozucu.ps1)
+    if (Cozucu-Ustlenir $G) { Gunluk "Görev $($G.id): takılma Sorun Gidericiye bırakıldı"; return }
+    Bildir -Baslik "Görev takıldı: $($G.baslik)" -Metin ('#{0}: {1} Devam için panelde "Devam" ya da durum.ps1 -Devam {0}' -f $G.id, (Kisalt $Neden 160)) -Anahtar "takildi-$($G.id)" -Onem 'yuksek' -AralikDk 30
 }
 function Adim-Basarisiz($G, [string]$Hata) {
+    # Görev adım sürerken iptal edildiyse başarısızlık sayma: yeniden deneme planlama, "takıldı" bildirimi gönderme
+    if (Gorev-Iptal-mi $G.id) { Gunluk "Görev $($G.id): '$($G.asama)' adımı iptal edilmiş görevde sona erdi; başarısız sayılmadı ($(Kisalt $Hata 160))" 'UYARI'; return }
     $G.deneme = [int]$G.deneme + 1
     Ayarla $G 'son_hata' (Kisalt $Hata 500)
     Gecmis-Ekle $G 'deneme başarısız' $Hata
@@ -124,7 +136,7 @@ function Adim-Hazirla($G) {
 function Adim-Plan($G) {
     $istem = Sablon-Doldur 'lider-plan.md' @{ GOREV = (Gorev-Metni $G); KADRO = (Kadro-Metni) }
     $r = Ajan-Cagir -Rol 'lider' -Istem $istem -Klasor $G.calisma_klasoru -KayitKlasoru (Kayit-Klasoru $G) -Etiket 'plan'
-    if (-not $r.basarili) { Adim-Basarisiz $G "Lider plan yazamadı: $($r.hata)"; return }
+    if (-not $r.basarili) { Adim-Basarisiz $G "Yönetici plan yazamadı: $($r.hata)"; return }
     $gk = Gorev-Klasoru $G.id
     Ayarla $G 'lider' ('{0}/{1}' -f $r.arac, $r.model)
     switch (Karar-Oku $r.metin) {
@@ -139,26 +151,26 @@ function Adim-Plan($G) {
         'UZMAN' {
             # Kod değil, başka bir uzmanlık işi (tasarım, mimari belge, güvenlik denetimi, iletişim…)
             Metin-Yaz (Join-Path $gk 'yonlendirme.md') $r.metin
-            Uzmana-Aktar $G 'lider işi uzman çalışana yönlendirdi' $r (Kadro-Anahtar-Coz (Alan-Oku $r.metin 'SORUMLU')) ''
+            Uzmana-Aktar $G 'yönetici işi uzman çalışana yönlendirdi' $r (Kadro-Anahtar-Coz (Alan-Oku $r.metin 'SORUMLU')) ''
         }
         'ISE_ALIM' {
             # Kadroda bu işi yapabilecek kimse yok: İK işe alır, görev uzman akışında yeniden planlanır
             Metin-Yaz (Join-Path $gk 'yonlendirme.md') $r.metin
             $aranan = Alan-Oku $r.metin 'ARANAN'; if (-not $aranan) { $aranan = Kisalt $r.metin 500 }
-            Uzmana-Aktar $G 'lider İK''dan işe alım istedi' $r '' $aranan
+            Uzmana-Aktar $G 'yönetici İK''dan işe alım istedi' $r '' $aranan
         }
         'ALTYAPI' {
             # Sunucu / kurulum / ağ işi: sistem yöneticisi + network ekibine aktar (altyapi.ps1)
             Metin-Yaz (Join-Path $gk 'yonlendirme.md') $r.metin
-            Altyapiya-Aktar $G 'lider işi altyapı ekibine yönlendirdi' $r
+            Altyapiya-Aktar $G 'yönetici işi altyapı ekibine yönlendirdi' $r
         }
         'SORU_VAR' {
             Metin-Yaz (Join-Path $gk 'sorular.md') $r.metin
-            Gecmis-Ekle $G 'lider soru sordu' '' $r
+            Gecmis-Ekle $G 'yönetici soru sordu' '' $r
             $G.asama = 'bekliyor_kullanici'
             $G.deneme = 0
             Ayarla $G 'soru_zamani' (Simdi)
-            Bildir -Baslik "Lider soru soruyor: $($G.baslik)" -Metin ("#{0}: sorular.md dosyasını oku, yanıtlarını gorev.md'ye ekleyip kaydet; ekip kendiliğinden devam eder." -f $G.id) -Anahtar "soru-$($G.id)" -Onem 'yuksek'
+            Bildir -Baslik "Yönetici soru soruyor: $($G.baslik)" -Metin ("#{0}: sorular.md dosyasını oku, yanıtlarını gorev.md'ye ekleyip kaydet; ekip kendiliğinden devam eder." -f $G.id) -Anahtar "soru-$($G.id)" -Onem 'yuksek'
         }
         default {
             Metin-Yaz (Join-Path $gk 'plan-gecersiz.md') $r.metin
@@ -298,17 +310,17 @@ function Adim-Kabul($G) {
         DIFF_OZET = $d.stat; DIFF = $d.diff
     }
     $r = Ajan-Cagir -Rol 'lider' -Istem $istem -Klasor $G.calisma_klasoru -KayitKlasoru $tk -Etiket 'kabul'
-    if (-not $r.basarili) { Adim-Basarisiz $G "Lider son kararı veremedi: $($r.hata)"; return }
+    if (-not $r.basarili) { Adim-Basarisiz $G "Yönetici son kararı veremedi: $($r.hata)"; return }
     Metin-Yaz (Join-Path $tk 'kabul.md') $r.metin
     switch (Karar-Oku $r.metin) {
         'KABUL' {
             Ayarla $G 'commit_mesaji' (Alan-Oku $r.metin 'COMMIT')
             Ayarla $G 'ozet' (Alan-Oku $r.metin 'OZET')
-            Asama-Gec $G 'tamamla' 'lider kabul etti' '' $r
+            Asama-Gec $G 'tamamla' 'yönetici kabul etti' '' $r
         }
         'RET' {
-            Gecmis-Ekle $G 'lider reddetti' '' $r
-            Yeni-Tur $G ("## Lider reddetti`n`n" + $r.metin) 'lider reddetti'
+            Gecmis-Ekle $G 'yönetici reddetti' '' $r
+            Yeni-Tur $G ("## Yönetici reddetti`n`n" + $r.metin) 'yönetici reddetti'
         }
         default { Adim-Basarisiz $G "Kabul çıktısında KARAR satırı yok ($($r.arac))" }
     }
@@ -327,7 +339,7 @@ function Adim-Tamamla($G) {
         $govde = @(
             $baslik, '',
             "AI Ekip görevi: $($G.id)",
-            "Lider: $($G.lider) | Geliştirici: $($G.gelistirici) | Denetçi: $($G.denetci) | Tur: $($G.tur)",
+            "Yönetici: $($G.lider) | Geliştirici: $($G.gelistirici) | Denetçi: $($G.denetci) | Tur: $($G.tur)",
             '', 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>'
         ) -join "`n"
         $mf = Join-Path $gk 'commit-mesaji.txt'
@@ -355,11 +367,14 @@ function Adim-Tamamla($G) {
 function Gorev-Ilerlet($G) {
     $script:AktifGorev = $G.id
     $script:AktifAdim = $G.asama
+    $basAsama = [string]$G.asama
+    $basTur = $G.tur
     Kalp 'çalışıyor'
     Gunluk "Görev $($G.id) [$($G.asama), tur $($G.tur)] ilerletiliyor"
     try {
         if ($G.tip -eq 'altyapi') { Altyapi-Adim $G }
         elseif ($G.tip -eq 'uzman') { Uzman-Adim $G }
+        elseif ($G.tip -eq 'genel') { Genel-Adim $G }
         else { switch ($G.asama) {
             'yeni'       { Adim-Hazirla $G }
             'plan'       { Adim-Plan $G }
@@ -373,6 +388,17 @@ function Gorev-Ilerlet($G) {
         $h = $_.Exception.Message
         Gunluk ("Görev {0} '{1}' hata: {2} @ {3}" -f $G.id, $G.asama, $h, ($_.InvocationInfo.PositionMessage -replace '\s+', ' ')) 'HATA'
         Adim-Basarisiz $G $h
+    }
+    # Adım (ajan çağrısı) sürerken kullanıcı görevi iptal ettiyse bellekteki eski kopya iptali ezmesin:
+    # diskteki kaydı yeniden oku; iptalse adımın sonucunu yazma, yalnızca geçmişe not düş.
+    $disk = Gorev-Diskten $G.id
+    if ($disk -and [string]$disk.asama -eq 'iptal') {
+        $ne = "'{0}' adımı (tur {1}) iptalden sonra bitti; sonucu kaydedilmedi" -f (Asama-Adi $basAsama), $basTur
+        if ([string]$G.asama -ne $basAsama -or [string]$G.tur -ne [string]$basTur) { $ne += " (adım görevi '{0}', tur {1} durumuna taşıyacaktı)" -f (Asama-Adi $G.asama), $G.tur }
+        Gecmis-Ekle $disk 'iptal sonrası adım sonucu yok sayıldı' $ne
+        Gorev-Kaydet $disk
+        Gunluk "Görev $($G.id) adım sürerken iptal edilmiş; adım sonucu yok sayıldı, görev iptalde kaldı" 'UYARI'
+        return
     }
     Gorev-Kaydet $G
 }
@@ -426,11 +452,12 @@ function Bekle([int]$Sn) {
 }
 function Ekip-Durumu-Kisa {
     $parca = @()
-    foreach ($rol in @('lider', 'gelistirici', 'denetci', 'sistem', 'ag')) {
+    foreach ($rol in @('lider', 'gelistirici', 'denetci', 'sistem', 'ag', 'sorun-giderici')) {
         if (-not $Ayar.roller.$rol) { continue }
         $ilk = $null
         foreach ($g in @($Ayar.roller.$rol)) { if (-not (Arac-Uygun $g)) { $ilk = $g; break } }
-        if ($ilk) { $parca += ('{0}: {1}' -f $rol, $ilk.arac) } else { $parca += "${rol}: YOK" }
+        $ad = $rol; if ($rol -eq 'lider') { $ad = 'yönetici' }
+        if ($ilk) { $parca += ('{0}: {1}' -f $ad, $ilk.arac) } else { $parca += "${ad}: YOK" }
     }
     return ($parca -join ', ')
 }
@@ -464,6 +491,17 @@ function Ekip-Dongusu {
             Ozet-Kontrol
             if (-not (Mesaide-mi)) { Kalp 'mesai dışı'; Start-Sleep -Seconds 300; continue }
             Bekleyenleri-Kontrol
+            # Sorun Giderici: biten yardım işlerinin takılan işlerini sürdür, incelenmemiş takılma varsa önce onu incele
+            Yardim-Gorevleri-Kontrol
+            $tg = Cozulecek-Gorev
+            if ($tg) {
+                Sorun-Gider $tg
+                Rapor-Uret
+                $sonRapor = Get-Date
+                $hataSayisi = 0
+                Start-Sleep -Seconds ([int]$Ayar.dongu.adim_arasi_sn)
+                continue
+            }
             $g = Siradaki-Gorev
             if (-not $g) {
                 $script:AktifGorev = ''; $script:AktifAdim = ''

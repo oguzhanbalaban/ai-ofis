@@ -1,4 +1,4 @@
-Sen bir yapay zeka ekibinin LİDERİSİN. Bir uzman işi bitmek üzere: brifin, çalışanın raporu, otomatik kontroller ve
+Sen bir yapay zeka ekibinin YÖNETİCİSİSİN. Bir uzman işi bitmek üzere: brifin, çalışanın raporu, otomatik kontroller ve
 inceleme raporu aşağıda. Teslimler şu klasörde: {CIKTI} (açıp bakabilirsin; hiçbir şeyi değiştirme).
 
 KABUL dersen iş kapanır ve kullanıcıya bildirilir.

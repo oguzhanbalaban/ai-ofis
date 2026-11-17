@@ -154,12 +154,14 @@ function Uye-Dogrula($J, [string]$Talimat, [bool]$TamVerebilir) {
         } else { $notlar.Add("bilinmeyen araç atlandı: $k") }
     }
     if ($araclar.Count -eq 0) {
-        $araclar = @([pscustomobject][ordered]@{ arac = 'codex'; model = 'gpt-6.1-sol'; efor = 'high' }, [pscustomobject][ordered]@{ arac = 'claude'; model = 'sonnet' })
+        # Ekip ağırlıklı olarak Claude kullanır; Codex yedek
+        $araclar = @([pscustomobject][ordered]@{ arac = 'claude'; model = 'sonnet' }, [pscustomobject][ordered]@{ arac = 'codex'; model = 'gpt-6.1-sol'; efor = 'high' })
     }
-    # Claude "yaz" yetkisinde yalnızca dosya okuyup yazabilir (komut çalıştıramaz); korumalı alanda komut çalıştırabilen Codex'i zincire koy
+    # Claude "yaz" yetkisinde yalnızca dosya okuyup yazabilir (komut çalıştıramaz); komut gerektiğinde yedek olarak Codex zincirde olsun.
+    # Komut / görsel üretimi asıl iş olan rollerde İK zincire zaten önce codex koyar (ik-ise-alim.md).
     if ($yetki -eq 'yaz' -and -not @($araclar | Where-Object { $_.arac -eq 'codex' }).Count) {
-        $araclar = @([pscustomobject][ordered]@{ arac = 'codex'; model = 'gpt-6.1-sol'; efor = 'high' }) + $araclar
-        $notlar.Add('komut çalıştırabilmesi için zincirin başına codex eklendi')
+        $araclar = @($araclar) + @([pscustomobject][ordered]@{ arac = 'codex'; model = 'gpt-6.1-sol'; efor = 'high' })
+        $notlar.Add('komut çalıştırabilen yedek olarak zincirin sonuna codex eklendi')
     }
     $renk = [string]$J.renk
     if ($renk -notmatch '^#[0-9a-fA-F]{6}$') { $palet = @('#0f766e', '#7c2d12', '#1d4ed8', '#9d174d', '#3f6212', '#6d28d9', '#155e75'); $renk = $palet[$mevcut.Count % $palet.Count] }
@@ -356,7 +358,7 @@ function Uzman-Plan($G) {
     $ikNotu = '(yok)'; if ($G.ik_notu) { $ikNotu = [string]$G.ik_notu }
     $istem = Sablon-Doldur 'lider-uzman-plan.md' @{ KADRO = (Kadro-Metni); ISTENEN = $istenen; IK_NOTU = $ikNotu; GOREV = (Gorev-Metni $G) }
     $r = Ajan-Cagir -Rol 'lider' -Istem $istem -Klasor (Uzman-Calisma-Klasoru $G) -KayitKlasoru (Kayit-Klasoru $G) -Etiket 'plan'
-    if (-not $r.basarili) { Adim-Basarisiz $G "Lider plan yazamadı: $($r.hata)"; return }
+    if (-not $r.basarili) { Adim-Basarisiz $G "Yönetici plan yazamadı: $($r.hata)"; return }
     Ayarla $G 'lider' ('{0}/{1}' -f $r.arac, $r.model)
     switch (Karar-Oku $r.metin) {
         'PLAN_HAZIR' {
@@ -381,12 +383,12 @@ function Uzman-Plan($G) {
             if ($sayi -ge 2) { Altyapi-Soru $G ("## İşe alım sınırı`n`nLider bu görev için yeniden işe alım istedi; görev için zaten $sayi kez işe alım yapıldı.`n`n" + $r.metin) $r 'işe alım sınırına ulaşıldı'; return }
             Ayarla $G 'ise_alim_sayisi' ($sayi + 1)
             Metin-Yaz (Join-Path $gk 'yonlendirme.md') $r.metin
-            Gecmis-Ekle $G 'lider İK''dan işe alım istedi' $aranan $r
+            Gecmis-Ekle $G 'yönetici İK''dan işe alım istedi' $aranan $r
             Ayarla $G 'ise_alim_aranan' $aranan
         }
         'ALTYAPI' {
             Metin-Yaz (Join-Path $gk 'yonlendirme.md') $r.metin
-            Altyapiya-Aktar $G 'lider işi altyapı ekibine yönlendirdi' $r
+            Altyapiya-Aktar $G 'yönetici işi altyapı ekibine yönlendirdi' $r
         }
         'SORU_VAR' { Altyapi-Soru $G $r.metin $r }
         default {
@@ -398,7 +400,7 @@ function Uzman-Plan($G) {
 
 function Uzman-IseAlim-Gorevi($G) {
     $tk = Tur-Klasoru $G
-    $s = Ise-Al $G ((Gorev-Metni $G) + "`n`n# Liderin brifi`n`n" + (Plan-Metni $G))
+    $s = Ise-Al $G ((Gorev-Metni $G) + "`n`n# Yöneticinin brifi`n`n" + (Plan-Metni $G))
     switch ($s.durum) {
         'alindi' {
             Metin-Yaz (Join-Path $tk 'calisma-ozet.md') $s.metin
@@ -492,7 +494,7 @@ function Uzman-Inceleme($G) {
     Kadro-Rolleri-Yukle
     $rol = [string]$G.inceleyen
     $uye = Kadro-Uye $rol
-    if (-not $uye) { Asama-Gec $G 'kabul' 'inceleyen yok; lider bakacak'; return }
+    if (-not $uye) { Asama-Gec $G 'kabul' 'inceleyen yok; yönetici bakacak'; return }
     $tk = Tur-Klasoru $G
     $wt = Uzman-Calisma-Klasoru $G
     $sorumluAdi = [string]$G.sorumlu; $su = Kadro-Uye $sorumluAdi; if ($su) { $sorumluAdi = [string]$su.ad }
@@ -527,18 +529,18 @@ function Uzman-Kabul($G) {
         CALISMA_OZET = (Metin-Oku (Join-Path $tk 'calisma-ozet.md')); KONTROL = (Metin-Oku (Join-Path $tk 'kontrol.md')); INCELEME = $inc
     }
     $r = Ajan-Cagir -Rol 'lider' -Istem $istem -Klasor (Uzman-Calisma-Klasoru $G) -KayitKlasoru $tk -Etiket 'kabul'
-    if (-not $r.basarili) { Adim-Basarisiz $G "Lider son kararı veremedi: $($r.hata)"; return }
+    if (-not $r.basarili) { Adim-Basarisiz $G "Yönetici son kararı veremedi: $($r.hata)"; return }
     Metin-Yaz (Join-Path $tk 'kabul.md') $r.metin
     switch (Karar-Oku $r.metin) {
         'KABUL' {
             Ayarla $G 'ozet' (Alan-Oku $r.metin 'OZET')
-            Asama-Gec $G 'tamamla' 'lider kabul etti' '' $r
+            Asama-Gec $G 'tamamla' 'yönetici kabul etti' '' $r
         }
         'RET' {
-            Gecmis-Ekle $G 'lider reddetti' '' $r
-            Yeni-Tur $G ("## Lider reddetti`n`n" + $r.metin) 'lider reddetti'
+            Gecmis-Ekle $G 'yönetici reddetti' '' $r
+            Yeni-Tur $G ("## Yönetici reddetti`n`n" + $r.metin) 'yönetici reddetti'
         }
-        'SORU_VAR' { Altyapi-Soru $G $r.metin $r 'lider kullanıcıdan bilgi istedi' }
+        'SORU_VAR' { Altyapi-Soru $G $r.metin $r 'yönetici kullanıcıdan bilgi istedi' }
         default { Adim-Basarisiz $G "Kabul çıktısında KARAR satırı yok ($($r.arac))" }
     }
 }
@@ -551,7 +553,7 @@ function Uzman-Tamamla($G) {
     $sorumlu = [string]$G.sorumlu; $su = Kadro-Uye $sorumlu; if ($su) { $sorumlu = "$($su.ad) ($sorumlu)" }
     $md = @(
         "# Sonuç: $($G.baslik)", '', $ozet, '',
-        "- Sorumlu: $sorumlu [$($G.uygulayan)] | İnceleyen: $($G.inceleyen) [$($G.inceleyen_arac)] | Lider: $($G.lider) | Tur: $($G.tur)",
+        "- Sorumlu: $sorumlu [$($G.uygulayan)] | İnceleyen: $($G.inceleyen) [$($G.inceleyen_arac)] | Yönetici: $($G.lider) | Tur: $($G.tur)",
         "- Çıktı klasörü: $(Uzman-Cikti $G)", '',
         "## Teslimler ($($t.adet))", '', $(if ($t.adet) { $t.metin } else { '(dosya yok)' })
     ) -join "`n"

@@ -31,7 +31,7 @@ KARAR: ONAY
 
 ---
 
-# LİDERİN BRİFİ
+# YÖNETİCİNİN BRİFİ
 
 {PLAN}
 

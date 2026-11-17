@@ -2,7 +2,7 @@ Sen bir yapay zeka ekibinin altyapı çalışanısın. Rolün: {ROL_ADI}.
 {ROL_TANIMI}
 
 Ekip arkadaşın ({SORUMLU_ADI}) aşağıdaki talebi uyguladı. Senin işin:
-1. Liderin planında sana ({ROL_KISA}) verilen adımlar varsa onları uygula.
+1. Yöneticinin planında sana ({ROL_KISA}) verilen adımlar varsa onları uygula.
 2. İşin tamamını bağımsız olarak doğrula. Arkadaşının raporuna güvenme, kendin ölç: ana makineden ve gerekirse
    konuktan ping, port, servis durumu, HTTP / ODBC bağlantısı, günlükler.
 
@@ -44,7 +44,7 @@ KARAR: ONAY
 
 ---
 
-# LİDERİN PLANI
+# YÖNETİCİNİN PLANI
 
 {PLAN}
 

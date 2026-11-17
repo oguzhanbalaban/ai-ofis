@@ -178,8 +178,19 @@ function Surec-Calistir {
         -WorkingDirectory $Klasor -WindowStyle Hidden -PassThru
     $null = $p.Handle
     $asim = $false
+    $iptal = $false
+    $gorevId = [string]$script:AktifGorev
     while (-not $p.WaitForExit(15000)) {
         Kalp "$Etiket çalışıyor"
+        # Kullanıcı görevi bu süreç çalışırken iptal ettiyse (panel / durum.ps1 -Iptal) işi bitirmesini bekleme
+        if ($gorevId -and (Gorev-Iptal-mi $gorevId)) {
+            $iptal = $true
+            Gunluk "Görev $gorevId iptal edildi; çalışan $Etiket süreç ağacı sonlandırılıyor (PID $($p.Id))" 'UYARI'
+            $eap = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+            try { & "$env:SystemRoot\System32\taskkill.exe" /T /F /PID $p.Id 2>&1 | Out-Null } catch {} finally { $ErrorActionPreference = $eap }
+            $null = $p.WaitForExit(20000)
+            break
+        }
         if (((Get-Date) - $bas).TotalMinutes -ge $ZamanAsimiDk) {
             $asim = $true
             Gunluk "$Etiket zaman aşımına uğradı ($ZamanAsimiDk dk), süreç ağacı sonlandırılıyor" 'UYARI'
@@ -189,8 +200,8 @@ function Surec-Calistir {
         }
     }
     $kod = -1
-    if (-not $asim) { $kod = $p.ExitCode }
-    return [pscustomobject]@{ kod = $kod; zaman_asimi = $asim; sure_sn = [int]((Get-Date) - $bas).TotalSeconds }
+    if (-not $asim -and -not $iptal) { $kod = $p.ExitCode }
+    return [pscustomobject]@{ kod = $kod; zaman_asimi = $asim; iptal = $iptal; sure_sn = [int]((Get-Date) - $bas).TotalSeconds }
 }
 
 # ---------------------------------------------------------------- git
@@ -265,16 +276,166 @@ function Arac-Uygun($Giris) {
     return $null
 }
 
-function Sonuc([bool]$Basarili, [string]$Metin, [string]$Hata, $Surec) {
+function Sonuc([bool]$Basarili, [string]$Metin, [string]$Hata, $Surec, $Kullanim = $null) {
     $sure = 0; if ($Surec) { $sure = $Surec.sure_sn }
-    return [pscustomobject]@{ basarili = $Basarili; metin = $Metin; hata = $Hata; sure_sn = $sure; arac = ''; model = '' }
+    return [pscustomobject]@{ basarili = $Basarili; metin = $Metin; hata = $Hata; sure_sn = $sure; arac = ''; model = ''; kullanim = $Kullanim }
+}
+
+# ---------------------------------------------------------------- token / bağlam kullanımı (panelde "Kullanım" panosu)
+# Her ajan çağrısı durum\kullanim\kullanim-yyyyMM.jsonl dosyasına bir satır ekler (başarısız ve iptal edilen çağrılar dahil).
+#   giris          önbellekten gelmeyen istem tokenleri      onbellek_okuma / onbellek_yazma  istem önbelleği
+#   cikis          üretilen tokenler (akıl yürütme dahil)    toplam   hepsinin toplamı
+#   baglam_tepe    çağrıdaki en büyük tek istek (istem + önbellek + çıktı); baglam_pencere modelin bağlam penceresi
+$script:YolKullanim = Join-Path $YolDurum 'kullanim'
+function Sayi($Deger) {
+    if ($null -eq $Deger -or $Deger -eq '') { return [long]0 }
+    try { return [long]$Deger } catch { return [long]0 }
+}
+function Bas-Oku([string]$Yol, [int]$Bayt = 4096) {
+    if (-not $Yol -or -not (Test-Path -LiteralPath $Yol)) { return '' }
+    try {
+        $fs = [IO.FileStream]::new($Yol, [IO.FileMode]::Open, [IO.FileAccess]::Read, ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+        try { $b = New-Object byte[] ([Math]::Min([long]$Bayt, $fs.Length)); [void]$fs.Read($b, 0, $b.Length); return $Utf8.GetString($b) } finally { $fs.Dispose() }
+    } catch { return '' }
+}
+function Satir-Ekle([string]$Yol, [string]$Satir) {
+    for ($i = 0; $i -lt 6; $i++) {
+        try { [IO.File]::AppendAllText($Yol, $Satir + "`n", $Utf8); return $true } catch { Start-Sleep -Milliseconds (80 * ($i + 1)) }
+    }
+    return $false
+}
+# Claude: --output-format stream-json --verbose çıktısı (eski tek JSON biçimini de okur)
+function Claude-Cikti-Coz([string]$Ham) {
+    $sonuc = $null; $tepe = [long]0
+    $gorulen = @{}
+    $top = [ordered]@{ giris = [long]0; onbellek_okuma = [long]0; onbellek_yazma = [long]0; cikis = [long]0 }
+    foreach ($satir in ($Ham -split "`r?`n")) {
+        # Araç sonuçlarını (type=user, büyük dosya içerikleri) hiç çözme
+        if ($satir -notmatch '^\s*\{"type":"(assistant|result)"') { continue }
+        $j = $null
+        try { $j = $satir | ConvertFrom-Json } catch { continue }
+        if ($j.type -eq 'result') { $sonuc = $j; continue }
+        $m = $j.message
+        if (-not $m -or -not $m.usage) { continue }
+        $u = $m.usage
+        $b = (Sayi $u.input_tokens) + (Sayi $u.cache_read_input_tokens) + (Sayi $u.cache_creation_input_tokens) + (Sayi $u.output_tokens)
+        if ($b -gt $tepe) { $tepe = $b }
+        $kimlik = [string]$m.id
+        if ($kimlik -and $gorulen.ContainsKey($kimlik)) { continue }   # aynı yanıtın içerik blokları ayrı satırlarda tekrar eder
+        if ($kimlik) { $gorulen[$kimlik] = $true }
+        $top.giris += (Sayi $u.input_tokens); $top.onbellek_okuma += (Sayi $u.cache_read_input_tokens)
+        $top.onbellek_yazma += (Sayi $u.cache_creation_input_tokens); $top.cikis += (Sayi $u.output_tokens)
+    }
+    if (-not $sonuc -and $Ham.TrimStart().StartsWith('{')) {
+        try { $j = $Ham | ConvertFrom-Json; if ($j.type -eq 'result') { $sonuc = $j } } catch {}
+    }
+    $kul = $null
+    if ($sonuc -and $sonuc.usage) {
+        $u = $sonuc.usage
+        $pencere = [long]0
+        if ($sonuc.modelUsage) { foreach ($p in $sonuc.modelUsage.PSObject.Properties) { $w = Sayi $p.Value.contextWindow; if ($w -gt $pencere) { $pencere = $w } } }
+        $istek = $gorulen.Count; if ($istek -eq 0) { $istek = Sayi $sonuc.num_turns }
+        $kul = [ordered]@{
+            giris = (Sayi $u.input_tokens); onbellek_okuma = (Sayi $u.cache_read_input_tokens); onbellek_yazma = (Sayi $u.cache_creation_input_tokens)
+            cikis = (Sayi $u.output_tokens); baglam_tepe = $tepe; baglam_pencere = $pencere; istek = [long]$istek
+            maliyet_usd = [double]$sonuc.total_cost_usd; olcum = $(if ($tepe -gt 0) { 'tam' } else { 'toplam' })
+        }
+    } elseif ($gorulen.Count -gt 0) {
+        # Zaman aşımı / iptal: sonuç satırı yok, yarıda kalan yanıtların kullanımı
+        $kul = [ordered]@{ giris = $top.giris; onbellek_okuma = $top.onbellek_okuma; onbellek_yazma = $top.onbellek_yazma; cikis = $top.cikis
+            baglam_tepe = $tepe; baglam_pencere = [long]0; istek = [long]$gorulen.Count; maliyet_usd = [double]0; olcum = 'yarim' }
+    }
+    return [pscustomobject]@{ sonuc = $sonuc; kullanim = $kul }
+}
+# Codex: stderr başlığındaki "session id" ile ~\.codex\sessions altındaki oturum dosyasını bulup token_count olaylarını okur
+function Codex-Oturum-Dosyasi([string]$ErrYolu) {
+    $m = [regex]::Match((Bas-Oku $ErrYolu 6144), '(?m)^session id:\s*([0-9a-fA-F-]{36})')
+    if (-not $m.Success) { return '' }
+    $id = $m.Groups[1].Value
+    $ev = $env:CODEX_HOME; if (-not $ev) { $ev = Join-Path $env:USERPROFILE '.codex' }
+    foreach ($gun in @((Get-Date), (Get-Date).AddDays(-1), (Get-Date).AddDays(-2))) {
+        $d = Join-Path (Join-Path $ev 'sessions') ('{0:yyyy}\{0:MM}\{0:dd}' -f $gun)
+        if (-not (Test-Path -LiteralPath $d)) { continue }
+        $f = Get-ChildItem -LiteralPath $d -Filter "*$id.jsonl" -File -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($f) { return $f.FullName }
+    }
+    return ''
+}
+function Codex-Kullanim([string]$ErrYolu, [string]$OturumDosyasi = '', [switch]$Gecmis) {
+    $kul = $null
+    $dosya = $OturumDosyasi; if (-not $dosya) { $dosya = Codex-Oturum-Dosyasi $ErrYolu }
+    if ($dosya) {
+        $toplam = $null; $tepe = [long]0; $pencere = [long]0; $istek = 0; $haklar = $null
+        foreach ($satir in [IO.File]::ReadAllLines($dosya, $Utf8)) {
+            if ($satir -notmatch '"token_count"') { continue }
+            $j = $null
+            try { $j = $satir | ConvertFrom-Json } catch { continue }
+            $p = $j.payload
+            if (-not $p -or $p.type -ne 'token_count') { continue }
+            if ($p.rate_limits) { $haklar = $p.rate_limits }
+            if (-not $p.info) { continue }
+            $istek++
+            $toplam = $p.info.total_token_usage
+            $son = $p.info.last_token_usage
+            if ($son) { $t = Sayi $son.total_tokens; if ($t -le 0) { $t = (Sayi $son.input_tokens) + (Sayi $son.output_tokens) }; if ($t -gt $tepe) { $tepe = $t } }
+            if ($p.info.model_context_window) { $pencere = Sayi $p.info.model_context_window }
+        }
+        if ($toplam) {
+            $girisTum = Sayi $toplam.input_tokens; $okuma = Sayi $toplam.cached_input_tokens
+            $kul = [ordered]@{
+                giris = [Math]::Max([long]0, $girisTum - $okuma); onbellek_okuma = $okuma; onbellek_yazma = (Sayi $toplam.cache_write_input_tokens)
+                cikis = (Sayi $toplam.output_tokens); baglam_tepe = $tepe; baglam_pencere = $pencere; istek = [long]$istek; maliyet_usd = [double]0; olcum = 'tam'
+            }
+        }
+        if ($haklar -and -not $Gecmis) { try { Codex-Haklari-Kaydet $haklar } catch {} }
+    }
+    if (-not $kul) {
+        # Oturum dosyası yoksa yalnızca codex'in yazdığı toplam
+        $m = [regex]::Match((Son-Satirlar (Metin-Oku $ErrYolu) 40), '(?ms)tokens used\s*\r?\n\s*([\d.,]+)')
+        if ($m.Success) {
+            $t = Sayi ($m.Groups[1].Value -replace '[.,]', '')
+            $kul = [ordered]@{ giris = [long]0; onbellek_okuma = [long]0; onbellek_yazma = [long]0; cikis = [long]0; toplam = $t
+                baglam_tepe = [long]0; baglam_pencere = [long]0; istek = [long]0; maliyet_usd = [double]0; olcum = 'toplam' }
+        }
+    }
+    return $kul
+}
+# Codex hesabının 5 saatlik / haftalık kullanım yüzdeleri (oturum dosyasından); panel gösterir
+function Codex-Haklari-Kaydet($H) {
+    $cevir = { param($x) if (-not $x) { return $null }; $s = $null; if ($x.resets_at) { $s = [DateTimeOffset]::FromUnixTimeSeconds([int64]$x.resets_at).LocalDateTime.ToString('o') }; return [ordered]@{ yuzde = [double]$x.used_percent; pencere_dk = [int]$x.window_minutes; sifirlanma = $s } }
+    $yol = Join-Path $YolDurum 'arac-haklari.json'
+    $d = Json-Oku $yol
+    if (-not $d) { $d = New-Object psobject }
+    Ayarla $d 'codex' ([pscustomobject][ordered]@{ guncelleme = (Simdi); plan = [string]$H.plan_type; bes_saat = (& $cevir $H.primary); haftalik = (& $cevir $H.secondary) })
+    Json-Yaz $d $yol
+}
+function Kullanim-Kaydet([string]$Rol, [string]$Etiket, $Giris, $R, [int]$IstemKarakter) {
+    try {
+        if (-not (Test-Path -LiteralPath $YolKullanim)) { New-Item -ItemType Directory -Force $YolKullanim | Out-Null }
+        $k = $R.kullanim
+        $kayit = [ordered]@{
+            zaman = (Simdi); gorev = [string]$script:AktifGorev; rol = $Rol; etiket = $Etiket
+            arac = [string]$Giris.arac; model = [string]$Giris.model; basarili = [bool]$R.basarili; sure_sn = [int]$R.sure_sn; istem_karakter = $IstemKarakter
+        }
+        foreach ($a in @('giris', 'onbellek_okuma', 'onbellek_yazma', 'cikis', 'baglam_tepe', 'baglam_pencere', 'istek')) {
+            $v = [long]0; if ($k -and $k.Contains($a)) { $v = Sayi $k[$a] }
+            $kayit[$a] = $v
+        }
+        $kayit.toplam = $kayit.giris + $kayit.onbellek_okuma + $kayit.onbellek_yazma + $kayit.cikis
+        if ($k -and $k.Contains('toplam') -and (Sayi $k['toplam']) -gt $kayit.toplam) { $kayit.toplam = Sayi $k['toplam'] }
+        if ($k -and $k.Contains('maliyet_usd') -and [double]$k['maliyet_usd'] -gt 0) { $kayit.maliyet_usd = [Math]::Round([double]$k['maliyet_usd'], 4) }
+        $kayit.olcum = 'yok'; if ($k -and $k.Contains('olcum')) { $kayit.olcum = [string]$k['olcum'] }
+        if (-not $R.basarili -and $R.hata) { $kayit.hata = Kisalt ([string]$R.hata) 160 }
+        $yol = Join-Path $YolKullanim ('kullanim-{0}.jsonl' -f (Get-Date).ToString('yyyyMM'))
+        [void](Satir-Ekle $yol ($kayit | ConvertTo-Json -Compress))
+    } catch { Gunluk "Kullanım kaydı yazılamadı: $($_.Exception.Message)" 'UYARI' }
 }
 
 # ---------------------------------------------------------------- Claude
 function Claude-Hata-Isle([string]$Hata) {
     if ($Hata -match '(?i)\b401\b|authenticat|oauth|not logged in|invalid api key') {
         Kilit-Koy 'claude' (Get-Date).AddHours(2) 'Claude CLI girişi geçersiz'
-        Bildir -Baslik 'Claude girişi gerekli' -Metin 'Arka plandaki Claude CLI oturumu geçersiz. Bir terminalde "claude auth login" çalıştır. O zamana kadar lider ve denetçi işini Codex yapıyor.' -Anahtar 'claude-giris' -Onem 'yuksek' -AralikDk 720
+        Bildir -Baslik 'Claude girişi gerekli' -Metin 'Arka plandaki Claude CLI oturumu geçersiz. Bir terminalde "claude auth login" çalıştır. O zamana kadar Claude''un işlerini Codex yapıyor.' -Anahtar 'claude-giris' -Onem 'yuksek' -AralikDk 720
     } elseif ($Hata -match '(?i)usage limit|limit reached|hit your limit|rate.?limit|\b429\b|quota|overloaded|\b529\b') {
         $bitis = (Get-Date).AddMinutes(60)
         $m = [regex]::Match($Hata, '\|(\d{10})')
@@ -287,7 +448,8 @@ function Claude-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [st
     $araclar = 'Read,Glob,Grep'; $mod = 'dontAsk'
     if ($Yazabilir) { $araclar = 'Read,Glob,Grep,Edit,Write'; $mod = 'acceptEdits' }
     $zaman = [int]$Ayar.zaman_asimi_dk.claude
-    $komut = (Q $Ayar.claude.exe) + " -p --output-format json --no-session-persistence --model $($G.model)"
+    # stream-json: her yanıtın token kullanımı ayrı satırda gelir (istek başına bağlam doluluğu için); son satır sonuçtur
+    $komut = (Q $Ayar.claude.exe) + " -p --output-format stream-json --verbose --no-session-persistence --model $($G.model)"
     if ($TamYetki) {
         # Altyapı rolleri (altyapi.ps1): kullanıcı tam yetki verdi; tüm araçlar, izin sorulmaz
         $komut += ' --permission-mode bypassPermissions'
@@ -295,21 +457,23 @@ function Claude-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [st
     } else { $komut += " --tools $araclar --allowedTools $araclar --permission-mode $mod" }
     if ($G.efor) { $komut += " --effort $($G.efor)" }
     $s = Surec-Calistir -Komut $komut -Girdi $IstemYolu -Cikti $Out -Hata $Err -Klasor $Klasor -ZamanAsimiDk $zaman -Etiket 'claude'
-    if ($s.zaman_asimi) { return (Sonuc $false '' "zaman aşımı ($zaman dk)" $s) }
     $ham = Metin-Oku $Out
-    $j = $null
-    try { $j = $ham | ConvertFrom-Json } catch {}
+    $c = $null
+    try { $c = Claude-Cikti-Coz $ham } catch { $c = [pscustomobject]@{ sonuc = $null; kullanim = $null } }
+    if ($s.iptal) { return (Sonuc $false '' 'görev iptal edildi; ajan durduruldu' $s $c.kullanim) }
+    if ($s.zaman_asimi) { return (Sonuc $false '' "zaman aşımı ($zaman dk)" $s $c.kullanim) }
+    $j = $c.sonuc
     if (-not $j) {
-        $h = "çıktı çözülemedi (kod $($s.kod)): " + (Kisalt ((Son-Satirlar (Metin-Oku $Err) 6) + ' ' + $ham) 300)
+        $h = "çıktı çözülemedi (kod $($s.kod)): " + (Kisalt ((Son-Satirlar (Metin-Oku $Err) 6) + ' ' + (Son-Satirlar $ham 3)) 300)
         Claude-Hata-Isle $h
-        return (Sonuc $false '' $h $s)
+        return (Sonuc $false '' $h $s $c.kullanim)
     }
     if ($j.is_error -or $j.subtype -ne 'success') {
         $h = Kisalt ("{0} {1}" -f $j.subtype, $j.result) 300
         Claude-Hata-Isle $h
-        return (Sonuc $false '' $h $s)
+        return (Sonuc $false '' $h $s $c.kullanim)
     }
-    return (Sonuc $true ([string]$j.result) '' $s)
+    return (Sonuc $true ([string]$j.result) '' $s $c.kullanim)
 }
 
 # ---------------------------------------------------------------- Codex (ChatGPT)
@@ -326,7 +490,10 @@ function Codex-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [str
     if (Test-Path -LiteralPath $SonMesaj) { Remove-Item -LiteralPath $SonMesaj -Force }
     $komut = (Q $exe) + " exec --skip-git-repo-check -s $kum -C $(Q $Klasor) -o $(Q $SonMesaj) -m $($G.model) -c model_reasoning_effort=$efor -"
     $s = Surec-Calistir -Komut $komut -Girdi $IstemYolu -Cikti $Out -Hata $Err -Klasor $Klasor -ZamanAsimiDk $zaman -Etiket 'codex'
-    if ($s.zaman_asimi) { return (Sonuc $false '' "zaman aşımı ($zaman dk)" $s) }
+    $kul = $null
+    try { $kul = Codex-Kullanim $Err } catch {}
+    if ($s.iptal) { return (Sonuc $false '' 'görev iptal edildi; ajan durduruldu' $s $kul) }
+    if ($s.zaman_asimi) { return (Sonuc $false '' "zaman aşımı ($zaman dk)" $s $kul) }
     $metin = Metin-Oku $SonMesaj
     if ($s.kod -ne 0 -or -not $metin.Trim()) {
         # stderr tüm oturumu (istem dahil) içerir; sınıflandırma için yalnızca kuyruğa bak
@@ -339,9 +506,9 @@ function Codex-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [str
             Kilit-Koy 'codex' (Get-Date).AddHours(2) 'Codex girişi geçersiz'
             Bildir -Baslik 'Codex girişi gerekli' -Metin 'Codex/ChatGPT oturumu geçersiz görünüyor. Codex uygulamasını açıp giriş yap.' -Anahtar 'codex-giris' -Onem 'yuksek' -AralikDk 720
         }
-        return (Sonuc $false '' ("kod {0}: {1}" -f $s.kod, (Kisalt (Son-Satirlar $kuyruk 4) 300)) $s)
+        return (Sonuc $false '' ("kod {0}: {1}" -f $s.kod, (Kisalt (Son-Satirlar $kuyruk 4) 300)) $s $kul)
     }
-    return (Sonuc $true $metin '' $s)
+    return (Sonuc $true $metin '' $s $kul)
 }
 
 # ---------------------------------------------------------------- Gemini (isteğe bağlı; GEMINI_API_KEY gerektirir)
@@ -351,6 +518,7 @@ function Gemini-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [st
     $komut = (Q (Gemini-Exe)) + " -p `"`" --approval-mode $mod --skip-trust -o json"
     if ($G.model) { $komut += " -m $($G.model)" }
     $s = Surec-Calistir -Komut $komut -Girdi $IstemYolu -Cikti $Out -Hata $Err -Klasor $Klasor -ZamanAsimiDk ([int]$Ayar.zaman_asimi_dk.gemini) -Etiket 'gemini'
+    if ($s.iptal) { return (Sonuc $false '' 'görev iptal edildi; ajan durduruldu' $s) }
     if ($s.zaman_asimi) { return (Sonuc $false '' 'zaman aşımı' $s) }
     $j = $null
     try { $j = (Metin-Oku $Out) | ConvertFrom-Json } catch {}
@@ -377,7 +545,14 @@ function Ajan-Cagir {
     )
     if (-not (Test-Path -LiteralPath $KayitKlasoru)) { New-Item -ItemType Directory -Force $KayitKlasoru | Out-Null }
     $notlar = @()
+    $gorevId = [string]$script:AktifGorev
+    $iptalHata = 'görev kullanıcı tarafından iptal edildi'
     foreach ($g in @($Ayar.roller.$Rol)) {
+        # İptal edilen görevde yedek zincirdeki sonraki araca geçme
+        if ($gorevId -and (Gorev-Iptal-mi $gorevId)) {
+            Gunluk "$Rol çağrısı yapılmadı: görev $gorevId iptal edildi [$Etiket]" 'UYARI'
+            return [pscustomobject]@{ basarili = $false; metin = ''; hata = $iptalHata; sure_sn = 0; arac = ''; model = ''; iptal = $true }
+        }
         $kimlik = "{0}/{1}" -f $g.arac, $g.model
         if ($Haric -contains $kimlik) { $notlar += "${kimlik}: atlandı"; continue }
         $neden = Arac-Uygun $g
@@ -397,9 +572,15 @@ function Ajan-Cagir {
             'codex'  { $r = Codex-Calistir  $g $istemYolu $out $err $son $Klasor ([bool]$Yazabilir) ([bool]$TamYetki) }
             'gemini' { $r = Gemini-Calistir $g $istemYolu $out $err $Klasor ([bool]$Yazabilir) ([bool]$TamYetki) }
         }
+        Kullanim-Kaydet $Rol $Etiket $g $r $Istem.Length
         if ($r.basarili) {
             $r.arac = [string]$g.arac; $r.model = [string]$g.model
             Gunluk "$Rol -> $kimlik bitti ($($r.sure_sn) sn)"
+            if ($gorevId -and (Gorev-Iptal-mi $gorevId)) {
+                # Ajan iptalden sonra bitti: adım bu sonuçla ilerlemesin (soru, aktarma, e-posta, yeni tur...)
+                Gunluk "$Rol -> $kimlik sonucu kullanılmadı: görev $gorevId ajan çalışırken iptal edildi" 'UYARI'
+                return [pscustomobject]@{ basarili = $false; metin = ''; hata = $iptalHata; sure_sn = $r.sure_sn; arac = $r.arac; model = $r.model; iptal = $true }
+            }
             return $r
         }
         Gunluk "$Rol -> $kimlik başarısız: $($r.hata)" 'UYARI'
@@ -468,6 +649,20 @@ function Gorev-Kaydet($G) {
     Ayarla $G 'guncelleme' (Simdi)
     Json-Yaz $G (Join-Path (Gorev-Klasoru $G.id) 'durum.json')
 }
+# Görevin diskteki güncel kaydı: adım sürerken kullanıcı panelden / durum.ps1 ile değiştirmiş olabilir.
+# Dosya o an yazılıyorsa kısa aralıklarla yeniden dener; okunamazsa $null döner (hata fırlatmaz).
+function Gorev-Diskten([string]$Id) {
+    if (-not $Id) { return $null }
+    $yol = Join-Path (Gorev-Klasoru $Id) 'durum.json'
+    for ($i = 0; $i -lt 5; $i++) {
+        try { return (Json-Oku $yol) } catch { Start-Sleep -Milliseconds 200 }
+    }
+    return $null
+}
+function Gorev-Iptal-mi([string]$Id) {
+    $d = Gorev-Diskten $Id
+    return [bool]($d -and [string]$d.asama -eq 'iptal')
+}
 function Gorevleri-Listele {
     $liste = @()
     foreach ($d in (Get-ChildItem -LiteralPath $YolGorev -Directory -ErrorAction SilentlyContinue | Sort-Object Name)) {
@@ -478,7 +673,7 @@ function Gorevleri-Listele {
 }
 $script:AsamaAdlari = @{
     yeni = 'Sırada'; plan = 'Planlanıyor'; gelistirme = 'Geliştiriliyor'; kontrol = 'Kontrol ediliyor'
-    denetim = 'Denetleniyor'; kabul = 'Lider onayında'; tamamla = 'Commit ediliyor'; tamam = 'Tamamlandı'
+    denetim = 'Denetleniyor'; kabul = 'Yönetici onayında'; tamamla = 'Commit ediliyor'; tamam = 'Tamamlandı'
     takildi = 'Takıldı'; bekliyor_kullanici = 'Senden yanıt bekliyor'; iptal = 'İptal'
 }
 function Asama-Adi([string]$A) { if ($AsamaAdlari.ContainsKey($A)) { return $AsamaAdlari[$A] }; return $A }

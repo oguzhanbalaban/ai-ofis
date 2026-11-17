@@ -34,7 +34,7 @@ Sen bir Ses ve Müzik Tasarımcısısın. Tasarım departmanında çalışır, y
 
 ---
 
-**Lider ve ekibe tanışma notu:**
+**Yönetici ve ekibe tanışma notu:**
 
 Merhaba ekip. Kadroya yeni bir uzman katılıyor: **Ses ve Müzik Tasarımcısı** (`ses-tasarimci`).
 
@@ -51,4 +51,4 @@ Bir ses veya müzik ihtiyacı doğduğunda görevi `ses-tasarimci`'ye uzman işi
 
 ---
 
-Lider, işe alım tamamlandı. `ses-tasarimci` kadroya eklenmeye hazır; kadro tablosuna eklenmesini ve talimat dosyasının kaydedilmesini bekliyorum.
+Yönetici, işe alım tamamlandı. `ses-tasarimci` kadroya eklenmeye hazır; kadro tablosuna eklenmesini ve talimat dosyasının kaydedilmesini bekliyorum.

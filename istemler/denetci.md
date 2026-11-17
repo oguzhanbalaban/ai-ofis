@@ -29,7 +29,7 @@ KARAR: ONAY
 
 ---
 
-# LİDERİN PLANI
+# YÖNETİCİNİN PLANI
 
 {PLAN}
 

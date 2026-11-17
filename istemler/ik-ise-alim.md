@@ -27,10 +27,10 @@ KARAR: ISE_ALINDI
   "departman": "Yönetim | Yazılım | Altyapı ve güvenlik | Tasarım | İK ve iletişim | Uzmanlar",
   "uzmanlik": "Bir iki cümle: neleri yapar, hangi teslimleri üretir.",
   "yetki": "oku | yaz | tam",
-  "araclar": [ { "arac": "codex", "model": "gpt-6.1-sol", "efor": "high" }, { "arac": "claude", "model": "sonnet" } ],
+  "araclar": [ { "arac": "claude", "model": "sonnet" }, { "arac": "codex", "model": "gpt-6.1-sol", "efor": "high" } ],
   "renk": "#RRGGBB",
   "faaliyet_metni": "Çalışırken masasında görünecek iki üç kelime (ör. Ses kaydı hazırlıyor)",
-  "tanisma": "Ekibe ve lidere kendini tanıtan 2-3 cümle (birinci tekil şahıs)."
+  "tanisma": "Ekibe ve yöneticiye kendini tanıtan 2-3 cümle (birinci tekil şahıs)."
 }
 ```
 
@@ -40,9 +40,10 @@ teslim biçimi ve kalite ölçütleri, uyması gereken kurallar. 15-40 satır.)
 
 Kurallar:
 - anahtar kadrodakilerden farklı olsun; yalnızca küçük harf, rakam ve tire.
-- Kullanılabilir araçlar ve modeller: {ARACLAR}. Görsel üretimi gereken işlerde zincire önce codex koy (görsel üretim aracı orada).
-  Komut, Python ya da betik çalıştırması gereken işlerde de zincire önce codex koy: "yaz" yetkisinde yalnızca codex korumalı
-  alanda komut çalıştırabilir; claude o yetkide yalnızca dosya okuyup yazar. Yalnızca yazı/belge üreten roller claude ile başlayabilir.
+- Kullanılabilir araçlar ve modeller: {ARACLAR}. Ekip ağırlıklı olarak Claude kullanır: zincire önce claude koy (yazı, belge,
+  analiz, kod ya da tasarım dosyası üreten roller), codex'i yedek olarak ekle. İstisnalar: görsel üretimi gereken işlerde
+  zincire önce codex koy (görsel üretim aracı orada). Komut, Python ya da betik çalıştırmak asıl iş olan rollerde de önce codex
+  koy: "yaz" yetkisinde yalnızca codex korumalı alanda komut çalıştırabilir; claude o yetkide yalnızca dosya okuyup yazar.
 - Yetki kuralı: {YETKI_KURALI}
 
 ---

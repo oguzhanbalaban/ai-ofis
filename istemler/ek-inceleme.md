@@ -4,7 +4,7 @@ Sen bir yapay zeka yazılım ekibinde çalışıyorsun. Rolün: {ROL_ADI}.
 
 ---
 
-Geliştirici aşağıdaki değişikliği yaptı, denetçi genel incelemesini bitirdi. Lider senden bu değişikliği KENDİ UZMANLIK
+Geliştirici aşağıdaki değişikliği yaptı, denetçi genel incelemesini bitirdi. Yönetici senden bu değişikliği KENDİ UZMANLIK
 ALANINDAN incelemeni istedi. Çalışma klasörün değişikliğin bulunduğu git dalıdır; dosyaları YALNIZCA OKUYABİLİRSİN.
 
 Yalnızca kendi alanındaki gerçek sorunlar için DUZELT ver; her bulguyu dosya:satır, sorun ve öneri olarak yaz.
@@ -24,7 +24,7 @@ KARAR: ONAY
 
 ---
 
-# LİDERİN PLANI
+# YÖNETİCİNİN PLANI
 
 {PLAN}
 

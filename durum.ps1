@@ -29,29 +29,9 @@ if ($KilitleriSifirla) { Json-Yaz (New-Object psobject) (Join-Path $YolDurum 'ki
 
 if ($Devam) {
     $g = Gorev-Bul $Devam
-    $gk = Gorev-Klasoru $g.id
-    $bekleyen = Join-Path $gk 'bekleyen-geri-bildirim.md'
-    if ($g.asama -eq 'bekliyor_kullanici') {
-        $g.asama = 'plan'
-    } elseif (Test-Path -LiteralPath $bekleyen) {
-        # Tur sınırına takılmıştı: bir tur hakkı daha ver, son geri bildirimle geliştiriciye dön
-        $gb = Metin-Oku $bekleyen
-        if ($Not) { $gb = "## Kullanıcının notu`n`n$Not`n`n" + $gb }
-        $g.max_tur = [int]$g.tur + 1
-        $g.tur = [int]$g.tur + 1
-        Metin-Yaz (Join-Path (Tur-Klasoru $g) 'geri-bildirim.md') $gb
-        Remove-Item -LiteralPath $bekleyen -Force
-        $g.asama = 'gelistirme'
-    } else {
-        $hedef = [string]$g.takildi_asama
-        if (-not $hedef -or -not ($AktifAsamalar -contains $hedef)) { $hedef = 'gelistirme' }
-        if ($Not) { Metin-Yaz (Join-Path (Tur-Klasoru $g) 'geri-bildirim.md') ("## Kullanıcının notu`n`n$Not`n`n" + (Metin-Oku (Join-Path (Tur-Klasoru $g) 'geri-bildirim.md'))) }
-        $g.asama = $hedef
-    }
-    Gecmis-Ekle $g 'kullanıcı devam ettirdi' $Not
-    $g.deneme = 0
-    Ayarla $g 'sonraki_deneme' $null
-    Ayarla $g 'son_hata' ''
+    # Ortak sürdürme mantığı (cozucu.ps1 > Gorev-Surdur): soru bekliyorsa yeniden plan; tur sınırına takıldıysa bir tur
+    # daha; değilse takıldığı aşamadan. Kullanıcının "Devam" demesi Sorun Gidericinin hakkını da sıfırlar.
+    Gorev-Surdur $g $Not 'kullanıcı' 'Kullanıcının notu'
     Gorev-Kaydet $g
     Write-Host "Görev $($g.id) sürdürülüyor: $(Asama-Adi $g.asama) (tur $($g.tur)/$($g.max_tur))"
 }

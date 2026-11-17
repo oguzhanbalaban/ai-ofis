@@ -1,6 +1,6 @@
 ﻿<#
 uzman-ekle.ps1 - Ekibe uzman işi ekler: tasarım, çizim, arayüz, mimari, güvenlik denetimi, e-posta/iletişim, işe alım…
-Lider işi kadrodaki uygun çalışana verir; uygun kimse yoksa İnsan Kaynakları yeni bir çalışan işe alır.
+Yönetici işi kadrodaki uygun çalışana verir; uygun kimse yoksa İnsan Kaynakları yeni bir çalışan işe alır.
 
 Örnekler:
   .\uzman-ekle.ps1 -Baslik "Tilki karakteri" -Aciklama "2D platform oyunu için ana karakter: karakter sayfası ve 4 poz" -Rol tasarimci-grafik
@@ -8,7 +8,7 @@ Lider işi kadrodaki uygun çalışana verir; uygun kimse yoksa İnsan Kaynaklar
   .\uzman-ekle.ps1 -Baslik "Gelen kutusu özeti" -Aciklama "Son 2 günün önemli e-postalarını özetle, bana bildir" -Rol iletisim
   .\uzman-ekle.ps1 -Baslik "Seslendirme uzmanı" -Aciklama "Oyun için ses efekti ve müzik hazırlayacak birini işe al" -Rol ik
 
-  -Rol     kadro.json'daki çalışanın anahtarı (boşsa lider seçer)
+  -Rol     kadro.json'daki çalışanın anahtarı (boşsa yönetici seçer)
   -Klasor  işle ilgili, çalışanın okuyacağı klasör (ör. bir proje)
 #>
 param(
@@ -43,8 +43,8 @@ $id = '{0:D4}-{1}' -f $no, (Slug $Baslik)
 $gk = Gorev-Klasoru $id
 New-Item -ItemType Directory -Force $gk | Out-Null
 
-$kime = '(lider seçer)'; if ($uye) { $kime = "$($uye.ad) ($Rol)" }
-$kabulMetni = '- (belirtilmedi; lider brifte ölçüt belirlesin)'
+$kime = '(yönetici seçer)'; if ($uye) { $kime = "$($uye.ad) ($Rol)" }
+$kabulMetni = '- (belirtilmedi; yönetici brifte ölçüt belirlesin)'
 if ($Kabul.Count -gt 0) { $kabulMetni = ($Kabul | ForEach-Object { "- $_" }) -join "`n" }
 $ilgili = ''; if ($Klasor) { $ilgili = "`n- İlgili klasör: ``$Klasor``" }
 $md = @"
@@ -65,7 +65,7 @@ $kabulMetni
 
 ## Notlar ve yanıtlar
 
-(Lider soru sorarsa yanıtlarını buraya yazıp dosyayı kaydet; ekip kendiliğinden devam eder.)
+(Yönetici soru sorarsa yanıtlarını buraya yazıp dosyayı kaydet; ekip kendiliğinden devam eder.)
 "@
 Metin-Yaz (Join-Path $gk 'gorev.md') $md
 

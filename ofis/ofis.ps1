@@ -47,12 +47,14 @@ try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
 $script:AktifAsamalar = @('yeni', 'plan', 'gelistirme', 'kontrol', 'denetim', 'kabul', 'tamamla')
 $script:AsamaAdlari = @{
     yeni = 'Sırada'; plan = 'Planlanıyor'; gelistirme = 'Geliştiriliyor'; kontrol = 'Kontrol ediliyor'
-    denetim = 'Denetleniyor'; kabul = 'Lider onayında'; tamamla = 'Commit ediliyor'; tamam = 'Tamamlandı'
+    denetim = 'Denetleniyor'; kabul = 'Yönetici onayında'; tamamla = 'Commit ediliyor'; tamam = 'Tamamlandı'
     takildi = 'Takıldı'; bekliyor_kullanici = 'Senden yanıt bekliyor'; iptal = 'İptal'
 }
-# kadro.json yoksa ya da bozuksa kullanılacak en küçük kadro
+# "İş ver" ile gelen, Yöneticinin henüz yönlendirmediği işler (tip = genel; bkz. yonlendirme.ps1)
+$script:GenelAsamaAdlari = @{ yeni = 'Yöneticide'; plan = 'Yöneticide' }
+# kadro.json yoksa ya da bozuksa kullanılacak en küçük kadro (rol anahtarı "lider" = Yönetici)
 $script:VarsayilanKadro = @(
-    [pscustomobject]@{ anahtar = 'lider'; ad = 'Lider'; departman = 'Yönetim'; yerlesik = $true }
+    [pscustomobject]@{ anahtar = 'lider'; ad = 'Yönetici'; departman = 'Yönetim'; yerlesik = $true }
     [pscustomobject]@{ anahtar = 'gelistirici'; ad = 'Geliştirici'; departman = 'Yazılım'; yerlesik = $true }
     [pscustomobject]@{ anahtar = 'denetci'; ad = 'Denetçi'; departman = 'Yazılım'; yerlesik = $true }
     [pscustomobject]@{ anahtar = 'sistem'; ad = 'Sistem Yöneticisi'; departman = 'Altyapı ve güvenlik'; yerlesik = $true }
@@ -90,7 +92,7 @@ $script:UzmanAsamaAdlari = @{ gelistirme = 'Çalışılıyor'; denetim = 'İncel
 $script:EtiketAsama = @{ uygulama = 'gelistirme'; dogrulama = 'denetim'; calisma = 'gelistirme'; inceleme = 'denetim'; ise_alim = 'plan' }
 function Gorev-Tipi($G) {
     $t = [string](Ozellik $G 'tip')
-    if ($t -eq 'altyapi' -or $t -eq 'uzman') { return $t }
+    if ($t -eq 'altyapi' -or $t -eq 'uzman' -or $t -eq 'genel') { return $t }
     return 'yazilim'
 }
 function Altyapi-Mi($G) { return ((Gorev-Tipi $G) -eq 'altyapi') }
@@ -100,6 +102,7 @@ function Gorev-Rolu($G, [string]$Etiket = '') {
     if ($Etiket -match '^inceleme-(.+)$') { return $Matches[1] }
     $asama = [string]$G.asama
     $tip = Gorev-Tipi $G
+    if ($tip -eq 'genel') { return 'lider' }
     if ($tip -eq 'altyapi') {
         $sorumlu = [string](Ozellik $G 'sorumlu'); if ($sorumlu -ne 'ag') { $sorumlu = 'sistem' }
         $destek = [string](Ozellik $G 'destek'); if ($destek -ne 'ag' -and $destek -ne 'sistem') { $destek = '' }
@@ -122,8 +125,173 @@ function Asama-Adi-Bul($G) {
     $tip = Gorev-Tipi $G
     if ($tip -eq 'altyapi' -and $AltyapiAsamaAdlari.ContainsKey($asama)) { return $AltyapiAsamaAdlari[$asama] }
     if ($tip -eq 'uzman' -and $UzmanAsamaAdlari.ContainsKey($asama)) { return $UzmanAsamaAdlari[$asama] }
+    if ($tip -eq 'genel' -and $GenelAsamaAdlari.ContainsKey($asama)) { return $GenelAsamaAdlari[$asama] }
     if ($AsamaAdlari.ContainsKey($asama)) { return $AsamaAdlari[$asama] }
     return $asama
+}
+
+# ---------------------------------------------------------------- token / bağlam kullanımı
+# Döngü (ortak.ps1 > Kullanim-Kaydet) her ajan çağrısını durum\kullanim\kullanim-yyyyMM.jsonl'a ekler. Panel dosyaları
+# artımlı okur (yalnızca yeni eklenen satırlar çözülür) ve özetler: rol, araç, gün/saat, görev.
+$script:YolKullanim = Join-Path $YolDurum 'kullanim'
+$script:KullanimOnbellek = @{}
+Add-Type -AssemblyName System.Web.Extensions
+$script:JsCozucu = New-Object Web.Script.Serialization.JavaScriptSerializer
+$script:JsCozucu.MaxJsonLength = 16MB
+function Kullanim-Dosyasi-Oku([string]$Yol) {
+    $fi = New-Object IO.FileInfo $Yol
+    if (-not $fi.Exists) { return , (New-Object Collections.Generic.List[object]) }
+    $o = $KullanimOnbellek[$Yol]
+    if (-not $o -or $fi.Length -lt $o.uzunluk) { $o = @{ uzunluk = [long]0; kayitlar = (New-Object Collections.Generic.List[object]) }; $KullanimOnbellek[$Yol] = $o }
+    if ($fi.Length -gt $o.uzunluk) {
+        $fs = Paylasimli-Ac $Yol
+        try {
+            [void]$fs.Seek($o.uzunluk, [IO.SeekOrigin]::Begin)
+            $b = New-Object byte[] ([int]($fs.Length - $o.uzunluk))
+            $n = $fs.Read($b, 0, $b.Length)
+        } finally { $fs.Dispose() }
+        $metin = $Utf8.GetString($b, 0, $n)
+        $son = $metin.LastIndexOf("`n")
+        if ($son -ge 0) {
+            $tam = $metin.Substring(0, $son + 1)
+            foreach ($s in $tam.Split("`n")) {
+                $t = $s.Trim(); if (-not $t) { continue }
+                try {
+                    $r = $JsCozucu.DeserializeObject($t)
+                    $r['_z'] = [datetime]$r['zaman']
+                    $o.kayitlar.Add($r)
+                } catch {}
+            }
+            $o.uzunluk += $Utf8.GetByteCount($tam)
+        }
+    }
+    return , $o.kayitlar
+}
+function Kullanim-Kayitlari([datetime]$Bas) {
+    $l = New-Object Collections.Generic.List[object]
+    $simdi = Get-Date
+    $ay = New-Object DateTime ($Bas.Year, $Bas.Month, 1)
+    while ($ay -le $simdi) {
+        $kayitlar = Kullanim-Dosyasi-Oku (Join-Path $YolKullanim ('kullanim-{0}.jsonl' -f $ay.ToString('yyyyMM')))
+        # Kayıtlar kabaca zaman sırasında: sondan başa tara, başlangıçtan bir gün öncesine inince dur
+        $sinir = $Bas.AddDays(-1)
+        for ($i = $kayitlar.Count - 1; $i -ge 0; $i--) {
+            $r = $kayitlar[$i]
+            if ($r['_z'] -ge $Bas) { $l.Add($r) } elseif ($r['_z'] -lt $sinir) { break }
+        }
+        $ay = $ay.AddMonths(1)
+    }
+    $l.Reverse()
+    return , $l
+}
+function Sayi-Al($R, [string]$Ad) { $v = $R[$Ad]; if ($null -eq $v) { return [long]0 }; try { return [long]$v } catch { return [long]0 } }
+function Kullanim-Bugun-Rol {
+    $h = @{}
+    foreach ($r in (Kullanim-Kayitlari (Get-Date).Date)) {
+        $rol = [string]$r['rol']
+        if (-not $h.ContainsKey($rol)) { $h[$rol] = @{ cagri = 0; toplam = [long]0 } }
+        $h[$rol].cagri++; $h[$rol].toplam += (Sayi-Al $r 'toplam')
+    }
+    return $h
+}
+function Kullanim-Ozeti([int]$Gun) {
+    if (@(1, 7, 30) -notcontains $Gun) { $Gun = 7 }
+    $simdi = Get-Date
+    $bas = $simdi.Date.AddDays(1 - $Gun)
+    $kayitlar = Kullanim-Kayitlari $bas
+    $kadro = Kadro-Listesi
+    $ozet = [ordered]@{ cagri = 0; basarisiz = 0; toplam = [long]0; giris = [long]0; onbellek_okuma = [long]0; onbellek_yazma = [long]0; cikis = [long]0
+        sure_sn = [long]0; maliyet_usd = [double]0; tepe_yuzde = [double]0; tepe_rol = ''; olcumsuz = 0; gecmis = 0 }
+    $araclar = @{}
+    $roller = @{}
+    $seri = [ordered]@{}
+    if ($Gun -eq 1) { for ($h = 0; $h -lt 24; $h++) { $seri['{0:D2}' -f $h] = @{ claude = [long]0; codex = [long]0; diger = [long]0; cagri = 0 } } }
+    else { for ($d = 0; $d -lt $Gun; $d++) { $seri[$bas.AddDays($d).ToString('yyyy-MM-dd')] = @{ claude = [long]0; codex = [long]0; diger = [long]0; cagri = 0 } } }
+    $gorevler = @{}
+    foreach ($r in $kayitlar) {
+        $arac = [string]$r['arac']; $ak = 'diger'; if ($arac -eq 'claude' -or $arac -eq 'codex') { $ak = $arac }
+        $tok = Sayi-Al $r 'toplam'
+        $ok = [bool]$r['basarili']
+        $sure = Sayi-Al $r 'sure_sn'
+        $tepe = Sayi-Al $r 'baglam_tepe'; $pencere = Sayi-Al $r 'baglam_pencere'
+        $yuzde = -1.0; if ($tepe -gt 0 -and $pencere -gt 0) { $yuzde = [Math]::Round(100.0 * $tepe / $pencere, 1) }
+        $ozet.cagri++; if (-not $ok) { $ozet.basarisiz++ }
+        $ozet.toplam += $tok; $ozet.giris += (Sayi-Al $r 'giris'); $ozet.onbellek_okuma += (Sayi-Al $r 'onbellek_okuma')
+        $ozet.onbellek_yazma += (Sayi-Al $r 'onbellek_yazma'); $ozet.cikis += (Sayi-Al $r 'cikis'); $ozet.sure_sn += $sure
+        if ($r['maliyet_usd']) { $ozet.maliyet_usd += [double]$r['maliyet_usd'] }
+        if ($tok -le 0) { $ozet.olcumsuz++ }
+        if ([string]$r['kaynak'] -eq 'gecmis') { $ozet.gecmis++ }
+        if (-not $araclar.ContainsKey($ak)) { $araclar[$ak] = @{ cagri = 0; toplam = [long]0 } }
+        $araclar[$ak].cagri++; $araclar[$ak].toplam += $tok
+        $rol = [string]$r['rol']; if (-not $rol) { $rol = '?' }
+        if (-not $roller.ContainsKey($rol)) {
+            $roller[$rol] = @{ cagri = 0; basarisiz = 0; sohbet = 0; sure_sn = [long]0; giris = [long]0; onbellek_okuma = [long]0; onbellek_yazma = [long]0; cikis = [long]0
+                toplam = [long]0; claude = [long]0; codex = [long]0; diger = [long]0; tepe_yuzde = [double]-1; yuzde_top = [double]0; yuzde_adet = 0; tepe_token = [long]0
+                son = $null; modeller = @{} }
+        }
+        $o = $roller[$rol]
+        $o.cagri++; if (-not $ok) { $o.basarisiz++ }; if ([string]$r['etiket'] -like 'sohbet*') { $o.sohbet++ }
+        $o.sure_sn += $sure; $o.giris += (Sayi-Al $r 'giris'); $o.onbellek_okuma += (Sayi-Al $r 'onbellek_okuma'); $o.onbellek_yazma += (Sayi-Al $r 'onbellek_yazma')
+        $o.cikis += (Sayi-Al $r 'cikis'); $o.toplam += $tok; $o[$ak] += $tok
+        if ($yuzde -ge 0) { $o.yuzde_top += $yuzde; $o.yuzde_adet++; if ($yuzde -gt $o.tepe_yuzde) { $o.tepe_yuzde = $yuzde } }
+        if ($tepe -gt $o.tepe_token) { $o.tepe_token = $tepe }
+        if ($yuzde -gt $ozet.tepe_yuzde) { $ozet.tepe_yuzde = $yuzde; $ozet.tepe_rol = $rol }
+        $o.son = $r['_z']
+        $o.modeller[('{0}/{1}' -f $arac, $r['model'])] = $true
+        $k = $(if ($Gun -eq 1) { $r['_z'].ToString('HH') } else { $r['_z'].ToString('yyyy-MM-dd') })
+        if ($seri.Contains($k)) { $seri[$k][$ak] += $tok; $seri[$k].cagri++ }
+        $gid = [string]$r['gorev']
+        if ($gid) { if (-not $gorevler.ContainsKey($gid)) { $gorevler[$gid] = @{ toplam = [long]0; cagri = 0 } }; $gorevler[$gid].toplam += $tok; $gorevler[$gid].cagri++ }
+    }
+    $rolListe = New-Object Collections.Generic.List[object]
+    foreach ($a in $roller.Keys) {
+        $o = $roller[$a]
+        $uye = Kadro-Bul $kadro $a
+        $ad = $a; if ($uye) { $ad = [string]$uye.ad } elseif ($a -eq 'lider') { $ad = 'Yönetici' }
+        $rolListe.Add([ordered]@{
+            anahtar = $a; ad = $ad; renk = [string](Ozellik $uye 'renk'); renk_koyu = [string](Ozellik $uye 'renk_koyu')
+            cagri = $o.cagri; basarisiz = $o.basarisiz; sohbet = $o.sohbet; sure_sn = $o.sure_sn
+            giris = $o.giris; onbellek_okuma = $o.onbellek_okuma; onbellek_yazma = $o.onbellek_yazma; cikis = $o.cikis; toplam = $o.toplam
+            claude = $o.claude; codex = $o.codex; diger = $o.diger
+            tepe_yuzde = $(if ($o.tepe_yuzde -ge 0) { $o.tepe_yuzde } else { $null })
+            ort_yuzde = $(if ($o.yuzde_adet) { [Math]::Round($o.yuzde_top / $o.yuzde_adet, 1) } else { $null })
+            tepe_token = $o.tepe_token; son = $(if ($o.son) { $o.son.ToString('o') } else { $null }); modeller = @($o.modeller.Keys | Sort-Object)
+        })
+    }
+    $rolSirali = @($rolListe | Sort-Object { [long]$_.toplam } -Descending)
+    $seriListe = New-Object Collections.Generic.List[object]
+    foreach ($k in $seri.Keys) { $seriListe.Add([ordered]@{ anahtar = $k; claude = $seri[$k].claude; codex = $seri[$k].codex; diger = $seri[$k].diger; cagri = $seri[$k].cagri }) }
+    $basliklar = @{}; foreach ($g in (Gorevleri-Oku)) { $basliklar[[string]$g.id] = [string]$g.baslik }
+    $gorevListe = @($gorevler.Keys | Sort-Object { [long]$gorevler[$_].toplam } -Descending | Select-Object -First 8 | ForEach-Object {
+        [ordered]@{ id = $_; baslik = $basliklar[$_]; toplam = $gorevler[$_].toplam; cagri = $gorevler[$_].cagri } })
+    $son = New-Object Collections.Generic.List[object]
+    for ($i = $kayitlar.Count - 1; $i -ge 0 -and $son.Count -lt 12; $i--) {
+        $r = $kayitlar[$i]
+        $p = Sayi-Al $r 'baglam_pencere'; $t = Sayi-Al $r 'baglam_tepe'
+        $son.Add([ordered]@{ zaman = $r['_z'].ToString('o'); rol = [string]$r['rol']; etiket = [string]$r['etiket']; gorev = [string]$r['gorev']
+            arac = ('{0}/{1}' -f $r['arac'], $r['model']); toplam = (Sayi-Al $r 'toplam'); sure_sn = (Sayi-Al $r 'sure_sn'); basarili = [bool]$r['basarili']
+            yuzde = $(if ($t -gt 0 -and $p -gt 0) { [Math]::Round(100.0 * $t / $p, 1) } else { $null }); hata = [string]$r['hata'] })
+    }
+    # Araç hakları: Claude için günlük çağrı sınırı + (varsa güncel) kullanım kartı; Codex için oturum dosyasındaki yüzdeler
+    $ayar = Json-Oku (Join-Path $Kok 'ayarlar.json')
+    $sayac = Sayac-Bugun
+    $claude = [ordered]@{ bugun = [int](Ozellik $sayac 'claude'); sinir = [int](Ozellik $ayar.gunluk_sinir 'claude'); kalan_yuzde = $null; guncelleme = $null }
+    if ($ayar -and $ayar.claude -and $ayar.claude.kullanim_dosyasi) {
+        $ck = Json-Oku ([string]$ayar.claude.kullanim_dosyasi)
+        $gz = Tarih (Ozellik $ck 'guncelleme_zamani')
+        if ($gz) { $claude.guncelleme = $gz.ToString('o'); if (($simdi - $gz).TotalHours -lt [double]$ayar.claude.kullanim_dosyasi_gecerlilik_saat) { $claude.kalan_yuzde = [int]$ck.kalan_yuzde } }
+    }
+    $codex = [ordered]@{ bugun = [int](Ozellik $sayac 'codex'); sinir = [int](Ozellik $ayar.gunluk_sinir 'codex'); bes_saat = $null; haftalik = $null; guncelleme = $null }
+    $hk = Json-Oku (Join-Path $YolDurum 'arac-haklari.json')
+    if ($hk -and $hk.codex) { $codex.bes_saat = $hk.codex.bes_saat; $codex.haftalik = $hk.codex.haftalik; $codex.guncelleme = $hk.codex.guncelleme }
+    $ilk = $null
+    $dosyalar = @(Get-ChildItem -LiteralPath $YolKullanim -Filter 'kullanim-*.jsonl' -File -ErrorAction SilentlyContinue | Sort-Object Name)
+    if ($dosyalar.Count) { $l = Kullanim-Dosyasi-Oku $dosyalar[0].FullName; if ($l.Count) { $ilk = $l[0]['_z'].ToString('o') } }
+    $aracListe = @($araclar.Keys | Sort-Object | ForEach-Object { [ordered]@{ arac = $_; cagri = $araclar[$_].cagri; toplam = $araclar[$_].toplam } })
+    return [ordered]@{
+        gun = $Gun; bas = $bas.ToString('o'); zaman = $simdi.ToString('o'); ozet = $ozet; araclar = $aracListe; roller = $rolSirali
+        seri = $seriListe; gorevler = $gorevListe; son = $son; haklar = [ordered]@{ claude = $claude; codex = $codex }; ilk_kayit = $ilk
+    }
 }
 
 # ---------------------------------------------------------------- günlük
@@ -310,9 +478,20 @@ function Durum-Uret {
         $kalpEtiket = $Matches[1]; $kimlikAnlik = $Matches[2]
         $etiket = $kalpEtiket
         if ($etiket -match '^inceleme-') { $etiket = 'denetim' }
+        if ($etiket -eq 'yonlendirme') { $etiket = [string]$aktif.asama }   # Yöneticinin "İş ver" yönlendirmesi (yeni ya da plan)
         if ($EtiketAsama.ContainsKey($etiket)) { $etiket = $EtiketAsama[$etiket] }
         if ($etiket -eq [string]$aktif.asama) { $anlikArac = $kimlikAnlik } else { $kalpEtiket = '' }
     }
+    # Sorun Giderici takılan bir işi inceliyor (görev aşaması 'takildi' olduğundan yukarıdaki "aktif" görev değildir)
+    $cozumGorev = $null; $cozumArac = ''
+    if ($saglik -eq 'saglikli' -and $kalpGorev -and ($bostaDurumlari -notcontains $kalpDurum) -and $kalpAdim -match '^cozum(?: \((.+)\))?$') {
+        $cozumArac = [string]$Matches[1]
+        foreach ($g in $gorevler) { if ($g.id -eq $kalpGorev) { $cozumGorev = $g; break } }
+    }
+    $yardimBekleyen = $null
+    foreach ($g in $gorevler) { if ([string]$g.asama -eq 'takildi' -and [string](Ozellik $g 'cozum_durumu') -eq 'yardim_bekleniyor') { $yardimBekleyen = $g; break } }
+    $bugunRol = @{}
+    try { $bugunRol = Kullanim-Bugun-Rol } catch {}
     $epostaKurulu = [IO.File]::Exists((Join-Path $YolDurum 'eposta.json'))
 
     # ---- roller (kadro.json sırasıyla)
@@ -342,10 +521,17 @@ function Durum-Uret {
         $isbasinda = $calisiyor -and ((Gorev-Rolu $aktif $kalpEtiket) -eq $rol)
         $faaliyet = 'bosta'; $metin = 'Boşta'; $gorevBilgi = $null; $baslangic = $null
         $arac = $siradaki; $aracKaynak = 'sıradaki'; $not = ''
-        if ($isbasinda) {
+        if ($rol -eq 'sorun-giderici' -and $cozumGorev) {
+            $isbasinda = $true
+            $faaliyet = 'cozum'; $metin = 'Takılan işi inceliyor'
+            $gorevBilgi = [ordered]@{ id = $cozumGorev.id; baslik = $cozumGorev.baslik; tur = $cozumGorev.tur; max_tur = $cozumGorev.max_tur }
+            $baslangic = Ozellik $kalp 'zaman'
+            if ($cozumArac) { $arac = $cozumArac; $aracKaynak = 'şu an' }
+        } elseif ($isbasinda) {
             $asama = [string]$aktif.asama
             $altyapi = ($aktifTip -eq 'altyapi')
             if ($kalpEtiket -eq 'ise_alim') { $faaliyet = 'ise_alim'; $metin = 'İşe alım yapıyor' }
+            elseif ($aktifTip -eq 'genel') { $faaliyet = 'plan'; $metin = 'Yeni işi okuyup kime vereceğine karar veriyor' }
             elseif ($kalpEtiket -match '^inceleme-') { $faaliyet = 'inceleme'; $metin = 'Kodu kendi alanından inceliyor' }
             elseif ($altyapi) {
                 $faaliyet = $AltyapiFaaliyet[$asama]; $metin = $AltyapiMetni[$asama]
@@ -360,7 +546,7 @@ function Durum-Uret {
             if ($gecmis.Count -gt 0 -and $gecmis[-1]) { $baslangic = $gecmis[-1].zaman }
             if ($anlikArac) { $arac = $anlikArac; $aracKaynak = 'şu an' }
             elseif ($asama -eq 'kontrol') { $arac = $(if ($aktifTip -eq 'yazilim') { 'betik · otomatik kontrol' } else { 'betik · doğrulama komutları' }); $aracKaynak = 'şu an' }
-            elseif ($asama -eq 'yeni' -or $asama -eq 'tamamla') { $arac = $(if ($altyapi) { 'betik · keşif' } elseif ($aktifTip -eq 'uzman') { 'betik' } else { 'git' }); $aracKaynak = 'şu an' }
+            elseif (($asama -eq 'yeni' -or $asama -eq 'tamamla') -and $aktifTip -ne 'genel') { $arac = $(if ($altyapi) { 'betik · keşif' } elseif ($aktifTip -eq 'uzman') { 'betik' } else { 'git' }); $aracKaynak = 'şu an' }
         } else {
             foreach ($g in $gorevler) {
                 $sd = Tarih (Ozellik $g 'sonraki_deneme')
@@ -381,6 +567,11 @@ function Durum-Uret {
                     }
                 }
             }
+            if ($rol -eq 'sorun-giderici' -and $yardimBekleyen) {
+                $faaliyet = 'bekliyor'; $metin = 'Yardım işinin bitmesini bekliyor'
+                $gorevBilgi = [ordered]@{ id = $yardimBekleyen.id; baslik = $yardimBekleyen.baslik; tur = $yardimBekleyen.tur; max_tur = $yardimBekleyen.max_tur }
+                $not = 'Yardım işi: #{0}' -f ([string](Ozellik $yardimBekleyen 'yardim_gorevi'))
+            }
         }
         if (-not $not -and $rol -eq 'iletisim' -and -not $epostaKurulu) { $not = 'E-posta hesabı kurulmadı (eposta-kur.ps1); bildirimler çalışır.' }
         $sonKullanilan = ''
@@ -398,6 +589,7 @@ function Durum-Uret {
             gorev = $gorevBilgi; baslangic = $baslangic; arac = $arac; arac_kaynak = $aracKaynak; zincir = $zincir
             not = $not; son_kullanilan = $sonKullanilan
             sohbette = [bool](Sohbet-Isleniyor $rol); sohbet_son = (Sohbet-Son $rol)
+            bugun = $(if ($bugunRol.ContainsKey($rol)) { [ordered]@{ cagri = $bugunRol[$rol].cagri; toplam = $bugunRol[$rol].toplam } } else { [ordered]@{ cagri = 0; toplam = 0 } })
         })
     }
 
@@ -419,6 +611,10 @@ function Durum-Uret {
             sonraki_deneme = (Ozellik $g 'sonraki_deneme'); guncelleme = (Ozellik $g 'guncelleme'); olusturma = (Ozellik $g 'olusturma')
             lider = (Ozellik $g 'lider'); gelistirici = (Ozellik $g 'gelistirici'); denetci = (Ozellik $g 'denetci')
             aktif = [bool]($calisiyor -and $aktif.id -eq $g.id)
+            cozuluyor = [bool]($cozumGorev -and $cozumGorev.id -eq $g.id)
+            cozum_durumu = (Ozellik $g 'cozum_durumu'); cozum_son_karar = (Ozellik $g 'cozum_son_karar'); cozum_teshis = (Ozellik $g 'cozum_teshis')
+            cozum_kullaniciya = (Ozellik $g 'cozum_kullaniciya'); cozum_sayisi = (Ozellik $g 'cozum_sayisi')
+            yardim_gorevi = (Ozellik $g 'yardim_gorevi'); ana_gorev = (Ozellik $g 'ana_gorev'); yonlendirme_karari = (Ozellik $g 'yonlendirme_karari')
         })
     }
 
@@ -455,7 +651,7 @@ function Durum-Uret {
         zaman = $simdi.ToString('o')
         kok = $Kok
         dongu = [ordered]@{
-            saglik = $saglik; calisiyor = [bool]$calisiyor; duraklatildi = $duraklatildi
+            saglik = $saglik; calisiyor = [bool]($calisiyor -or $cozumGorev); duraklatildi = $duraklatildi
             durdur_metni = $(if ($duraklatildi) { (Metin-Oku $durdurYolu 500).Trim() } else { '' })
             kalp_durum = $kalpDurum; kalp_zaman = (Ozellik $kalp 'zaman'); kalp_gorev = $kalpGorev; kalp_adim = $kalpAdim
             yas_sn = $yasSn; pid = $kalpPid; pid_canli = $pidCanli; bekci_dk = $bekciDk
@@ -475,6 +671,10 @@ function Durum-Uret {
         makineler = $makineler
         duyurular = $duyurular
         eposta_kurulu = $epostaKurulu
+        sorun_giderici = [ordered]@{
+            etkin = [bool]($ayar -and $ayar.roller -and (Ozellik $ayar.roller 'sorun-giderici') -and -not ($ayar.sorun_giderici -and $ayar.sorun_giderici.etkin -eq $false))
+            en_fazla = $(if ($ayar -and $ayar.sorun_giderici -and $ayar.sorun_giderici.gorev_basina_en_fazla) { [int]$ayar.sorun_giderici.gorev_basina_en_fazla } else { 2 })
+        }
     }
 }
 # Görevin çalışma klasöründeki dosyalar (uzman ve altyapı işlerinin teslimleri; önizleme /onizle üzerinden)
@@ -508,7 +708,13 @@ function Gorev-Ayrinti([string]$Id) {
         $turlar.Add([ordered]@{ no = [int]$td.Name.Substring(3); dosyalar = (Dosya-Listesi $td.FullName "$($td.Name)/") })
     }
     $sorular = Join-Path $gk 'sorular.md'
+    $cozumler = New-Object Collections.Generic.List[object]
+    foreach ($f in @(Get-ChildItem -LiteralPath $gk -Filter 'cozum-*.md' -File -ErrorAction SilentlyContinue | Sort-Object { [int]($_.BaseName -replace '\D', '') })) {
+        $cozumler.Add([ordered]@{ ad = $f.Name; zaman = $f.LastWriteTime.ToString('o'); md = (Metin-Oku $f.FullName 60000) })
+    }
     return [ordered]@{
+        yonlendirme_md = (Metin-Oku (Join-Path $gk 'yonlendirme.md') 60000)
+        cozumler = $cozumler
         durum = $g
         asama_adi = $(if ($g) { Asama-Adi-Bul $g } else { '' })
         tip = $(if ($g) { Gorev-Tipi $g } else { 'yazilim' })
@@ -669,6 +875,28 @@ function Eylem-GorevEkle($Veri) {
     $a += '-Oncelik'; $a += [string]$oncelik
     $r = Betik-Calistir 'gorev-ekle.ps1' ($a -join ' ')
     $m = [regex]::Match([string]$r.cikti, 'Görev eklendi: (\S+)')
+    if ($m.Success) { $r['id'] = $m.Groups[1].Value }
+    return $r
+}
+# "İş ver": türü seçilmemiş iş; Yönetici okur ve kime vereceğine kendisi karar verir (is-ver.ps1, yonlendirme.ps1)
+function Eylem-IsVer($Veri) {
+    $baslik = Metin-Alani $Veri 'baslik' 120 -Zorunlu
+    $aciklama = Metin-Alani $Veri 'aciklama' 8000 -Zorunlu
+    $ipucu = Metin-Alani $Veri 'ipucu' 400
+    $rol = Metin-Alani $Veri 'rol' 40
+    $kabul = Liste-Alani $Veri 'kabul' 20 500
+    $dogrulama = Liste-Alani $Veri 'dogrulama' 10 300
+    $oncelik = [int](Ozellik $Veri 'oncelik')
+    if ($oncelik -lt 1 -or $oncelik -gt 3) { $oncelik = 2 }
+    if ($rol -and $rol -notmatch '^[a-z][a-z0-9-]{1,39}$') { throw 'HTTP:400:Geçersiz çalışan anahtarı' }
+    $a = @('-Baslik', (Ps-Tirnak $baslik), '-Aciklama', (Ps-Tirnak $aciklama))
+    if ($ipucu) { $a += '-Ipucu'; $a += (Ps-Tirnak $ipucu) }
+    if ($rol) { $a += '-Rol'; $a += (Ps-Tirnak $rol) }
+    if ($kabul.Count -gt 0) { $a += '-Kabul'; $a += ('@(' + (($kabul | ForEach-Object { Ps-Tirnak $_ }) -join ', ') + ')') }
+    if ($dogrulama.Count -gt 0) { $a += '-Dogrulama'; $a += ('@(' + (($dogrulama | ForEach-Object { Ps-Tirnak $_ }) -join ', ') + ')') }
+    $a += '-Oncelik'; $a += [string]$oncelik
+    $r = Betik-Calistir 'is-ver.ps1' ($a -join ' ')
+    $m = [regex]::Match([string]$r.cikti, 'İş eklendi: (\S+)')
     if ($m.Success) { $r['id'] = $m.Groups[1].Value }
     return $r
 }
@@ -957,6 +1185,7 @@ function Istek-Isle($Akis, $I) {
                 '/api/dosya' { Yanit-Metin $Akis 200 (Gorev-Dosyasi-Oku ([string]$I.sorgu['id']) ([string]$I.sorgu['yol'])); return }
                 '/api/diff' { Yanit-Metin $Akis 200 (Diff-Uret ([string]$I.sorgu['id'])); return }
                 '/api/sohbet' { Yanit-Json $Akis 200 (Sohbet-Oku ([string]$I.sorgu['rol'])); return }
+                '/api/kullanim' { $gn = 7; [void][int]::TryParse([string]$I.sorgu['gun'], [ref]$gn); Yanit-Json $Akis 200 (Kullanim-Ozeti $gn); return }
             }
             Yanit-Json $Akis 404 @{ hata = 'Bulunamadı' }; return
         }
@@ -965,6 +1194,7 @@ function Istek-Isle($Akis, $I) {
             $v = Govde-Coz $I.govde
             $r = $null
             switch ($yol) {
+                '/api/is-ver' { $r = Eylem-IsVer $v }
                 '/api/gorev-ekle' { $r = Eylem-GorevEkle $v }
                 '/api/talep-ekle' { $r = Eylem-TalepEkle $v }
                 '/api/uzman-ekle' { $r = Eylem-UzmanEkle $v }
