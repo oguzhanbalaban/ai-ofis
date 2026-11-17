@@ -1,19 +1,5 @@
 # AI Ofis
 
-Bu çalışma dalındaki Creativity Office geliştirmesi [`creativity-office/`](creativity-office/README.md)
-altındadır. Dalın kökü AI Ofis kaynaklarını içerdiği ve yalnızca worktree içinde
-değişiklik yapılabildiği için ayrı deponun 23 sürümlenen kaynak/test dosyası bu alt
-klasöre alınmıştır; yerel ayarlar, Git verileri ve görevler kopyalanmamıştır.
-Mevcut AI Ofis paneli korunmuştur. Creativity Office panelini buradan başlatmak için:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\creativity-office\ofis\ofis.ps1 -Ac
-```
-
-Adres: **http://127.0.0.1:8766/**. Hedef `oguzhanbalaban/creativity-office` deposuna
-aktarımda bu alt klasörün içeriği depo köküne karşılık gelir. Commit ve push ekip
-altyapısına bırakılmıştır.
-
 Windows için kişisel yapay zeka ofisi kurulum paketi. Görevleri lider, geliştirici, denetçi ve uzman rolleri arasında dağıtır; inceleme, raporlama ve tarayıcıdan yönetim paneli sunar. Claude, Codex ve Gemini araçları birlikte veya ayrı kullanılabilir.
 
 ## Gereksinimler
