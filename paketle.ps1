@@ -9,9 +9,9 @@ $dosyalar = @(
     'kur.ps1','kaldir.ps1','durum.ps1','rapor.ps1','is-ver.ps1','gorev-ekle.ps1','talep-ekle.ps1','uzman-ekle.ps1','eposta-kur.ps1',
     'ofis/ofis.ps1','ofis/kisayol-olustur.ps1','ofis/sohbet.ps1','ofis/telefon-kur.ps1','ofis/panel.html',
     'araclar/posta_oku.py','araclar/kullanim-gecmis.ps1',
-    'testler/dagitim.test.ps1','testler/yonetici-cozucu.test.ps1','testler/iptal-yarisi.test.ps1','testler/yardimlasma.test.ps1'
+    'testler/dagitim.test.ps1','testler/yonetici-cozucu.test.ps1','testler/iptal-yarisi.test.ps1','testler/yardimlasma.test.ps1','testler/birlikte-puan-tasima.test.ps1'
 )
-foreach ($ad in @('lider-plan','gelistirici','denetci','lider-kabul','altyapi-uygulama','altyapi-dogrulama','lider-altyapi-plan','lider-altyapi-kabul','lider-uzman-plan','uzman-calisma','uzman-inceleme','lider-uzman-kabul','ek-inceleme','ik-ise-alim','yonetici-yonlendirme','sorun-giderici','yonetici-yardim','tester-inceleme','sorun-kategori')) {
+foreach ($ad in @('lider-plan','gelistirici','denetci','lider-kabul','altyapi-uygulama','altyapi-dogrulama','lider-altyapi-plan','lider-altyapi-kabul','lider-uzman-plan','uzman-calisma','uzman-inceleme','lider-uzman-kabul','ek-inceleme','ik-ise-alim','yonetici-yonlendirme','sorun-giderici','yonetici-yardim','tester-inceleme','sorun-kategori','yardim-birlikte')) {
     $dosyalar += "istemler/$ad.md"
 }
 foreach ($ad in @('mimar','guvenlik','tasarimci-ui','tasarimci-grafik','ik','iletisim','ses-tasarimci','sorun-giderici','tester')) { $dosyalar += "istemler/kadro/$ad.md" }

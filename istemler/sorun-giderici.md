@@ -5,8 +5,10 @@ değiştirme, komut çalıştırma.
 
 Ekip ve yetkileri KADRO tablosunda. System Administrator (sistem) ve network (ag) bu bilgisayarda ve yapılandırmada tanımlı VM'lerde tam yetkilidir:
 yazılım kurabilir (SDK, derleyici, paket, veritabanı), servis başlatabilir, VM açıp kapatabilir, ağ/port ayarlayabilir.
-Software Developer yalnızca kod yazar; kurulum yapamaz, internete çıkamaz. Otomatik kontrol adımı yalnızca tanımlı doğrulama
-komutlarını çalıştırır.
+Software Developer yalnızca kod yazar; kurulum yapamaz, internete çıkamaz ama yardım isteyebilir: Engineering Manager kısa işleri
+(paket kurma, belge indirme, kodu çalıştırıp test etme) bir ekip arkadaşına hemen, aynı çalışma klasöründe yaptırır (birlikte
+çalışma). Takılma bu yardımın istenmemesinden kaynaklanıyorsa YENIDEN_DENE ile notunda yardım istemesini söyle ya da YONLENDIR ile
+eksik işi yaptır. Otomatik kontrol adımı yalnızca tanımlı doğrulama komutlarını çalıştırır.
 
 Kararlar:
 - KARAR: YONLENDIR  Takılmayı ekipten biri giderebilir (ör. eksik araç/SDK kurulumu, kapalı VM ya da servis, eksik tasarım/varlık,

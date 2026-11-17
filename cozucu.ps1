@@ -90,6 +90,74 @@ function Gorev-Surdur($G, [string]$Not = '', [string]$Kim = 'kullanıcı', [stri
     if ($Kim -eq 'kullanıcı') { Ayarla $G 'cozum_sayisi' 0; Ayarla $G 'cozum_durumu' '' }
 }
 
+# ---------------------------------------------------------------- panoda elle taşıma (panel sürükle-bırak; durum.ps1 -Tasi)
+# Kullanıcı işi başka bir aşamaya taşır: baştan başlatır (Sırada), yeniden planlatır, yeniden geliştirtir, incelemeye ya da
+# tamamlamaya alır. Geri taşımada yeni tur açılır (önceki turun raporları saklanır). Adım sürerken taşınırsa süren ajan durdurulur
+# ve adım sonucu kullanılmaz (ortak.ps1 > Gorev-Iptal-mi, ekip.ps1 > Gorev-Ilerlet).
+$script:AsamaSirasi = @{ yeni = 0; plan = 1; gelistirme = 2; kontrol = 3; denetim = 4; kabul = 5; tamamla = 6; tamam = 7; iptal = 7 }
+$script:TasimaHedefleri = @('yeni', 'plan', 'gelistirme', 'kontrol', 'tamamla')
+# Bekleyen / takılan işin aslında durduğu aşama
+function Etkin-Asama($G) {
+    $a = [string]$G.asama
+    $d = $a
+    if ($a -eq 'takildi') { $d = [string]$G.takildi_asama }
+    elseif ($a -eq 'yardim' -or $a -eq 'yardim_bekliyor') { $d = [string]$G.yardim_donus_asama }
+    elseif ($a -eq 'bekliyor_kullanici') { $d = [string]$G.soru_donus_asama; if (-not $d) { $d = 'plan' } }
+    if (-not $AsamaSirasi.ContainsKey($d)) { $d = 'gelistirme' }
+    return $d
+}
+function Gorev-Asamaya-Tasi($G, [string]$Hedef, [string]$Not = '') {
+    if ($TasimaHedefleri -notcontains $Hedef) { throw "Bu aşamaya taşınamaz: $Hedef" }
+    $tip = [string]$G.tip; if (-not $tip) { $tip = 'yazilim' }
+    $simdiki = [string]$G.asama
+    if ($simdiki -eq $Hedef) { throw "İş zaten bu aşamada ($(Asama-Adi $Hedef))" }
+    if ($tip -eq 'genel' -and $Hedef -ne 'yeni') { throw 'Engineering Manager bu işi henüz yönlendirmedi; yalnızca Sıradaʼya taşınabilir' }
+    $etkin = Etkin-Asama $G
+    if ($simdiki -eq 'tamam' -or $simdiki -eq 'iptal') { $etkin = $simdiki }
+    $planVar = [bool]([string](Plan-Metni $G)).Trim()
+    if (@('gelistirme', 'kontrol', 'tamamla') -contains $Hedef -and -not $planVar) { throw 'Bu işin planı yok; önce Planlamaʼya taşı' }
+    if ($Hedef -eq 'kontrol' -and $AsamaSirasi[$etkin] -lt 2) { throw 'Bu işte henüz çalışılmadı; önce Yapılıyorʼa taşı' }
+    if ($Hedef -eq 'tamamla' -and @('kontrol', 'denetim', 'kabul', 'tamamla') -notcontains $etkin) { throw 'Yalnızca incelemedeki bir iş tamamlanabilir; önce İncelemeʼye taşı' }
+    # Yazılım işi: çalışma ağacı gerekir (iş tamamlanınca kaldırılır; yeniden açılınca dal üzerinde kurulur)
+    if ($tip -eq 'yazilim' -and $Hedef -ne 'yeni') {
+        $wt = [string]$G.calisma_klasoru
+        if (-not $wt -or -not (Test-Path -LiteralPath $wt)) {
+            $h = Calisma-Agaci-Kur $G
+            if ($h) { throw "Çalışma ağacı kurulamadı: $h" }
+        }
+    }
+    $eskiAd = Asama-Adi $simdiki
+    $hedefAd = Asama-Adi $Hedef
+    $geri = ($AsamaSirasi[$etkin] -ge 2) -and ($AsamaSirasi[$Hedef] -lt $AsamaSirasi[$etkin]) -and (@('yeni', 'plan', 'gelistirme') -contains $Hedef)
+    $notMd = ''; if ($Not) { $notMd = "## Kullanıcının notu`n`n$Not`n`n" }
+    if ($geri) {
+        # Geri alma: yeni tur (önceki turun raporları kendi klasöründe kalır)
+        $onceki = [int]$G.tur
+        $G.tur = $onceki + 1
+        if ([int]$G.max_tur -lt [int]$G.tur) { $G.max_tur = [int]$G.tur }
+        $gb = "## Kullanıcı işi panoda geri aldı: $eskiAd -> $hedefAd`n`n$notMd" + "Önceki turun raporları: gorevler\$($G.id)\tur$onceki. Kullanıcının bu turda farklı ya da daha dikkatli bir sonuç beklediğini varsay."
+        Metin-Yaz (Join-Path (Tur-Klasoru $G) 'geri-bildirim.md') $gb
+    } elseif ($notMd) {
+        $f = Join-Path (Tur-Klasoru $G) 'geri-bildirim.md'
+        Metin-Yaz $f ($notMd + (Metin-Oku $f))
+    }
+    $bekleyen = Join-Path (Gorev-Klasoru $G.id) 'bekleyen-geri-bildirim.md'
+    if (Test-Path -LiteralPath $bekleyen) { Remove-Item -LiteralPath $bekleyen -Force }
+    Gecmis-Ekle $G "kullanıcı panoda taşıdı: $eskiAd -> $hedefAd" $Not
+    $G.asama = $Hedef
+    $G.deneme = 0
+    Ayarla $G 'sonraki_deneme' $null
+    Ayarla $G 'son_hata' ''
+    Ayarla $G 'yardim_bekleyen' @()
+    Ayarla $G 'soru_donus_asama' ''
+    Ayarla $G 'cozum_durumu' ''
+    Ayarla $G 'cozum_sayisi' 0
+    Ayarla $G 'elle_tasima' ([pscustomobject][ordered]@{ onceki = $simdiki; asama = $Hedef; zaman = (Simdi) })
+    $ek = ''; if ($geri) { $ek = " (tur $($G.tur))" }
+    Gunluk "Görev $($G.id) panoda taşındı: $simdiki -> $Hedef$ek"
+    return ('#{0}: {1} -> {2}{3}' -f (No-Kisa $G.id), $eskiAd, $hedefAd, $ek)
+}
+
 # ---------------------------------------------------------------- istem bağlamı
 function Arac-Durumu-Metni {
     $s = Sayac-Oku

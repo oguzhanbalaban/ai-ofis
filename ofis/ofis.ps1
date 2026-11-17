@@ -101,6 +101,7 @@ function Gorev-Rolu($G, [string]$Etiket = '') {
     # Görevin şu anki aşamasını hangi rol yürütüyor (kalp atışındaki etiket önceliklidir: işe alım, ek inceleme)
     if ($Etiket -eq 'ise_alim') { return 'ik' }
     if ($Etiket -match '^inceleme-(.+)$') { return $Matches[1] }
+    if ($Etiket -match '^birlikte-(.+)$') { return $Matches[1] }
     $asama = [string]$G.asama
     $tip = Gorev-Tipi $G
     if ($tip -eq 'genel' -or $asama -eq 'yardim') { return 'lider' }
@@ -299,7 +300,52 @@ function Kullanim-Ozeti([int]$Gun) {
     if ($disCodex -and $disCodex.haklar -and (-not $codex.guncelleme -or (Tarih $disCodex.haklar.guncelleme) -gt (Tarih $codex.guncelleme))) {
         $codex.bes_saat = $disCodex.haklar.bes_saat; $codex.haftalik = $disCodex.haklar.haftalik; $codex.guncelleme = $disCodex.haklar.guncelleme
     }
+    # Ekip performansı (bu dönem): çağrılar kayıtlardan; başarısız adım ve takılmalar görev geçmişinden, olduğu aşamanın rolüne yazılır
+    $perf = @{}
+    $pfAl = { param([string]$k) if (-not $perf.ContainsKey($k)) { $perf[$k] = @{ cagri = 0; basarisiz = 0; hata = 0; takilma = 0; biten = 0; yardim = 0; birlikte = 0 } }; return $perf[$k] }
+    foreach ($r in $kayitlar) {
+        $rol = [string]$r['rol']; if (-not $rol -or [string]$r['etiket'] -like 'sohbet*') { continue }
+        $o = & $pfAl $rol; $o.cagri++; if (-not [bool]$r['basarili']) { $o.basarisiz++ }
+    }
+    $adAnahtar = @{}; foreach ($u in $kadro) { if ($u) { $adAnahtar[[string]$u.ad] = [string]$u.anahtar } }
+    foreach ($g in (Gorevleri-Oku)) {
+        foreach ($e in @(Ozellik $g 'gecmis')) {
+            if (-not $e) { continue }
+            $z = Tarih (Ozellik $e 'zaman'); if (-not $z -or $z -lt $bas) { continue }
+            $olay = [string]$e.olay
+            if ($olay -match '^(.+) yardım istedi$' -and $adAnahtar.ContainsKey($Matches[1])) { $o = & $pfAl $adAnahtar[$Matches[1]]; $o.yardim++; continue }
+            $tur = ''; if ($olay -eq 'takıldı') { $tur = 'takilma' } elseif ($olay -eq 'deneme başarısız') { $tur = 'hata' }
+            if (-not $tur -or -not [string]$e.asama) { continue }
+            $kopya = $g.PSObject.Copy(); $kopya.asama = [string]$e.asama
+            $rol = [string](Gorev-Rolu $kopya)
+            if ($rol) { $o = & $pfAl $rol; $o[$tur] = [int]$o[$tur] + 1 }
+        }
+        foreach ($b in @(Ozellik $g 'birlikte')) { if ($b -and $b.rol) { $bz = Tarih (Ozellik $b 'zaman'); if ($bz -and $bz -ge $bas) { $o = & $pfAl ([string]$b.rol); $o.birlikte++ } } }
+        if ([string]$g.asama -eq 'tamam') {
+            $gz = Tarih (Ozellik $g 'guncelleme')
+            if ($gz -and $gz -ge $bas) {
+                foreach ($u in $kadro) {
+                    $a = [string]$u.anahtar; if (-not $a) { continue }
+                    if (([string](Ozellik $g $a) -match '/') -or [bool](@('sorumlu', 'inceleyen', 'destek') | Where-Object { [string](Ozellik $g $_) -eq $a })) { $o = & $pfAl $a; $o.biten++ }
+                }
+            }
+        }
+    }
+    $perfListe = @()
+    foreach ($k in @($perf.Keys)) {
+        $o = $perf[$k]; $u = Kadro-Bul $kadro $k
+        $ad = $k; if ($u) { $ad = [string]$u.ad } elseif ($k -eq 'lider') { $ad = 'Engineering Manager' }
+        $oran = $null; if ($o.cagri -gt 0) { $oran = [Math]::Round(100.0 * ($o.cagri - $o.basarisiz) / $o.cagri, 1) }
+        $perfListe += [pscustomobject][ordered]@{ anahtar = $k; ad = $ad; renk = [string](Ozellik $u 'renk'); renk_koyu = [string](Ozellik $u 'renk_koyu')
+            cagri = $o.cagri; basarisiz = $o.basarisiz; oran = $oran; hata = $o.hata; takilma = $o.takilma; biten = $o.biten; yardim = $o.yardim; birlikte = $o.birlikte
+            sorun = ($o.basarisiz + $o.hata + 2 * $o.takilma) }
+    }
+    $enBasarili = @($perfListe | Where-Object { $_.cagri -ge 2 -and $null -ne $_.oran } |
+        Sort-Object @{ e = { [double]$_.oran }; Descending = $true }, @{ e = { $_.biten }; Descending = $true }, @{ e = { $_.sorun }; Descending = $false }, @{ e = { $_.cagri }; Descending = $true } | Select-Object -First 3)
+    $enSorunlu = @($perfListe | Where-Object { $_.sorun -gt 0 } |
+        Sort-Object @{ e = { $_.sorun }; Descending = $true }, @{ e = { $_.takilma }; Descending = $true } | Select-Object -First 3)
     return [ordered]@{
+        performans = [ordered]@{ basarili = $enBasarili; sorunlu = $enSorunlu }
         gun = $Gun; bas = $bas.ToString('o'); zaman = $simdi.ToString('o'); ozet = $ozet; araclar = $aracListe; roller = $rolSirali
         seri = $seriListe; gorevler = $gorevListe; son = $son; haklar = [ordered]@{ claude = $claude; codex = $codex }; ilk_kayit = $ilk
         bosta = [ordered]@{
@@ -604,6 +650,7 @@ function Durum-Uret {
         $kalpEtiket = $Matches[1]; $kimlikAnlik = $Matches[2]
         $etiket = $kalpEtiket
         if ($etiket -match '^inceleme-') { $etiket = 'denetim' }
+        if ($etiket -match '^birlikte-') { $etiket = 'yardim' }   # yardımcı, yardım isteyen işin içinde hemen çalışıyor
         if ($etiket -eq 'yonlendirme') { $etiket = [string]$aktif.asama }   # Engineering Managerʼın "İş ver" yönlendirmesi (yeni ya da plan)
         if ($EtiketAsama.ContainsKey($etiket)) { $etiket = $EtiketAsama[$etiket] }
         if ($etiket -eq [string]$aktif.asama) { $anlikArac = $kimlikAnlik } else { $kalpEtiket = '' }
@@ -659,6 +706,7 @@ function Durum-Uret {
             $asama = [string]$aktif.asama
             $altyapi = ($aktifTip -eq 'altyapi')
             if ($kalpEtiket -eq 'ise_alim') { $faaliyet = 'ise_alim'; $metin = 'İşe alım yapıyor' }
+            elseif ($kalpEtiket -match '^birlikte-') { $faaliyet = 'calisma'; $metin = 'Ekip arkadaşıyla birlikte çalışıyor (anlık yardım)' }
             elseif ($asama -eq 'yardim') { $faaliyet = 'plan'; $metin = 'Ekip içi yardım isteğini değerlendiriyor' }
             elseif ($aktifTip -eq 'genel') { $faaliyet = 'plan'; $metin = 'Yeni işi okuyup kime vereceğine karar veriyor' }
             elseif ($rol -eq 'tester') { $faaliyet = 'inceleme'; $metin = 'Uygulamayı test ediyor' }
@@ -762,6 +810,8 @@ function Durum-Uret {
             yardim_bekleyen = @(Ozellik $g 'yardim_bekleyen' | Where-Object { $_ }); yardim_isteyen = (Ozellik $g 'yardim_isteyen')
             yardim_istek = (Ozellik $g 'yardim_istek'); yardim_donus_asama = (Ozellik $g 'yardim_donus_asama'); yardim_sayisi = (Ozellik $g 'yardim_sayisi')
             kok_neden = (Ozellik $g 'kok_neden'); tur_sayisi = $g.tur
+            puan_yonetici = (Ozellik $g 'puan_yonetici'); puan_ajan = (Ozellik $g 'puan_ajan')
+            birlikte_sayisi = @(Ozellik $g 'birlikte' | Where-Object { $_ }).Count
             sahip = $(if ($AktifAsamalar -contains $asama) { Gorev-Rolu $g }
                 elseif ($asama -eq 'yardim_bekliyor') {
                     $yi = [string](Ozellik $g 'yardim_isteyen')
@@ -1158,6 +1208,17 @@ function Eylem-Devam($Veri) {
     if ($not) { $a += ' -Not ' + (Ps-Tirnak $not) }
     return (Betik-Calistir 'durum.ps1' $a)
 }
+# Panoda sürükle-bırak: görevi başka aşamaya taşır (durum.ps1 -Tasi > cozucu.ps1 Gorev-Asamaya-Tasi)
+function Eylem-Tasi($Veri) {
+    $id = Metin-Alani $Veri 'id' 80 -Zorunlu
+    $asama = Metin-Alani $Veri 'asama' 20 -Zorunlu
+    if (@('yeni', 'plan', 'gelistirme', 'kontrol', 'tamamla') -notcontains $asama) { throw 'HTTP:400:Bu aşamaya taşınamaz' }
+    $not = Metin-Alani $Veri 'not' 4000
+    [void](Gorev-Klasoru-Bul $id)
+    $a = '-Tasi ' + (Ps-Tirnak $id) + ' -Asama ' + $asama
+    if ($not) { $a += ' -Not ' + (Ps-Tirnak $not) }
+    return (Betik-Calistir 'durum.ps1' $a)
+}
 function Eylem-Iptal($Veri) {
     $id = Metin-Alani $Veri 'id' 80 -Zorunlu
     [void](Gorev-Klasoru-Bul $id)
@@ -1263,7 +1324,7 @@ function Karakter-Bilgisi([string]$Rol) {
         if ($p -gt 0 -and $t -gt 0) { $y = [Math]::Round(100.0 * $t / $p, 1); $yt += $y; $ya++; if ($null -eq $st.tepe_yuzde -or $y -gt $st.tepe_yuzde) { $st.tepe_yuzde = $y } }
         $m = [string]$r['model_gercek']; if (-not $m) { $m = '{0}/{1}' -f $r['arac'], $r['model'] }
         $st.modeller[$m] = [int]$st.modeller[$m] + 1
-        $e = [string]$r['etiket']; if ($e -like 'sohbet*') { $e = 'sohbet' }; if ($e -like 'inceleme-*') { $e = 'ek inceleme' }
+        $e = [string]$r['etiket']; if ($e -like 'sohbet*') { $e = 'sohbet' }; if ($e -like 'inceleme-*') { $e = 'ek inceleme' }; if ($e -like 'birlikte-*') { $e = 'birlikte çalışma' }
         $st.adimlar[$e] = [int]$st.adimlar[$e] + 1
         $st.son = $r['_z'].ToString('o')
     }
@@ -1273,7 +1334,9 @@ function Karakter-Bilgisi([string]$Rol) {
     $yardimIstedi = 0; $yardimEtti = 0
     $tumGorevler = Gorevleri-Oku   # liste tek nesne olarak döner; değişkenden borulayınca öğelerine açılır
     foreach ($g in @($tumGorevler | Sort-Object { [string](Ozellik $_ 'guncelleme') } -Descending)) {
-        $katildi = ([string](Ozellik $g $Rol) -match '/') -or [bool](@('sorumlu', 'inceleyen', 'destek', 'hedef_rol', 'istenen_sorumlu') | Where-Object { [string](Ozellik $g $_) -eq $Rol })
+        $birlikte = @(Ozellik $g 'birlikte' | Where-Object { $_ -and [string]$_.rol -eq $Rol }).Count
+        $yardimEtti += $birlikte
+        $katildi = ($birlikte -gt 0) -or ([string](Ozellik $g $Rol) -match '/') -or [bool](@('sorumlu', 'inceleyen', 'destek', 'hedef_rol', 'istenen_sorumlu') | Where-Object { [string](Ozellik $g $_) -eq $Rol })
         if ([string](Ozellik $g 'yardim_isteyen') -eq $Rol) { $yardimIstedi++ }
         if ((Ozellik $g 'ana_gorev') -and ([string](Ozellik $g 'hedef_rol') -eq $Rol -or [string](Ozellik $g 'istenen_sorumlu') -eq $Rol)) { $yardimEtti++ }
         if ($katildi -and $isler.Count -lt 12) { $isler.Add([ordered]@{ id = $g.id; baslik = $g.baslik; asama = [string]$g.asama; asama_adi = (Asama-Adi-Bul $g); tip = (Gorev-Tipi $g); guncelleme = (Ozellik $g 'guncelleme') }) }
@@ -1538,6 +1601,7 @@ function Istek-Isle($Akis, $I) {
                 '/api/sohbet-temizle' { $r = Eylem-SohbetTemizle $v }
                 '/api/devam' { $r = Eylem-Devam $v }
                 '/api/iptal' { $r = Eylem-Iptal $v }
+                '/api/tasi' { $r = Eylem-Tasi $v }
                 '/api/yanit' { $r = Eylem-Yanit $v }
             }
             if ($null -eq $r) { Yanit-Json $Akis 404 @{ hata = 'Bulunamadı' }; return }

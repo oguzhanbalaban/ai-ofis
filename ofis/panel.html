@@ -512,6 +512,37 @@ dialog.diyalog.kucuk { width:min(420px, calc(100vw - 32px)); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation:none !important; transition:none !important; }
 }
+/* ---------- panoda taşıma, puanlar, ekip performansı */
+.gkart[draggable="true"] { cursor:grab; }
+.gkart.suruklenen { opacity:.45; }
+.pano2.surukleniyor .serit2 { transition:opacity .12s, box-shadow .12s, background .12s; }
+.pano2.surukleniyor .serit2.kapali { opacity:.45; }
+.pano2.surukleniyor .serit2.birakilir { box-shadow:0 0 0 2px color-mix(in srgb, var(--s-renk, var(--vurgu)) 55%, transparent) inset; }
+.pano2.surukleniyor .serit2.uzerinde { background:color-mix(in srgb, var(--s-renk, var(--vurgu)) 14%, var(--kart2)); box-shadow:0 0 0 2px var(--s-renk, var(--vurgu)) inset; }
+.serit2-birak { display:none; margin:2px 10px 0; padding:8px; border:1.5px dashed var(--s-renk, var(--vurgu)); border-radius:10px; text-align:center; font-size:12px; font-weight:600; color:var(--s-renk, var(--vurgu)); }
+.pano2.surukleniyor .serit2.birakilir .serit2-birak { display:block; }
+.gk-puanlar { margin-left:auto; display:inline-flex; gap:4px; flex:none; }
+.gk-puan { display:inline-flex; align-items:baseline; gap:4px; padding:1px 7px; border-radius:7px; border:1px solid var(--cizgi); background:var(--kart2); font-size:10.5px; font-weight:650; color:var(--soluk); line-height:18px; white-space:nowrap; }
+.gk-puan b { font-size:13.5px; font-weight:750; color:var(--yazi); font-variant-numeric:tabular-nums; }
+.gk-puan.em { border-color:color-mix(in srgb, var(--lider) 45%, var(--cizgi)); }
+.gk-puan.em b { color:var(--lider); }
+.liste-puan { white-space:nowrap; font-variant-numeric:tabular-nums; }
+.liste-puan b { font-weight:700; }
+.tasi-sec { display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--soluk); }
+.tasi-sec select { border:1px solid var(--cizgi); background:var(--kart); border-radius:8px; padding:4px 8px; font-size:12.5px; color:var(--yazi); }
+.perf-serit { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:10px; margin-bottom:10px; }
+.perf { background:var(--kart); border:1px solid var(--cizgi); border-left:4px solid var(--soluk); border-radius:12px; padding:10px 12px; box-shadow:var(--golge-k); min-width:0; }
+.perf.iyi { border-left-color:var(--yesil); } .perf.kotu { border-left-color:var(--kirmizi); }
+.pf-bas { display:flex; align-items:baseline; gap:8px; font-size:12.5px; font-weight:700; margin-bottom:6px; }
+.pf-bas .soluk { font-weight:500; font-size:11.5px; margin-left:auto; }
+.pf-liste { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:5px; }
+.pf-liste li { display:grid; grid-template-columns:18px 10px minmax(0, 1fr) auto; gap:6px; align-items:center; font-size:12.5px; }
+.pf-liste .pf-sira { color:var(--soluk); font-weight:700; font-variant-numeric:tabular-nums; }
+.pf-liste .rol-nokta { width:9px; height:9px; border-radius:50%; background:var(--rol, var(--soluk)); }
+.pf-liste .pf-ad { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pf-liste .pf-deger { color:var(--soluk); font-size:11.5px; white-space:nowrap; text-align:right; }
+.pf-bos { color:var(--soluk); font-size:12px; padding:4px 0; }
+@media (max-width: 700px) { .pf-liste .pf-deger { white-space:normal; } }
 /* ---------- karakter kartı */
 dialog.diyalog.karakter { width:min(880px, calc(100vw - 32px)); overflow:hidden; }
 .kr { display:flex; flex-direction:column; max-height:calc(100vh - 48px); overflow-y:auto; }
@@ -708,6 +739,7 @@ dialog.diyalog.karakter { width:min(880px, calc(100vw - 32px)); overflow:hidden;
     <div class="kul-ust"><h2 id="kulBaslik">Token ve bağlam kullanımı</h2><span class="soluk" id="kulAlt">Yükleniyor…</span>
       <div class="donem" role="group" aria-label="Dönem"><button type="button" data-gun="1" aria-pressed="false">Bugün</button><button type="button" data-gun="7" aria-pressed="true">7 gün</button><button type="button" data-gun="30" aria-pressed="false">30 gün</button></div></div>
     <div class="hak-serit" id="hakSerit" role="group" aria-label="Hesap limitleri ve boşta tüketim"></div>
+    <div class="perf-serit" id="perfSerit" role="group" aria-label="Ekip performansı"></div>
     <div class="kul-kpi" id="kulKpi"></div>
     <div class="kul-izgara">
       <div class="kart"><h2>Çalışanlara göre</h2>
@@ -2709,13 +2741,97 @@ function kodGosterCiz() {
   $('#kodAra').addEventListener('input', e => { clearTimeout(zam); zam = setTimeout(() => { kod.ara = e.target.value; kodListeCiz(); }, 100); });
 })();
 
+// ---------------------------------------------------------------- panoda taşıma (sürükle-bırak; çekmecede "Taşı" menüsü)
+const ASAMA_SIRA = { yeni: 0, plan: 1, gelistirme: 2, kontrol: 3, denetim: 4, kabul: 5, tamamla: 6, tamam: 7, iptal: 7 };
+const TASIMA = {
+  sira: { asama: 'yeni', ad: 'Sırada', aciklama: 'İş baştan başlar: Engineering Manager yeniden ele alır ve planlar. Çalışma dalı ve önceki tur raporları korunur; yeni tur açılır.' },
+  plan: { asama: 'plan', ad: 'Planlama', aciklama: 'Engineering Manager planı yeniden yazar; ardından iş yeni bir turla yapılır.' },
+  yapiliyor: { asama: 'gelistirme', ad: 'Yapılıyor', aciklama: 'İş (yeniden) yapılır. Geri alıyorsan yeni tur açılır; önceki turun raporları saklanır.' },
+  inceleme: { asama: 'kontrol', ad: 'İnceleme', aciklama: 'Otomatik kontroller çalışır, ardından Code Reviewer ya da inceleyen bakar.' },
+  tamam: { asama: 'tamamla', ad: 'Tamamlandı', aciklama: 'Kalan inceleme ve onay atlanır, iş tamamlanır. Yazılım işinde değişiklikler commit edilir.' },
+  iptal: { asama: 'iptal', ad: 'İptal', aciklama: 'İş iptal edilir. Dal ve çalışma klasörü silinmez.' },
+};
+function etkinAsama(g) {
+  if (['takildi', 'yardim', 'yardim_bekliyor'].includes(g.asama)) return g.donus_asama || 'gelistirme';
+  if (g.asama === 'bekliyor_kullanici') return 'plan';
+  return g.asama;
+}
+// Bir kartın bırakılabileceği şeritler (sunucu ayrıca doğrular: plan var mı, çalışma ağacı kurulabiliyor mu)
+function tasimaHedefleri(g) {
+  const mevcut = (SERITLER.find(s => s.uygun(g)) || {}).a;
+  if (g.tip === 'genel') return mevcut === 'sira' ? [] : ['sira'];
+  const e = etkinAsama(g), i = ASAMA_SIRA[e] ?? 0;
+  return Object.keys(TASIMA).filter(k => {
+    if (k === mevcut) return false;
+    if ((k === 'yapiliyor' || k === 'inceleme') && i < 2) return false;
+    if (k === 'tamam' && !['kontrol', 'denetim', 'kabul', 'tamamla'].includes(e)) return false;
+    if (k === 'iptal' && ['tamam', 'iptal'].includes(g.asama)) return false;
+    return true;
+  });
+}
+async function gorevTasi(g, seritA, not = '') {
+  const h = TASIMA[seritA];
+  if (!h) return false;
+  const uyari = g.aktif ? 'Şu an bu iş üzerinde çalışılıyor: süren adım durdurulur ve sonucu kullanılmaz. ' : '';
+  if (!(await onayla(`#${noKisa(g.id)} → ${h.ad}`, uyari + h.aciklama, h.asama === 'iptal' ? 'İptal et' : 'Taşı'))) return false;
+  try {
+    const r = h.asama === 'iptal' ? await api('/api/iptal', { id: g.id }) : await api('/api/tasi', { id: g.id, asama: h.asama, not });
+    tost(ciktiOzeti(r) || `#${noKisa(g.id)} ${h.ad} şeridine taşındı.`);
+    yenile();
+    return true;
+  } catch (e) { tost('Taşınamadı: ' + e.message, true); return false; }
+}
+let surukle = null;   // { g, hedefler }
+function surukleBitir() {
+  surukle = null;
+  const p = document.querySelector('.pano2');
+  if (p) { p.classList.remove('surukleniyor'); for (const s of p.querySelectorAll('.serit2')) s.classList.remove('birakilir', 'kapali', 'uzerinde'); }
+  for (const k of document.querySelectorAll('.gkart.suruklenen')) k.classList.remove('suruklenen');
+  if (panoBekliyor) { panoBekliyor = false; panoYenile(); }
+}
+function kartSurukleBagla(el, g) {
+  el.draggable = true;
+  el.addEventListener('dragstart', e => {
+    surukle = { g, hedefler: tasimaHedefleri(g) };
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', g.id); } catch {}
+    el.classList.add('suruklenen');
+    const p = el.closest('.pano2');
+    if (p) {
+      p.classList.add('surukleniyor');
+      for (const s of p.querySelectorAll('.serit2')) s.classList.add(surukle.hedefler.includes(s.dataset.serit) ? 'birakilir' : 'kapali');
+    }
+  });
+  el.addEventListener('dragend', surukleBitir);
+}
+function seritBirakBagla(kap, s) {
+  kap.dataset.serit = s.a;
+  kap.addEventListener('dragover', e => { if (surukle && surukle.hedefler.includes(s.a)) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; kap.classList.add('uzerinde'); } });
+  kap.addEventListener('dragleave', e => { if (!kap.contains(e.relatedTarget)) kap.classList.remove('uzerinde'); });
+  kap.addEventListener('drop', e => {
+    e.preventDefault();
+    const x = surukle;
+    surukleBitir();
+    if (x && x.hedefler.includes(s.a)) gorevTasi(x.g, s.a);
+  });
+}
+function puanCipleri(g) {
+  const l = [];
+  const py = g.puan_yonetici, pa = g.puan_ajan;
+  if (py && py.puan) l.push(E('span', { class: 'gk-puan em', title: `Engineering Manager tahmini: ${py.puan} puan${py.gerekce ? ' — ' + py.gerekce : ''}` }, 'EM', E('b', { text: String(py.puan) })));
+  if (pa && pa.puan) l.push(E('span', { class: 'gk-puan', title: `${rolAdi(pa.rol)} tahmini: ${pa.puan} puan${pa.gerekce ? ' — ' + pa.gerekce : ''}` }, kisaRolAdi(pa.rol), E('b', { text: String(pa.puan) })));
+  if (!l.length) return null;
+  return E('span', { class: 'gk-puanlar', 'aria-label': 'Fibonacci puanı: ' + [py && py.puan ? `Engineering Manager ${py.puan}` : '', pa && pa.puan ? `${rolAdi(pa.rol)} ${pa.puan}` : ''].filter(Boolean).join(', ') }, l);
+}
+const puanSiralama = g => Number((g.puan_ajan && g.puan_ajan.puan) || (g.puan_yonetici && g.puan_yonetici.puan) || 0);
+
 // ---------------------------------------------------------------- pano
 // Şeritler soldan sağa işin yolculuğu; bir görev ilk uyan şeride düşer.
 const SERITLER = [
   { a: 'sira', ad: 'Sırada', renk: 'var(--soluk)', uygun: g => g.asama === 'yeni' || (g.tip === 'genel' && ['yeni', 'plan'].includes(g.asama)) },
   { a: 'plan', ad: 'Planlama', renk: 'var(--lider)', uygun: g => g.asama === 'plan' },
-  { a: 'yapiliyor', ad: 'Yapılıyor', renk: 'var(--mavi)', uygun: g => ['gelistirme', 'kontrol'].includes(g.asama) },
-  { a: 'inceleme', ad: 'İnceleme', renk: 'var(--denetci)', uygun: g => ['denetim', 'kabul', 'tamamla'].includes(g.asama) },
+  { a: 'yapiliyor', ad: 'Yapılıyor', renk: 'var(--mavi)', uygun: g => g.asama === 'gelistirme' },
+  { a: 'inceleme', ad: 'İnceleme', renk: 'var(--denetci)', uygun: g => ['kontrol', 'denetim', 'kabul', 'tamamla'].includes(g.asama) },
   { a: 'bekliyor', ad: 'Bekliyor', alt: 'yardım / yanıt', renk: 'var(--sari)', uygun: g => ['yardim', 'yardim_bekliyor', 'bekliyor_kullanici'].includes(g.asama) },
   { a: 'takildi', ad: 'Takıldı', renk: 'var(--kirmizi)', uygun: g => g.asama === 'takildi' },
   { a: 'tamam', ad: 'Tamamlandı', renk: 'var(--yesil)', uygun: g => g.asama === 'tamam' },
@@ -2729,7 +2845,7 @@ const SERIT_SINIR = 12;
 const panoAyar = { tur: '', biten: false, gorunum: 'pano', ara: '', sirala: { k: 'guncelleme', yon: -1 } };
 try { Object.assign(panoAyar, JSON.parse(localStorage.getItem('ofis.pano') || '{}'), { ara: '' }); } catch {}
 const acikSeritler = new Set();
-let panoImza = '', panoVeri = [];
+let panoImza = '', panoVeri = [], panoBekliyor = false;
 function panoAyarKaydet() { try { localStorage.setItem('ofis.pano', JSON.stringify({ tur: panoAyar.tur, biten: panoAyar.biten, gorunum: panoAyar.gorunum, sirala: panoAyar.sirala })); } catch {} }
 function panoYenile() { panoImza = ''; panoCiz(panoVeri); }
 
@@ -2809,11 +2925,14 @@ function gorevKarti(g) {
   const zaman = g.sonraki_deneme && new Date(g.sonraki_deneme) > new Date() ? '↻ ' + saatMetni(g.sonraki_deneme) : kisaGoreli(g.son_zaman || g.olusturma);
   const yer = gorevYeri(g);
   const tip = TUR_ADI[g.tip] ? g.tip : 'yazilim';
-  return E('button', {
-    class: `gkart t-${tip}` + (g.aktif ? ' aktif' : '') + (g.asama === 'iptal' ? ' soluk-kart' : ''), type: 'button',
-    onclick: () => gorevAc(g.id), 'aria-label': `#${noKisa(g.id)} ${g.baslik} — ${g.asama_adi || ASAMA_ADI[g.asama] || g.asama}`,
+  if (g.birlikte_sayisi) rozetler.push(E('span', { class: 'gk-rozet yonetici', text: `🤝 ${g.birlikte_sayisi}`, title: `${g.birlikte_sayisi} kez ekip arkadaşıyla birlikte çalışıldı (anlık yardım)` }));
+  const kart = E('div', {
+    class: `gkart t-${tip}` + (g.aktif ? ' aktif' : '') + (g.asama === 'iptal' ? ' soluk-kart' : ''), role: 'button', tabindex: '0',
+    onclick: () => gorevAc(g.id), onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); gorevAc(g.id); } },
+    'aria-label': `#${noKisa(g.id)} ${g.baslik} — ${g.asama_adi || ASAMA_ADI[g.asama] || g.asama}`,
+    title: 'Açmak için tıkla; başka aşamaya taşımak için sürükle',
   },
-    E('div', { class: 'gk-ust' }, E('span', { class: 'gk-no', text: '#' + noKisa(g.id) }), E('span', { class: 'gk-tur', text: TUR_ADI[tip] }), ...rozetler),
+    E('div', { class: 'gk-ust' }, E('span', { class: 'gk-no', text: '#' + noKisa(g.id) }), E('span', { class: 'gk-tur', text: TUR_ADI[tip] }), ...rozetler, puanCipleri(g)),
     E('div', { class: 'gk-baslik', text: g.baslik }),
     adimCubugu(g),
     sahipSatiri(g),
@@ -2822,6 +2941,8 @@ function gorevKarti(g) {
     E('div', { class: 'gk-alt' }, E('span', { class: 'gk-proje', text: yer, title: g.dal || yer }),
       E('span', { class: 'gk-zaman', text: zaman, title: 'son hareket ' + tarihSaat(g.son_zaman || g.olusturma) }),
       Number(g.token) > 0 ? E('span', { class: 'gk-tok', text: sayiKisa(g.token) + ' tok', title: sayiTam(g.token) + ' token' }) : null));
+  kartSurukleBagla(kart, g);
+  return kart;
 }
 function gorevAranan(g) {
   return [noKisa(g.id), g.baslik, g.proje, g.asama_adi, rolAdi(g.sahip), kisaRolAdi(g.sahip), (g.hedef || []).join(' '), g.kok_neden && g.kok_neden.ad, TUR_ADI[g.tip]]
@@ -2867,6 +2988,8 @@ function panoSeritCiz({ s, liste }) {
     E('div', { class: 'serit2-bas' }, E('span', { class: 'nokta' }), E('span', { text: s.ad }), alt ? E('span', { class: 'alt', text: alt }) : null, E('span', { class: 'adet', text: String(liste.length) })),
     govde);
   kap.style.setProperty('--s-renk', s.renk);
+  govde.prepend(E('div', { class: 'serit2-birak', text: `Bırak: ${TASIMA[s.a] ? TASIMA[s.a].ad : s.ad}` }));
+  seritBirakBagla(kap, s);
   return kap;
 }
 const LISTE_SUTUN = [
@@ -2876,6 +2999,7 @@ const LISTE_SUTUN = [
   { k: 'asama', ad: 'Durum', deger: g => SERITLER.findIndex(s => s.uygun(g)) },
   { k: 'sahip', ad: 'Kimde', deger: g => kisaRolAdi(g.sahip), gizle: true },
   { k: 'proje', ad: 'Proje / hedef', deger: g => gorevYeri(g), gizle: true },
+  { k: 'puan', ad: 'Puan', deger: puanSiralama, sag: true },
   { k: 'token', ad: 'Token', deger: g => Number(g.token) || 0, sag: true },
   { k: 'guncelleme', ad: 'Son hareket', deger: g => String(g.son_zaman || g.guncelleme || ''), sag: true },
 ];
@@ -2901,6 +3025,7 @@ function panoListeCiz(liste) {
       E('td', null, durum, g.aktif ? E('span', { class: 'gk-rozet calisiyor', text: 'çalışılıyor' }) : null),
       E('td', { class: 'gizle-m', text: r ? (PikselOfis.kisaAd(r)) : '—' }),
       E('td', { class: 'gizle-m soluk', text: gorevYeri(g) || '—' }),
+      E('td', { class: 'sag liste-puan', title: 'Engineering Manager / çalışan tahmini (Fibonacci)' }, g.puan_yonetici && g.puan_yonetici.puan ? E('b', { text: String(g.puan_yonetici.puan) }) : '—', ' / ', g.puan_ajan && g.puan_ajan.puan ? E('b', { text: String(g.puan_ajan.puan) }) : '—'),
       E('td', { class: 'sag', text: Number(g.token) > 0 ? sayiKisa(g.token) : '—', title: sayiTam(g.token) }),
       E('td', { class: 'sag soluk', text: goreli(g.son_zaman || g.guncelleme), title: tarihSaat(g.son_zaman || g.guncelleme) }));
     return tr;
@@ -2915,8 +3040,9 @@ function panoAraciGuncelle() {
 }
 function panoCiz(gorevler) {
   panoVeri = gorevler || [];
+  if (surukle) { panoBekliyor = true; return; }
   const imza = JSON.stringify([panoAyar, [...acikSeritler], Math.floor(Date.now() / 60000), panoVeri.map(g => [g.id, g.asama, g.tur, g.max_tur, g.son_zaman, g.aktif, g.son_hata,
-    g.sonraki_deneme, g.baslik, g.tip, g.cozuluyor, g.cozum_durumu, g.yardim_bekleyen, g.sahip, g.token, g.kok_neden && g.kok_neden.kategori, g.oncelik])]);
+    g.sonraki_deneme, g.baslik, g.tip, g.cozuluyor, g.cozum_durumu, g.yardim_bekleyen, g.sahip, g.token, g.kok_neden && g.kok_neden.kategori, g.oncelik, puanSiralama(g), g.puan_yonetici && g.puan_yonetici.puan, g.birlikte_sayisi])]);
   if (imza === panoImza) return;
   panoImza = imza;
   const liste = panoSuz(panoVeri);
@@ -3180,7 +3306,7 @@ const sayiTam = n => new Intl.NumberFormat('tr-TR').format(Number(n) || 0);
 const ARAC_AD = { claude: 'Claude', codex: 'Codex', diger: 'Diğer' };
 const ETIKET_AD = { plan: 'plan', gelistirme: 'geliştirme', denetim: 'denetim', kabul: 'kabul', yonlendirme: 'yönlendirme', cozum: 'sorun inceleme', calisma: 'çalışma', yardim: 'yardım değerlendirme',
   inceleme: 'inceleme', uygulama: 'uygulama', dogrulama: 'doğrulama', ise_alim: 'işe alım', sohbet: 'sohbet' };
-const etiketAdi = e => ETIKET_AD[e] || (String(e || '').startsWith('inceleme-') ? 'ek inceleme' : String(e || '').startsWith('sohbet') ? 'sohbet' : e);
+const etiketAdi = e => ETIKET_AD[e] || (String(e || '').startsWith('inceleme-') ? 'ek inceleme' : String(e || '').startsWith('birlikte-') ? 'birlikte çalışma' : String(e || '').startsWith('sohbet') ? 'sohbet' : e);
 const GUN_KISA = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 async function kullanimYukle() {
   clearTimeout(kullanim.zamanlayici);
@@ -3239,6 +3365,24 @@ function hakSeridi(d) {
     kutu('dis', `Ofis dışı · ${donem}`, sayiKisa(disToplam), disParca.join(' · ') || 'ölçüm yok',
       'Bu bilgisayardaki diğer Claude Code ve Codex oturumları (bu sohbet dahil). Ekiple aynı hesap limitini paylaşır.\n' + disParca.join('\n')));
 }
+// ---- ekip performansı: en başarılı ve en çok sorun yaşayan çalışanlar (bu dönem)
+function perfCiz(d) {
+  const p = d.performans || {};
+  const donem = d.gun === 1 ? 'bugün' : `son ${d.gun} gün`;
+  const yuzde = v => String(Math.round(Number(v) * 10) / 10).replace('.', ',');
+  const ayrinti = x => [`${x.cagri} çağrı (${x.basarisiz} başarısız)`, `${x.hata} başarısız adım`, `${x.takilma} takılma`, `${x.biten} biten işe katkı`,
+    `${x.yardim} kez yardım istedi`, `${x.birlikte} kez birlikte çalışarak yardım etti`].join('\n');
+  const kart = (sinif, baslik, liste, bos, metin) => E('div', { class: 'perf ' + sinif },
+    E('div', { class: 'pf-bas' }, E('span', { text: baslik }), E('span', { class: 'soluk', text: donem })),
+    liste.length ? E('ol', { class: 'pf-liste' }, liste.map((x, i) => E('li', { title: `${x.ad}\n${ayrinti(x)}` },
+      E('span', { class: 'pf-sira', text: `${i + 1}.` }), rolNoktasi(x), E('span', { class: 'pf-ad', text: x.ad }), E('span', { class: 'pf-deger', text: metin(x) }))))
+      : E('div', { class: 'pf-bos', text: bos }));
+  $('#perfSerit').replaceChildren(
+    kart('iyi', '✓ En başarılı çalışanlar', p.basarili || [], 'Bu dönemde değerlendirecek kadar çağrı yok.',
+      x => `%${yuzde(x.oran)} başarılı · ${x.cagri} çağrı` + (x.biten ? ` · ${x.biten} iş` : '')),
+    kart('kotu', '⚠ En çok sorun yaşayanlar', p.sorunlu || [], 'Bu dönemde başarısız adım ya da takılma yok.',
+      x => [x.takilma ? `${x.takilma} takılma` : '', x.hata ? `${x.hata} başarısız adım` : '', x.basarisiz ? `${x.basarisiz} başarısız çağrı` : ''].filter(Boolean).join(' · ')));
+}
 // ---- kök nedenler (Incident Managerʼın başarısız / iptal işler için kategorileri)
 function kokNedenCiz(d) {
   const n = d.nedenler || { kategoriler: [], bekleyen: 0 };
@@ -3280,6 +3424,7 @@ function kullanimCiz(d) {
     kutu('Ajan çağrısı', String(o.cagri), `${o.basarisiz} başarısız · toplam ${sureMetni(o.sure_sn)} çalışma`),
     kutu('En dolu bağlam', o.tepe_yuzde > 0 ? `%${o.tepe_yuzde.toLocaleString('tr-TR')}` : '—', o.tepe_rol ? `${rolAdi(o.tepe_rol)} · tek istekte pencerenin oranı` : 'tek istekte bağlam penceresinin oranı'));
   hakSeridi(d);
+  perfCiz(d);
   kokNedenCiz(d);
   // ---- çalışanlara göre tablo
   const roller = d.roller || [];
@@ -3443,6 +3588,13 @@ function cekmeceCiz() {
     const aciklama = g.asama === 'bekliyor_kullanici' ? (d.tip === 'genel' ? 'Soruyu yanıtlamadan devam ettirirsen Engineering Manager işi elindeki bilgiyle yönlendirir.' : 'Soruyu yanıtlamadan devam ettirirsen Engineering Manager yeniden plan yazar.') :
       (d.bekleyen_geri_bildirim ? 'Tur sınırına takıldı: devam ettirirsen son geri bildirimle bir tur hakkı daha verilir.' : `Takıldığı aşamadan (${ASAMA_ADI[g.takildi_asama] || 'geliştirme'}) yeniden denenir.`);
     ey.append(E('div', { class: 'devam-form' }, E('div', { class: 'soluk', text: aciklama }), not, E('div', {}, dug)));
+  }
+  const kartV = (veri && veri.gorevler || []).find(x => x.id === g.id);
+  const hedefler = kartV ? tasimaHedefleri(kartV).filter(k => k !== 'iptal') : [];
+  if (hedefler.length) {
+    const sec = E('select', { 'aria-label': 'Görevi başka aşamaya taşı' }, E('option', { value: '', text: 'Seç…' }), hedefler.map(k => E('option', { value: k, text: TASIMA[k].ad })));
+    sec.onchange = async () => { const k = sec.value; sec.value = ''; if (k && await gorevTasi(kartV, k)) await cekmeceYukle(); };
+    ey.append(E('label', { class: 'tasi-sec' }, 'Aşamaya taşı:', sec));
   }
   if (!['tamam', 'iptal'].includes(g.asama)) {
     const ip = E('button', { class: 'dugme tehlike kucuk', type: 'button', text: 'Görevi iptal et' });

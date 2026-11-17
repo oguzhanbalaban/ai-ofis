@@ -6,10 +6,11 @@ durum.ps1 - AI Ekip'in anlık durumu ve görev yönetimi.
   .\durum.ps1 -Devam 0003           takılan/bekleyen görevi sürdür (gerekirse bir tur hakkı daha verir)
   .\durum.ps1 -Devam 0003 -Not "..."  sürdürürken Software Developerʼa kendi notunu ekle
   .\durum.ps1 -Iptal 0003           görevi iptal et (dal ve dosyalar silinmez)
+  .\durum.ps1 -Tasi 0003 -Asama plan  görevi başka aşamaya taşı: yeni (baştan), plan, gelistirme, kontrol (incelemeye), tamamla
   .\durum.ps1 -Duraklat / -Surdur   tüm ekibi duraklat / sürdür (DURDUR dosyası)
   .\durum.ps1 -KilitleriSifirla     araç kilitlerini kaldır (ör. "claude auth login" yaptıktan sonra)
 #>
-param([string]$Devam, [string]$Not, [string]$Iptal, [switch]$Ac, [switch]$Duraklat, [switch]$Surdur, [switch]$KilitleriSifirla)
+param([string]$Devam, [string]$Not, [string]$Iptal, [string]$Tasi, [string]$Asama, [switch]$Ac, [switch]$Duraklat, [switch]$Surdur, [switch]$KilitleriSifirla)
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'ortak.ps1')
 . (Join-Path $PSScriptRoot 'rapor.ps1')
@@ -34,6 +35,12 @@ if ($Devam) {
     Gorev-Surdur $g $Not 'kullanıcı' 'Kullanıcının notu'
     Gorev-Kaydet $g
     Write-Host "Görev $($g.id) sürdürülüyor: $(Asama-Adi $g.asama) (tur $($g.tur)/$($g.max_tur))"
+}
+if ($Tasi) {
+    $g = Gorev-Bul $Tasi
+    $m = Gorev-Asamaya-Tasi $g $Asama $Not
+    Gorev-Kaydet $g
+    Write-Host "Görev taşındı: $m"
 }
 if ($Iptal) {
     $g = Gorev-Bul $Iptal

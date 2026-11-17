@@ -559,6 +559,65 @@ function Gemini-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [st
     return (Sonuc $true ([string]$j.response) '' $s)
 }
 
+# ---------------------------------------------------------------- Fibonacci puanlama (story point)
+# Engineering Manager işi yönlendirirken ya da planlarken, işi yapacak çalışan ilk kez üstlenirken maliyeti Fibonacci ölçeğiyle
+# puanlar (ayarlar.json > puanlama.etkin). Ajan-Cagir istemi ekler ve çıktıyı okur; puan görev kaydedilirken yazılır.
+$script:FibonacciPuanlari = @(1, 2, 3, 5, 8, 13, 21)
+$script:BekleyenPuan = $null
+function Puan-Yuvarla([int]$N) {
+    if ($N -le 0) { return 0 }
+    $en = 1
+    foreach ($f in $FibonacciPuanlari) { if ([Math]::Abs($f - $N) -le [Math]::Abs($en - $N)) { $en = $f } }   # eşitlikte büyüğe
+    return $en
+}
+function Puan-Coz([string]$Metin) {
+    # "PUAN: 5", "- PUAN = 5", "**PUAN:** 5"; şablonun kendisi ("PUAN: <1|2|...>") puan sayılmaz
+    $m = [regex]::Match([string]$Metin, '(?im)^\W{0,4}PUAN\s*[:=]?\s*\**\s*(\d{1,3})\b')
+    if (-not $m.Success) { return $null }
+    $p = Puan-Yuvarla ([int]$m.Groups[1].Value)
+    if ($p -le 0) { return $null }
+    return [pscustomobject]@{ puan = $p; gerekce = (Alan-Oku $Metin 'PUAN_GEREKCE') }
+}
+function Puanlama-Etkin { $p = $Ayar.puanlama; return (-not $p -or $null -eq $p.etkin -or [bool]$p.etkin) }
+$script:PuanYoneticiMetni = @'
+
+
+---
+
+# PUANLAMA (Fibonacci story point)
+
+Bu işin maliyetini Fibonacci ölçeğiyle puanla: 1, 2, 3, 5, 8, 13, 21. Puan emeği, belirsizliği ve riski birlikte yansıtır
+(1 = birkaç dakikalık net değişiklik, 3 = küçük ama birkaç parçalı iş, 8 = birden çok bileşen, kurulum ya da ekip içi yardım
+gerektiren iş, 21 = bölünmesi gereken çok büyük iş). Ekibin yeteneklerini (KADRO: kim ne yapabilir, hangi yetkiyle; işi yapacak kişinin
+kurulum, internet ya da test için yardıma ihtiyacı olacak mı) hesaba kat. Çıktının biçimini bozma: KARAR satırından hemen sonra şu iki
+satırı ekle:
+PUAN: <1|2|3|5|8|13|21>
+PUAN_GEREKCE: <tek cümle>
+'@
+$script:PuanAjanMetni = @'
+
+
+---
+
+# PUANLAMA (Fibonacci story point)
+
+Bu işi ilk kez üstleniyorsun: kendi açından puanla (Engineering Managerʼın tahmininden bağımsız). Ölçek 1, 2, 3, 5, 8, 13, 21;
+puan emeği, belirsizliği ve riski birlikte yansıtır. Son mesajına (varsa yardım bloğundan önce) ayrı satırlar olarak ekle:
+PUAN: <1|2|3|5|8|13|21>
+PUAN_GEREKCE: <tek cümle>
+'@
+function Puan-Istem-Metni([string]$Rol, [string]$Etiket) {
+    if (-not $script:AktifGorev -or -not (Puanlama-Etkin)) { return '' }
+    $lider = ($Rol -eq 'lider' -and @('yonlendirme', 'plan') -contains $Etiket)
+    $ajan = ($Rol -ne 'lider' -and @('gelistirme', 'uygulama', 'calisma') -contains $Etiket)
+    if (-not $lider -and -not $ajan) { return '' }
+    $g = Gorev-Diskten $script:AktifGorev
+    if (-not $g) { return '' }
+    if ($lider) { if ($g.puan_yonetici) { return '' }; return $PuanYoneticiMetni }
+    if ($g.puan_ajan -and [string]$g.puan_ajan.rol -eq $Rol) { return '' }
+    return $PuanAjanMetni
+}
+
 # ---------------------------------------------------------------- ekip içi yardımlaşma (ayarlar.json > yardimlasma; akış yardim.ps1)
 # Görev adımlarında çalışan ajan, kendi yapamayacağı ama ekipte başkasının yapabileceği bir şeye ihtiyaç duyarsa
 # çıktısının sonuna ```yardim {json}``` bloğu ekler; adım başarısız sayılmaz, Engineering Manager isteği uygun çalışana verir.
@@ -567,7 +626,7 @@ function Yardim-Uygun-mu([string]$Rol, [string]$Etiket) {
     $a = $Ayar.yardimlasma
     if (-not $a -or -not $a.etkin) { return $false }
     if ($Rol -eq 'sorun-giderici') { return $false }
-    if (@('yardim', 'cozum', 'yonlendirme', 'ise_alim') -contains $Etiket -or $Etiket -like 'sohbet*') { return $false }
+    if (@('yardim', 'cozum', 'yonlendirme', 'ise_alim', 'kategori') -contains $Etiket -or $Etiket -like 'sohbet*' -or $Etiket -like 'birlikte-*') { return $false }
     if ($Rol -eq 'lider' -and $Etiket -ne 'kabul') { return $false }   # Engineering Manager planda ön işleri "YARDIM:" satırlarıyla ister
     return $true
 }
@@ -582,18 +641,25 @@ function Yardim-Talimati-Metni {
 
 ---
 
-# EKİPTEN YARDIM İSTEME
+# EKİPTEN YARDIM İSTEME (Engineering Manager aracılığıyla birlikte çalışma)
 
-Bu işi yaparken senin yapamayacağın ama ekipte başka birinin yapabileceği bir şeye ihtiyaç duyarsan işi yarım bırakıp
-başarısız sayma, reddetme: Engineering Managerʼdan yardım iste. Örnekler: yazılım / SDK / araç kurulumu, emülatör ya da sunucu hazırlığı,
-ağ / port ayarı (sistem, ag); uygulamayı gerçekten çalıştırıp test etmek ya da kullanıcı testi (tester); tasarım ya da görsel
-varlık; güvenlik ya da mimari görüşü; yalnızca kullanıcının verebileceği bir bilgi ya da karar.
-Özellikle DUZELT / RET vermeden önce düşün: eksik olan şey işi yapanın değil başka birinin uzmanlığıysa yardım iste.
-Engineering Manager isteğini uygun kişiye verir; yardım gelince bu adım, gelen sonuçla ("EKİPTEN GELEN YARDIM") yeniden çalışır.
-Yapabildiğin kısmı yine yap. Yardım istemek için çıktının EN SONUNA şu bloğu ekle (gerekmiyorsa ekleme):
+Yetkinin ya da aracının yetmediği bir şey işin için gerekiyorsa işi eksik, tahminle ya da hatalı bırakma; başarısız sayma,
+reddetme: Engineering Managerʼdan yardım iste. Ekip birlikte çalışır. Yardım isteyebileceğin durumlar:
+- kütüphane / paket indirip kurmak (npm, pip, NuGet, Maven, flutter pub…), bir internet sitesine bağlanmak, belge ya da dosya indirmek;
+- yazdığın kodu derleyip çalıştırmak, geliştirme sırasında küçük deneme koşturmaları ve testler, emülatörde / tarayıcıda denemek;
+- yazılım / SDK / araç kurulumu, sunucu, VM, servis, port, ağ ayarı (sistem, ag);
+- uygulamayı gerçekten kullanarak test etmek, kullanıcı testi (tester);
+- tasarım ya da görsel varlık, güvenlik ya da mimari görüşü (uzmanlar);
+- gizli bilgi (API anahtarı, parola, hesap) ya da yalnızca kullanıcının verebileceği bir karar (Engineering Manager kullanıcıya sorar);
+- planda olmayan büyük bir değişiklik gerekiyorsa Engineering Managerʼın onayı.
+Kısa işleri Engineering Manager bir ekip arkadaşına HEMEN, senin çalışma klasöründe yaptırır (birlikte çalışma: kurulum, indirme,
+çalıştırma ve test sonuçları dakikalar içinde gelir; indirilen dosyalar çalışma klasöründe .ekip-yardim altına konur). Uzun işler ayrı
+yardım işi olarak açılır. Yardım gelince bu adım, gelen sonuçla ("EKİPTEN GELEN YARDIM") yeniden çalışır ve kaldığın yerden sürersin.
+Özellikle DUZELT / RET vermeden önce düşün: eksik olan şey işi yapanın değil başka birinin uzmanlığı ya da yetkisiyse yardım iste.
+Yapabildiğin kısmı yine yap. Yardım istemek için çıktının EN SONUNA şu bloğu ekle (gerekmiyorsa ekleme; "hemen": işin buna bağlıysa true):
 
 ```yardim
-{"ne": "tam olarak ne yapılmalı", "neden": "neden sen yapamıyorsun, neden gerekli", "kim": "önerdiğin kadro anahtarı ya da boş", "kabul": ["yardımın tamam sayılma ölçütü"]}
+{"ne": "tam olarak ne yapılmalı (komut, paket, adres, test)", "neden": "neden sen yapamıyorsun, neden gerekli", "kim": "önerdiğin kadro anahtarı ya da boş", "hemen": true, "kabul": ["yardımın tamam sayılma ölçütü"]}
 ```
 
 Bu ekipte "kullanıcı testi", "gerçek kullanıcı", "N kullanıcıdan M'i" gibi kabul ölçütlerini Test
@@ -642,13 +708,15 @@ function Ajan-Cagir {
     )
     if (-not (Test-Path -LiteralPath $KayitKlasoru)) { New-Item -ItemType Directory -Force $KayitKlasoru | Out-Null }
     $Istem = Yardim-Istem-Ekle $Rol $Etiket $Istem
+    $puanIstemi = Puan-Istem-Metni $Rol $Etiket
+    if ($puanIstemi) { $Istem += $puanIstemi }
     $notlar = @()
     $gorevId = [string]$script:AktifGorev
     $iptalHata = 'görev kullanıcı tarafından iptal edildi'
     foreach ($g in @($Ayar.roller.$Rol)) {
         # İptal edilen görevde yedek zincirdeki sonraki araca geçme
         if ($script:IptalIzleme -and $gorevId -and (Gorev-Iptal-mi $gorevId)) {
-            Gunluk "$Rol çağrısı yapılmadı: görev $gorevId iptal edildi [$Etiket]" 'UYARI'
+            Gunluk "$Rol çağrısı yapılmadı: görev $gorevId iptal edildi ya da panoda taşındı [$Etiket]" 'UYARI'
             return [pscustomobject]@{ basarili = $false; metin = ''; hata = $iptalHata; sure_sn = 0; arac = ''; model = ''; iptal = $true }
         }
         $kimlik = "{0}/{1}" -f $g.arac, $g.model
@@ -676,8 +744,14 @@ function Ajan-Cagir {
             Gunluk "$Rol -> $kimlik bitti ($($r.sure_sn) sn)"
             if ($script:IptalIzleme -and $gorevId -and (Gorev-Iptal-mi $gorevId)) {
                 # Ajan iptalden sonra bitti: adım bu sonuçla ilerlemesin (soru, aktarma, e-posta, yeni tur...)
-                Gunluk "$Rol -> $kimlik sonucu kullanılmadı: görev $gorevId ajan çalışırken iptal edildi" 'UYARI'
+                Gunluk "$Rol -> $kimlik sonucu kullanılmadı: görev $gorevId ajan çalışırken iptal edildi ya da panoda taşındı" 'UYARI'
                 return [pscustomobject]@{ basarili = $false; metin = ''; hata = $iptalHata; sure_sn = $r.sure_sn; arac = $r.arac; model = $r.model; iptal = $true }
+            }
+            # Fibonacci puanı: görev kaydedilirken işlenir (Gorev-Kaydet)
+            if ($puanIstemi) {
+                $pz = Puan-Coz $r.metin
+                if ($pz) { $script:BekleyenPuan = [pscustomobject]@{ gorev = $gorevId; rol = $Rol; etiket = $Etiket; puan = $pz.puan; gerekce = $pz.gerekce; arac = $kimlik } }
+                else { Gunluk "$Rol puan vermedi [$gorevId / $Etiket]" 'UYARI' }
             }
             # Ekip içi yardım isteği: adım ilerlemesin; Adim-Basarisiz bunu başarısızlık saymaz, Engineering Managerʼa iletir (yardim.ps1)
             if (Yardim-Uygun-mu $Rol $Etiket) {
@@ -753,6 +827,13 @@ function Bildir {
 function Gorev-Klasoru([string]$Id) { Join-Path $YolGorev $Id }
 function Gorev-Oku([string]$Id) { Json-Oku (Join-Path (Gorev-Klasoru $Id) 'durum.json') }
 function Gorev-Kaydet($G) {
+    $bp = $script:BekleyenPuan
+    if ($bp -and [string]$bp.gorev -eq [string]$G.id) {
+        $kayit = [pscustomobject][ordered]@{ rol = [string]$bp.rol; puan = [int]$bp.puan; gerekce = (Kisalt ([string]$bp.gerekce) 220); zaman = (Simdi); arac = [string]$bp.arac }
+        if ($bp.rol -eq 'lider') { Ayarla $G 'puan_yonetici' $kayit } else { Ayarla $G 'puan_ajan' $kayit }
+        $script:BekleyenPuan = $null
+        Gunluk "Görev $($G.id): $($bp.rol) $($bp.puan) puan verdi"
+    }
     Ayarla $G 'guncelleme' (Simdi)
     Json-Yaz $G (Join-Path (Gorev-Klasoru $G.id) 'durum.json')
 }
@@ -766,9 +847,17 @@ function Gorev-Diskten([string]$Id) {
     }
     return $null
 }
+# Adım sürerken görev iptal edildiyse ya da kullanıcı panoda başka aşamaya taşıdıysa süren ajan durdurulur, sonucu kullanılmaz
 function Gorev-Iptal-mi([string]$Id) {
     $d = Gorev-Diskten $Id
-    return [bool]($d -and [string]$d.asama -eq 'iptal')
+    if (-not $d) { return $false }
+    if ([string]$d.asama -eq 'iptal') { return $true }
+    return (Gorev-Elle-Tasindi-mi $d)
+}
+$script:AdimBaslangic = $null
+function Gorev-Elle-Tasindi-mi($D) {
+    if (-not $script:AdimBaslangic -or -not $D -or -not $D.elle_tasima) { return $false }
+    try { return ([datetime][string]$D.elle_tasima.zaman -gt $script:AdimBaslangic) } catch { return $false }
 }
 function Gorevleri-Listele {
     $liste = @()

@@ -189,6 +189,10 @@
                         "gorev_basina_en_fazla":  4,
                         "derinlik":  2
                     },
+    "puanlama":  {
+                     "etkin":  true,
+                     "aciklama":  "Engineering Manager ve işi yapan çalışan işi Fibonacci (1-21) story point ile puanlar; panoda kartlarda görünür."
+                 },
     "korunan_desenler":  [
                              ".env",
                              ".env.*",

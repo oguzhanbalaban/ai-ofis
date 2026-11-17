@@ -112,10 +112,11 @@ function Diff-Hazirla($G) {
 function Kayit-Klasoru($G) { Join-Path (Gorev-Klasoru $G.id) 'kayitlar' }
 
 # ---------------------------------------------------------------- adımlar
-function Adim-Hazirla($G) {
-    if (-not (Test-Path -LiteralPath $G.klasor)) { Takildi $G "Proje klasörü bulunamadı: $($G.klasor)"; return }
+# Görevin git dalını ve çalışma ağacını (calisma\<no>) hazırlar; sorun varsa açıklamasını döndürür, yoksa ''
+function Calisma-Agaci-Kur($G) {
+    if (-not $G.klasor -or -not (Test-Path -LiteralPath $G.klasor)) { return "Proje klasörü bulunamadı: $($G.klasor)" }
     Git-Calistir $G.klasor @('rev-parse', '--show-toplevel') -Sessiz | Out-Null
-    if ($script:GitKod -ne 0) { Takildi $G "Proje bir git deposu değil: $($G.klasor)"; return }
+    if ($script:GitKod -ne 0) { return "Proje bir git deposu değil: $($G.klasor)" }
     $dal = "ekip/$($G.id)"
     $wt = Join-Path $YolCalisma $G.id
     $gecerli = $false
@@ -138,8 +139,14 @@ function Adim-Hazirla($G) {
     }
     Ayarla $G 'dal' $dal
     Ayarla $G 'calisma_klasoru' $wt
+    Ayarla $G 'calisma_klasoru_kaldirildi' $false
     Ayarla $G 'temel_commit' (Git-Calistir $wt @('rev-parse', 'HEAD'))
-    Asama-Gec $G 'plan' 'çalışma dalı hazır' ('{0} @ {1}' -f $dal, ([string]$G.temel_commit).Substring(0, 8))
+    return ''
+}
+function Adim-Hazirla($G) {
+    $h = Calisma-Agaci-Kur $G
+    if ($h) { Takildi $G $h; return }
+    Asama-Gec $G 'plan' 'çalışma dalı hazır' ('{0} @ {1}' -f $G.dal, ([string]$G.temel_commit).Substring(0, 8))
 }
 
 function Adim-Plan($G) {
@@ -383,6 +390,8 @@ function Gorev-Ilerlet($G) {
     $basAsama = [string]$G.asama
     $basTur = $G.tur
     $script:YardimIstegi = $null
+    $script:BekleyenPuan = $null
+    $script:AdimBaslangic = Get-Date
     Kalp 'çalışıyor'
     Gunluk "Görev $($G.id) [$($G.asama), tur $($G.tur)] ilerletiliyor"
     try {
@@ -407,6 +416,17 @@ function Gorev-Ilerlet($G) {
     # Adım (ajan çağrısı) sürerken kullanıcı görevi iptal ettiyse bellekteki eski kopya iptali ezmesin:
     # diskteki kaydı yeniden oku; iptalse adımın sonucunu yazma, yalnızca geçmişe not düş.
     $disk = Gorev-Diskten $G.id
+    $tasindi = Gorev-Elle-Tasindi-mi $disk
+    $script:AdimBaslangic = $null
+    if ($disk -and [string]$disk.asama -ne 'iptal' -and $tasindi) {
+        # Kullanıcı adım sürerken işi panoda başka aşamaya taşıdı: adımın sonucu taşımayı ezmesin
+        $ne = "'{0}' adımı (tur {1}) panoda taşındıktan sonra bitti; sonucu kaydedilmedi" -f (Asama-Adi $basAsama), $basTur
+        Gecmis-Ekle $disk 'taşıma sonrası adım sonucu yok sayıldı' $ne
+        $script:BekleyenPuan = $null
+        Gorev-Kaydet $disk
+        Gunluk "Görev $($G.id) adım sürerken panoda taşınmış ($($disk.elle_tasima.onceki) -> $($disk.asama)); adım sonucu yok sayıldı" 'UYARI'
+        return
+    }
     if ($disk -and [string]$disk.asama -eq 'iptal') {
         $ne = "'{0}' adımı (tur {1}) iptalden sonra bitti; sonucu kaydedilmedi" -f (Asama-Adi $basAsama), $basTur
         if ([string]$G.asama -ne $basAsama -or [string]$G.tur -ne [string]$basTur) { $ne += " (adım görevi '{0}', tur {1} durumuna taşıyacaktı)" -f (Asama-Adi $G.asama), $G.tur }

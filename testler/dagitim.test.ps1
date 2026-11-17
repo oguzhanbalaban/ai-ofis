@@ -35,8 +35,10 @@ try {
     Dogrula ($a.yardimlasma.etkin -and [int]$a.yardimlasma.gorev_basina_en_fazla -gt 0 -and [int]$a.yardimlasma.derinlik -gt 0 -and $tester -and $tester.yetki -eq 'tam' -and $tester.uzman_isi -and @($tester.araclar)[0].arac -eq 'claude') 'Ekip içi yardımlaşma ayarı ve QA Engineer (tam yetki, Claude önce) tanımlı'
     $liderZ = @($a.roller.lider | ForEach-Object { '{0}/{1}' -f $_.arac, $_.model })
     Dogrula (($liderZ -join ',') -like 'claude/claude-opus-5-5,claude/claude-fable-5-2,*' -and @($a.model_katalogu.claude).Count -ge 4 -and @($a.model_katalogu.codex).Count -ge 1 -and @($k.uyeler | Where-Object { -not $_.rol_tr }).Count -eq 0) 'Engineering Manager zinciri Opus 5.5 > Fable 5.2, model kataloğu ve tüm kadroda Türkçe unvan (rol_tr)'
+    $yardimIstemi = [IO.File]::ReadAllText((Join-Path $kaynak 'istemler\yonetici-yardim.md'))
+    Dogrula ($a.puanlama.etkin -and $yardimIstemi -match 'KARAR: BIRLIKTE' -and (Test-Path -LiteralPath (Join-Path $kaynak 'istemler\yardim-birlikte.md'))) 'Fibonacci puanlama açık; Engineering Manager birlikte çalışma kararı ve istemi var'
     $istemler = @(Get-ChildItem -LiteralPath (Join-Path $kaynak 'istemler') -Filter '*.md' -File -Recurse)
-    Dogrula ($istemler.Count -eq 28) '19 akış ve 9 kadro istemi'
+    Dogrula ($istemler.Count -eq 29) '20 akış ve 9 kadro istemi'
     foreach ($uye in $k.uyeler) {
         if ($uye.istem) { Dogrula (Test-Path -LiteralPath (Join-Path $kaynak $uye.istem)) "$($uye.anahtar) talimatı mevcut" }
     }
@@ -212,7 +214,7 @@ try {
     $arsiv = [IO.Compression.ZipFile]::OpenRead((Join-Path $paket 'dagitim\ai-ofis.zip'))
     try {
         $adlar = @($arsiv.Entries | ForEach-Object { $_.FullName })
-        Dogrula ($adlar.Count -eq 66) 'ZIP 66 dağıtım dosyası içeriyor'
+        Dogrula ($adlar.Count -eq 68) 'ZIP 68 dağıtım dosyası içeriyor'
         Dogrula (@($adlar | Where-Object { $_ -match '\.yerel\.|ozel-not|^durum/|^gorevler/|^raporlar/' }).Count -eq 0) 'ZIP kişisel ayarları ve ek kullanıcı dosyalarını dışlıyor'
     } finally { $arsiv.Dispose() }
     Write-Host "TAMAM: $script:kontrol kontrol geçti. Gerçek ağ/VM/masaüstü/zamanlanmış görev işlemi yapılmadı."

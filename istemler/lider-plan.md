@@ -28,8 +28,10 @@ geliştirme kendiliğinden başlar ve sonuçları Software Developer'a iletilir.
 
 Kurallar (yazılım işi için):
 - Kapsamı görevle sınırla; görevde istenmeyen yeniden düzenleme önerme.
-- Software Developer'a ağ erişimi, paket indirme, git push, sanal makine ya da sistem ayarı gerektiren adım verme
-  (bunlar altyapı ekibinin işi; görev esasen böyleyse KARAR: ALTYAPI ver).
+- Software Developer'ın kendi yapamadıkları (paket / kütüphane indirme, internet erişimi, kodu çalıştırıp test etme, VM ya da
+  sistem ayarı) için: uzun kurulumları yukarıdaki "YARDIM:" ön işleriyle iste; kısa işler için plana "gerektiğinde yardım iste"
+  yaz: Software Developer yardım isteyince sen bir ekip arkadaşına hemen, aynı çalışma klasöründe yaptırırsın (birlikte çalışma).
+  git push ve dal işlemleri yok. Görev esasen kurulum / sunucu işiyse KARAR: ALTYAPI ver.
 - Görev gerçekten belirsizse ya da tehlikeli/geri alınamaz bir şey istiyorsa plan yazma, soru sor (KARAR: SORU_VAR).
 
 Çıktın tam olarak şu biçimde olsun (ilk satır zorunlu):
