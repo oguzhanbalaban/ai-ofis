@@ -500,13 +500,39 @@ function Claude-Hata-Isle([string]$Hata, [string]$Model = '') {
         Bildir -Baslik 'Claude limiti doldu' -Metin ("Claude {0}'e kadar dinleniyor; işi Codex devraldı." -f $bitis.ToString('HH:mm')) -Anahtar 'claude-limit' -AralikDk 180
     }
 }
-function Claude-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [string]$Klasor, [bool]$Yazabilir, [bool]$TamYetki = $false) {
+# Outsource Consultant (danisman.ps1) izinleri: ayarlar.json > danisman. İzin listesi dışındaki araçlar --permission-mode dontAsk ile
+# sormadan reddedilir (arka planda onay bekleyip kilitlenmez); yasak kurallar izinlerden önce gelir.
+$script:DanismanIzinliVarsayilan = @('Read', 'Glob', 'Grep', 'Edit', 'Write', 'NotebookEdit', 'Bash', 'PowerShell', 'WebFetch', 'WebSearch', 'Agent', 'Task', 'TodoWrite')
+$script:DanismanYasakVarsayilan = @('Bash(git push *)', 'Bash(git remote *)', 'Bash(git config --global *)', 'Bash(vmrun *)', 'Bash(shutdown *)',
+    'Bash(netsh *)', 'Bash(reg add *)', 'Bash(reg delete *)', 'Bash(bcdedit *)', 'Bash(format *)', 'Bash(rm -rf /)', 'Bash(rm -rf /*)', 'Bash(rm -rf ~*)',
+    'PowerShell(git push *)', 'PowerShell(vmrun *)', 'PowerShell(Set-MpPreference *)', 'PowerShell(Add-MpPreference *)', 'PowerShell(Set-NetFirewallProfile *)',
+    'PowerShell(Set-NetFirewallRule *)', 'PowerShell(New-NetFirewallRule *)', 'PowerShell(Set-ExecutionPolicy *)', 'PowerShell(Stop-Computer *)', 'PowerShell(Restart-Computer *)')
+function Danisman-Izinleri {
+    $d = $Ayar.danisman
+    $izin = $DanismanIzinliVarsayilan; $yasak = $DanismanYasakVarsayilan; $zaman = 120
+    if ($d) {
+        if ($d.izinli_araclar) { $izin = @($d.izinli_araclar) }
+        if ($d.PSObject.Properties['yasak_araclar'] -and $null -ne $d.yasak_araclar) { $yasak = @($d.yasak_araclar) }
+        if ([int]$d.zaman_asimi_dk -gt 0) { $zaman = [int]$d.zaman_asimi_dk }
+    }
+    # cmd.exe komut satırına girer: tırnak, yüzde, satır sonu içeren kural atlanır
+    $temiz = { param($l) , @($l | ForEach-Object { [string]$_ } | Where-Object { $_ -and $_ -notmatch '["%\r\n]' }) }
+    return [pscustomobject]@{ izinli = (& $temiz $izin); yasak = (& $temiz $yasak); zaman_asimi_dk = $zaman }
+}
+function Claude-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [string]$Klasor, [bool]$Yazabilir, [bool]$TamYetki = $false, [string]$Profil = '', [string[]]$EkKlasorler = @()) {
     $araclar = 'Read,Glob,Grep'; $mod = 'dontAsk'
     if ($Yazabilir) { $araclar = 'Read,Glob,Grep,Edit,Write'; $mod = 'acceptEdits' }
     $zaman = [int]$Ayar.zaman_asimi_dk.claude
     # stream-json: her yanıtın token kullanımı ayrı satırda gelir (istek başına bağlam doluluğu için); son satır sonuçtur
     $komut = (Q $Ayar.claude.exe) + " -p --output-format stream-json --verbose --no-session-persistence --model $($G.model)"
-    if ($TamYetki) {
+    if ($Profil -eq 'danisman') {
+        # Outsource Consultant: terminal yetkili Claude Code; çalışma dizini masası (CLAUDE.md), işin klasörü --add-dir ile
+        $iz = Danisman-Izinleri
+        $komut += ' --permission-mode dontAsk --allowedTools ' + (Q ($iz.izinli -join ','))
+        if ($iz.yasak.Count) { $komut += ' --disallowedTools ' + (Q ($iz.yasak -join ',')) }
+        foreach ($k in @($EkKlasorler | Where-Object { $_ })) { $komut += ' --add-dir ' + (Q $k) }
+        $zaman = $iz.zaman_asimi_dk
+    } elseif ($TamYetki) {
         # Altyapı rolleri (altyapi.ps1): kullanıcı tam yetki verdi; tüm araçlar, izin sorulmaz
         $komut += ' --permission-mode bypassPermissions'
         if ($Ayar.zaman_asimi_dk.altyapi) { $zaman = [int]$Ayar.zaman_asimi_dk.altyapi }
@@ -657,7 +683,7 @@ function Yardim-Uygun-mu([string]$Rol, [string]$Etiket) {
     if (-not $a -or -not $a.etkin) { return $false }
     if ($Rol -eq 'sorun-giderici') { return $false }
     # Product Manager (analiz) ve Codebase Explorer (kesif) salt okunur rapor yazar; yardım istemez
-    if (@('yardim', 'cozum', 'yonlendirme', 'ise_alim', 'kategori', 'analiz', 'kesif') -contains $Etiket -or $Etiket -like 'sohbet*' -or $Etiket -like 'birlikte-*') { return $false }
+    if (@('yardim', 'cozum', 'yonlendirme', 'ise_alim', 'kategori', 'analiz', 'kesif', 'danisman') -contains $Etiket -or $Etiket -like 'sohbet*' -or $Etiket -like 'birlikte-*') { return $false }
     if ($Rol -eq 'lider' -and $Etiket -ne 'kabul') { return $false }   # Engineering Manager planda ön işleri "YARDIM:" satırlarıyla ister
     return $true
 }
@@ -665,7 +691,7 @@ function Yardim-Talimati-Metni {
     $k = Json-Oku (Join-Path $Kok 'kadro.json')
     $satirlar = @()
     foreach ($u in @($k.uyeler)) {
-        if ($u -and $u.anahtar -and @('lider', 'sorun-giderici', 'cto') -notcontains [string]$u.anahtar) { $satirlar += ('- {0} ({1}): {2}' -f $u.anahtar, $u.ad, (Kisalt ([string]$u.uzmanlik) 120)) }
+        if ($u -and $u.anahtar -and @('lider', 'sorun-giderici', 'cto', 'danisman') -notcontains [string]$u.anahtar) { $satirlar += ('- {0} ({1}): {2}' -f $u.anahtar, $u.ad, (Kisalt ([string]$u.uzmanlik) 120)) }
     }
     $metin = @'
 
@@ -757,6 +783,8 @@ function Ajan-Cagir {
         [Parameter(Mandatory)][string]$Etiket,
         [switch]$Yazabilir,
         [string[]]$Haric = @(),     # bu araçları atla (ör. Code Reviewer Full-Stack Developerʼla aynı model olmasın)
+        [string]$IzinProfili = '',  # 'danisman': Outsource Consultant (dontAsk + izin / yasak listeleri, ayarlar.json > danisman)
+        [string[]]$EkKlasorler = @(),   # Claude'a --add-dir ile açılacak klasörler (izin profiliyle)
         [switch]$TamYetki           # altyapı rolleri: sandbox'sız, izin sormadan (altyapı görev kapsamı)
     )
     if (-not (Test-Path -LiteralPath $KayitKlasoru)) { New-Item -ItemType Directory -Force $KayitKlasoru | Out-Null }
@@ -797,7 +825,7 @@ function Ajan-Cagir {
         Kalp 'ajan'
         Gunluk "$kimAdi -> $kimlik başlıyor [$($script:AktifGorev) / $Etiket]"
         switch ($g.arac) {
-            'claude' { $r = Claude-Calistir $g $istemYolu $out $err $Klasor ([bool]$Yazabilir) ([bool]$TamYetki) }
+            'claude' { $r = Claude-Calistir $g $istemYolu $out $err $Klasor ([bool]$Yazabilir) ([bool]$TamYetki) $IzinProfili $EkKlasorler }
             'codex'  { $r = Codex-Calistir  $g $istemYolu $out $err $son $Klasor ([bool]$Yazabilir) ([bool]$TamYetki) }
             'gemini' { $r = Gemini-Calistir $g $istemYolu $out $err $Klasor ([bool]$Yazabilir) ([bool]$TamYetki) }
         }

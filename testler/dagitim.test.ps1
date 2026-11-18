@@ -25,7 +25,7 @@ try {
         Dogrula ($b.Length -ge 3 -and $b[0] -eq 239 -and $b[1] -eq 187 -and $b[2] -eq 191) "$($f.Name) UTF-8 BOM"
     }
     $a = Json (Join-Path $kaynak 'ayarlar.json'); $k = Json (Join-Path $kaynak 'kadro.json')
-    Dogrula (@($k.uyeler).Count -eq 19) 'Tam kadro: 19 çalışan (CTO, Product Manager, Codebase Explorer, Frontend / Backend Developer, Incident Manager ve QA Engineer dahil)'
+    Dogrula (@($k.uyeler).Count -eq 20) 'Tam kadro: 20 çalışan (CTO, Product Manager, Codebase Explorer, Frontend / Backend Developer, Outsource Consultant, Incident Manager ve QA Engineer dahil)'
     $dep = @{}; foreach ($u in $k.uyeler) { $dep[[string]$u.anahtar] = [string]$u.departman }
     Dogrula ($dep['cto'] -eq 'Yönetim' -and $dep['lider'] -eq 'Teknik koordinasyon' -and $dep['urun'] -eq 'Karşılama ve planlama' -and $a.planlama.analiz -and $a.planlama.qa_testi -and $a.yonetim.etkin -and $a.paralel.etkin -and $a.roller.cto -and $a.roller.urun -and $a.roller.kasif -and $a.roller.frontend -and $a.roller.backend) 'Yönetim (CTO), teknik koordinasyon ve planlama katmanı; paralel hat ayarları'
     Dogrula (@($k.uyeler | Where-Object { $_.ise_alinma -or $_.ise_alan }).Count -eq 0) 'İşe alım geçmişi anonim'
@@ -40,7 +40,9 @@ try {
     $yardimIstemi = [IO.File]::ReadAllText((Join-Path $kaynak 'istemler\yonetici-yardim.md'))
     Dogrula ($a.puanlama.etkin -and $yardimIstemi -match 'KARAR: BIRLIKTE' -and (Test-Path -LiteralPath (Join-Path $kaynak 'istemler\yardim-birlikte.md'))) 'Fibonacci puanlama açık; Engineering Manager birlikte çalışma kararı ve istemi var'
     $istemler = @(Get-ChildItem -LiteralPath (Join-Path $kaynak 'istemler') -Filter '*.md' -File -Recurse)
-    Dogrula ($istemler.Count -eq 39) '24 akış ve 15 kadro istemi'
+    Dogrula ($istemler.Count -eq 42) '26 akış ve 16 kadro istemi'
+    $dn = @($k.uyeler | Where-Object { $_.anahtar -eq 'danisman' })[0]
+    Dogrula ($dn -and $dn.dogrudan_is -and $dn.departman -eq 'Dış danışmanlık' -and $a.danisman.etkin -and @($a.roller.danisman)[0].arac -eq 'claude' -and (@($a.danisman.izinli_araclar) -contains 'Bash') -and (@($a.danisman.yasak_araclar) -contains 'Bash(git push *)') -and (Test-Path -LiteralPath (Join-Path $kaynak 'istemler\danisman-claude.md'))) 'Outsource Consultant: Claude Code zinciri, izin / yasak listeleri, CLAUDE.md şablonu'
     foreach ($uye in $k.uyeler) {
         if ($uye.istem) { Dogrula (Test-Path -LiteralPath (Join-Path $kaynak $uye.istem)) "$($uye.anahtar) talimatı mevcut" }
     }
@@ -118,7 +120,7 @@ try {
         foreach ($z in $zincirler) {
             if ($z.Count -ne ($sira.Count * 2) -or @($z | Where-Object { $_.arac -notin $sira }).Count) { throw "Araç zinciri hatası: $secim" }
         }
-        Dogrula ($zincirler.Count -eq 30) "$secim seçimi: 11 rol ve 19 kadro zinciri"
+        Dogrula ($zincirler.Count -eq 32) "$secim seçimi: 12 rol ve 20 kadro zinciri"
         Dogrula (@($sira | Where-Object { @($aa.model_katalogu.$_ | Where-Object { $_.model -eq 'model-a' }).Count -eq 0 }).Count -eq 0) "$secim seçimi: kurulumda seçilen modeller panel kataloğunda"
     }
 
@@ -209,7 +211,7 @@ try {
     & git init -q -- $ignoreDepo | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Geçici depo oluşturulamadı (git init).' }
     Copy-Item -LiteralPath (Join-Path $kaynak '.gitignore') -Destination $ignoreDepo
-    $izin = @('durum/a.json','gunluk/a.log','raporlar/a.html','calisma/a','gorevler/0001/gorev.md','ayarlar.yerel.json','kadro.yerel.json','projeler.yerel.json','ayarlar.yerel.json.bak','eposta.json','BAGLANTI-BILGILERI.md','ofis/uzak.json','ofis/sunucu.json')
+    $izin = @('durum/a.json','gunluk/a.log','raporlar/a.html','calisma/a','gorevler/0001/gorev.md','ayarlar.yerel.json','kadro.yerel.json','projeler.yerel.json','ayarlar.yerel.json.bak','eposta.json','BAGLANTI-BILGILERI.md','ofis/uzak.json','ofis/sunucu.json','danisman/CLAUDE.md')
     foreach ($yol in $izin) {
         $null = & git -C $ignoreDepo check-ignore --quiet -- $yol
         Dogrula ($LASTEXITCODE -eq 0) "$yol Git dışında"
@@ -222,7 +224,7 @@ try {
     $arsiv = [IO.Compression.ZipFile]::OpenRead((Join-Path $paket 'dagitim\ai-ofis.zip'))
     try {
         $adlar = @($arsiv.Entries | ForEach-Object { $_.FullName })
-        Dogrula ($adlar.Count -eq 85) 'ZIP 85 dağıtım dosyası içeriyor'
+        Dogrula ($adlar.Count -eq 90) 'ZIP 90 dağıtım dosyası içeriyor'
         Dogrula (@($adlar | Where-Object { $_ -match '\.yerel\.|ozel-not|^durum/|^gorevler/|^raporlar/' }).Count -eq 0) 'ZIP kişisel ayarları ve ek kullanıcı dosyalarını dışlıyor'
     } finally { $arsiv.Dispose() }
     Write-Host "TAMAM: $script:kontrol kontrol geçti. Gerçek ağ/VM/masaüstü/zamanlanmış görev işlemi yapılmadı."

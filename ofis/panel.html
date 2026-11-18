@@ -750,6 +750,7 @@ dialog.diyalog.karakter { width:min(880px, calc(100vw - 32px)); overflow:hidden;
         <button class="cip-sec" type="button" data-tur="yazilim" aria-pressed="false">Yazılım</button>
         <button class="cip-sec" type="button" data-tur="altyapi" aria-pressed="false">Altyapı</button>
         <button class="cip-sec" type="button" data-tur="uzman" aria-pressed="false">Uzman</button>
+        <button class="cip-sec" type="button" data-tur="danisman" aria-pressed="false">Danışman</button>
         <button class="cip-sec" type="button" data-tur="yardim" aria-pressed="false">Yardım işleri</button>
       </div>
       <label class="tik"><input type="checkbox" id="panoBiten"> Biten ve iptalleri göster</label>
@@ -2155,13 +2156,13 @@ const ASAMA_ADI = { yeni: 'Sırada', analiz: 'Gereksinimler netleşiyor', kesif:
   yardim: 'Engineering Managerʼda (yardım isteği)', yardim_bekliyor: 'Ekipten yardım bekliyor' };
 const AKTIF_ASAMALAR = ['yeni', 'analiz', 'kesif', 'plan', 'gelistirme', 'kontrol', 'test', 'denetim', 'kabul', 'tamamla', 'yardim'];
 const DOSYA_ADI = {
-  'gelistirici-ozet.md': 'Geliştirici özeti', 'kontrol.md': 'Otomatik kontrol', 'test.md': 'QA test raporu', 'denetim.md': 'Code Reviewer raporu', 'kabul.md': 'Engineering Manager kararı',
+  'gelistirici-ozet.md': 'Geliştirici özeti', 'danisman-rapor.md': 'Danışman raporu', 'kontrol.md': 'Otomatik kontrol', 'test.md': 'QA test raporu', 'denetim.md': 'Code Reviewer raporu', 'kabul.md': 'Engineering Manager kararı',
   'geri-bildirim.md': 'Bu turun geri bildirimi', 'degisiklik.diff': 'Diff', 'degisiklik-u0.diff': 'Diff (bağlamsız)',
   'uygulama-ozet.md': 'Uygulama raporu', 'dogrulama.md': 'Doğrulama raporu', 'kesif.md': 'Keşif (VM / ağ durumu)', 'sonuc.md': 'Sonuç',
   'calisma-ozet.md': 'Çalışanın raporu', 'inceleme.md': 'İnceleme raporu',
 };
 const ROL_ADI = { sistem: 'System Administrator', ag: 'Network Engineer', yok: 'yok', lider: 'Engineering Manager', 'sorun-giderici': 'Incident Manager' };
-const KARAR_ADI = { YAZILIM: 'yazılım ekibine verdi', ALTYAPI: 'System Administrator + Network Engineer ekibine verdi', UZMAN: 'uzmana verdi', ISE_ALIM: 'İK işe alım yapacak', SORU_VAR: 'sana soru sordu' };
+const KARAR_ADI = { DANISMAN: 'Outsource Consultantʼa (Claude Code) verdi', YAZILIM: 'yazılım ekibine verdi', ALTYAPI: 'System Administrator + Network Engineer ekibine verdi', UZMAN: 'uzmana verdi', ISE_ALIM: 'İK işe alım yapacak', SORU_VAR: 'sana soru sordu' };
 function rolAdi(k) {
   if (!k) return '';
   const r = veri && (veri.roller || []).find(x => x.anahtar === k);
@@ -2330,7 +2331,8 @@ function kisiAyrintisi(r, v) {
     r.bugun && r.bugun.cagri ? E('div', { class: 'mb-alt' }, E('span', { text: `Bugün ${r.bugun.cagri} ajan çağrısı · ${sayiKisa(r.bugun.toplam)} token` })) : null,
     r.uzmanlik ? E('div', { class: 'kk-uzm', text: r.uzmanlik }) : null,
     E('div', { class: 'kk-dugmeler' }, E('button', { class: 'dugme kucuk', type: 'button', text: '🪪 Karakter kartı', title: 'Yetenekler, istatistik ve model zinciri', onclick: () => karakterAc(r.anahtar) })),
-    r.uzman_isi ? E('div', { class: 'kk-dugmeler' }, E('button', { class: 'dugme kucuk', type: 'button', text: 'Bu çalışana iş ver', title: 'İş Engineering Managerʼa bu çalışan önerilerek verilir', onclick: () => ekleAc({ rol: r.anahtar }) })) : null,
+    (r.uzman_isi || r.dogrudan_is) ? E('div', { class: 'kk-dugmeler' }, E('button', { class: 'dugme kucuk', type: 'button', text: 'Bu çalışana iş ver',
+      title: r.dogrudan_is ? 'İş, Product Managerʼın brifiyle doğrudan bu çalışana verilir' : 'İş Engineering Managerʼa bu çalışan önerilerek verilir', onclick: () => ekleAc({ rol: r.anahtar }) })) : null,
   ].filter(Boolean);
 }
 
@@ -3012,7 +3014,7 @@ const SERITLER = [
 ];
 const ADIMLAR = ['yeni', 'analiz', 'kesif', 'plan', 'gelistirme', 'kontrol', 'test', 'denetim', 'kabul', 'tamam'];
 const ADIM_ADI = { yeni: 'Sırada', analiz: 'Analiz', kesif: 'Keşif', plan: 'Plan', gelistirme: 'Yapım', kontrol: 'Kontrol', test: 'Test', denetim: 'İnceleme', kabul: 'Onay', tamam: 'Bitti' };
-const TUR_ADI = { yazilim: 'Yazılım', altyapi: 'Altyapı', uzman: 'Uzman', genel: 'Yeni iş' };
+const TUR_ADI = { yazilim: 'Yazılım', altyapi: 'Altyapı', uzman: 'Uzman', genel: 'Yeni iş', danisman: 'Danışman' };
 const BITEN_SAAT = 72;            // "biten" kapalıyken Tamamlandı şeridi son 3 günü gösterir
 const SERIT_SINIR = 12;
 const panoAyar = { tur: '', biten: false, gorunum: 'pano', ara: '', sirala: { k: 'guncelleme', yon: -1 } };
@@ -3806,20 +3808,21 @@ function cekmeceCiz() {
     ey.append(ip);
   }
   // sekmeler
-  const altyapi = d.tip === 'altyapi', uzman = d.tip === 'uzman', genel = d.tip === 'genel';
-  const sekmeler = [['ozet', 'Özet'], ['gorev', altyapi ? 'Talep' : (uzman || genel) ? 'İş' : 'Görev']];
+  const altyapi = d.tip === 'altyapi', uzman = d.tip === 'uzman', genel = d.tip === 'genel', danisman = d.tip === 'danisman';
+  const danismanKlasor = danisman && !g.dal;   // git dışı danışman işi: teslimler cikti\ klasöründe
+  const sekmeler = [['ozet', 'Özet'], ['gorev', altyapi ? 'Talep' : (uzman || genel || danisman) ? 'İş' : 'Görev']];
   if (d.gereksinimler_md) sekmeler.push(['gereksinim', 'Gereksinimler']);
   if (!altyapi && d.kesif_md) sekmeler.push(['kesif', 'Keşif']);
-  if (!genel) sekmeler.push(['plan', uzman ? 'Brif' : 'Plan']);
+  if (!genel) sekmeler.push(['plan', (uzman || danisman) ? 'Brif' : 'Plan']);
   if (d.yonlendirme_md) sekmeler.push(['yonlendirme', 'Engineering Manager kararı']);
   if (d.sorular_md) sekmeler.push(['soru', 'Soru']);
   if ((d.cozumler || []).length) sekmeler.push(['cozum', `Incident Manager (${d.cozumler.length})`]);
   const yardimSayisi = (d.yardimlar || []).filter(y => /^yardim-istek-/.test(y.ad)).length;
   if ((d.yardimlar || []).length) sekmeler.push(['yardimlar', `Ekip içi yardım (${yardimSayisi})`]);
   sekmeler.push(['turlar', `Turlar (${d.turlar.length})`]);
-  if (altyapi || uzman) {
+  if (altyapi || uzman || danismanKlasor) {
     const teslim = (d.ciktilar || []).filter(f => f.yol.startsWith('cikti/')).length;
-    sekmeler.push(['ciktilar', `Çıktılar (${uzman ? teslim : (d.ciktilar || []).length})`]);
+    sekmeler.push(['ciktilar', `Çıktılar (${(uzman || danismanKlasor) ? teslim : (d.ciktilar || []).length})`]);
     if (d.sonuc_md) sekmeler.push(['sonuc', 'Sonuç']);
     if (altyapi) sekmeler.push(['kesif', 'Keşif']);
   } else if (!genel) sekmeler.push(['diff', 'Diff']);
@@ -3876,7 +3879,10 @@ function ozetSekmesi(d, g) {
       ...satir('Sorumlu', g.sorumlu ? rolAdi(g.sorumlu) : null), ...satir('İnceleyen', g.inceleyen ? (g.inceleyen === 'yok' ? 'yalnızca Engineering Manager' : rolAdi(g.inceleyen)) : null),
       ...satir('İlgili klasör', g.kaynak_klasor ? E('code', { text: g.kaynak_klasor }) : null),
       ...satir('Çıktı klasörü', g.calisma_klasoru ? E('code', { text: g.calisma_klasoru + '\\cikti' }) : null)]
-    : [...satir('Proje', `${g.proje} (${g.klasor})`),
+    : [...satir('Tür', d.tip === 'danisman' ? 'Outsource Consultant: tek parça iş, terminal yetkili Claude Code (iç ekibe dağıtılmadı)' : null),
+      ...satir('Proje', g.klasor ? `${g.proje} (${g.klasor})` : (d.tip === 'danisman' ? null : g.proje)),
+      ...satir('Çalışma klasörü', d.tip === 'danisman' && g.calisma_klasoru ? E('code', { text: g.calisma_klasoru }) : null),
+      ...satir('Danışman', d.tip === 'danisman' && g.danisman ? aracMetni(g.danisman) : null),
       ...satir('Gereksinimler', g.gereksinim_durumu === 'hazir' ? `Product Manager netleştirdi${g.kapsam ? ' · kapsam: ' + ({ kucuk: 'küçük', orta: 'orta', buyuk: 'büyük' }[g.kapsam] || g.kapsam) : ''}` : null),
       ...satir('Keşif', g.kesif_durumu === 'hazir' ? 'Codebase Explorer depoyu taradı' : g.kesif_durumu === 'atlandi' ? 'gerekmedi (yeni depo)' : null),
       ...satir('İş dağılımı', (g.gelistirme_isleri || []).length ? g.gelistirme_isleri.map((p, i) => `${i + 1}. ${rolAdi(p.rol)}${p.durum === 'tamam' ? ' ✓' : ''}`).join(' → ') : (g.qa_testi !== undefined && g.qa_testi !== null ? 'Full-Stack Developer (tek parça)' : null)),
@@ -3984,8 +3990,8 @@ function dosyaEtiketi(ad) {
   if ((m = /^(\w+)-(.+)\.(istem\.md|son\.md|out\.txt|err\.txt)$/.exec(ad))) return `${m[1]} · ${m[2]} · ${{ 'istem.md': 'istem', 'son.md': 'yanıt', 'out.txt': 'çıktı', 'err.txt': 'hata akışı' }[m[3]]}`;
   return ad;
 }
-const ANA_DOSYA = /^(gelistirici-ozet\.md|gelistirici-ozet-\d+-[a-z0-9-]+\.md|test\.md|uygulama-ozet\.md|calisma-ozet\.md|kontrol\.md|denetim\.md|dogrulama\.md|inceleme\.md|inceleme-[a-z0-9-]+\.md|kabul\.md|geri-bildirim\.md|kesif\.md|degisiklik\.diff|dogrulama-\d+\.txt)$/;
-const SIRA = ['geri-bildirim.md', 'kesif.md', 'gelistirici-ozet.md', 'gelistirici-ozet-', 'uygulama-ozet.md', 'calisma-ozet.md', 'kontrol.md', 'dogrulama-', 'test.md', 'denetim.md', 'inceleme-', 'dogrulama.md', 'inceleme.md', 'kabul.md', 'degisiklik.diff'];
+const ANA_DOSYA = /^(danisman-rapor\.md|gelistirici-ozet\.md|gelistirici-ozet-\d+-[a-z0-9-]+\.md|test\.md|uygulama-ozet\.md|calisma-ozet\.md|kontrol\.md|denetim\.md|dogrulama\.md|inceleme\.md|inceleme-[a-z0-9-]+\.md|kabul\.md|geri-bildirim\.md|kesif\.md|degisiklik\.diff|dogrulama-\d+\.txt)$/;
+const SIRA = ['geri-bildirim.md', 'kesif.md', 'danisman-rapor.md', 'gelistirici-ozet.md', 'gelistirici-ozet-', 'uygulama-ozet.md', 'calisma-ozet.md', 'kontrol.md', 'dogrulama-', 'test.md', 'denetim.md', 'inceleme-', 'dogrulama.md', 'inceleme.md', 'kabul.md', 'degisiklik.diff'];
 const siraNo = ad => { const i = SIRA.findIndex(s => ad.startsWith(s)); return i < 0 ? 99 : i; };
 function turlarSekmesi(d, g) {
   const goruntuleyici = E('div', { class: 'goruntuleyici' });

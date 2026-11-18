@@ -44,7 +44,7 @@ function Oneri-Dogrula($O) {
     $s = [ordered]@{ tur = $tur; baslik = (Kisa $baslik 120); aciklama = (Kisa ([string]$O.aciklama).Trim() 8000); oncelik = 2 }
     if (@(1, 2, 3) -contains [int]$O.oncelik) { $s.oncelik = [int]$O.oncelik }
     $rolAnahtar = ([string]$O.rol).Trim()
-    if ($rolAnahtar) { $u = Kadro-Uye $rolAnahtar; if ($u -and $u.uzman_isi) { $s.rol = $rolAnahtar } }
+    if ($rolAnahtar) { $u = Kadro-Uye $rolAnahtar; if ($u -and ($u.uzman_isi -or $u.dogrudan_is)) { $s.rol = $rolAnahtar } }
     if ($O.proje) { $s.proje = Kisa ([string]$O.proje).Trim() 400 }
     if ($O.klasor) { $s.klasor = Kisa ([string]$O.klasor).Trim() 400 }
     if ($O.hedef) { $s.hedef = @(@($O.hedef) | ForEach-Object { Kisa ([string]$_).Trim() 60 } | Where-Object { $_ } | Select-Object -First 8) }

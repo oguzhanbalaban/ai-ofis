@@ -94,10 +94,13 @@ $script:UzmanMetni = @{
 }
 $script:UzmanAsamaAdlari = @{ gelistirme = 'Çalışılıyor'; denetim = 'İnceleniyor'; tamamla = 'Kapatılıyor' }
 # Kalp atışındaki adım etiketi -> görev aşaması
-$script:EtiketAsama = @{ uygulama = 'gelistirme'; dogrulama = 'denetim'; calisma = 'gelistirme'; inceleme = 'denetim'; ise_alim = 'plan' }
+$script:EtiketAsama = @{ uygulama = 'gelistirme'; dogrulama = 'denetim'; calisma = 'gelistirme'; inceleme = 'denetim'; ise_alim = 'plan'; danisman = 'gelistirme' }
+# Outsource Consultant işleri (tip = danisman; danisman.ps1): her aşama danışmanda
+$script:DanismanAsamaAdlari = @{ yeni = 'Danışmana veriliyor'; gelistirme = 'Danışmanda (Claude Code)'; kontrol = 'Kontrol ediliyor'; tamamla = 'Kapatılıyor' }
+$script:DanismanMetni = @{ yeni = 'Çalışma klasörünü hazırlıyor'; gelistirme = 'Claude Code ile işi baştan sona yapıyor'; kontrol = 'Sonucu otomatik kontrolden geçiriyor'; tamamla = 'Sonucu teslim ediyor' }
 function Gorev-Tipi($G) {
     $t = [string](Ozellik $G 'tip')
-    if ($t -eq 'altyapi' -or $t -eq 'uzman' -or $t -eq 'genel') { return $t }
+    if ($t -eq 'altyapi' -or $t -eq 'uzman' -or $t -eq 'genel' -or $t -eq 'danisman') { return $t }
     return 'yazilim'
 }
 function Altyapi-Mi($G) { return ((Gorev-Tipi $G) -eq 'altyapi') }
@@ -156,6 +159,7 @@ function Gorev-Rolu-Ham($G, [string]$Etiket = '') {
     $asama = [string]$G.asama
     $tip = Gorev-Tipi $G
     if ($asama -eq 'analiz') { return 'urun' }   # Product Manager ("İş ver" ve yazılım işleri)
+    if ($tip -eq 'danisman') { return 'danisman' }   # Outsource Consultant
     if ($tip -eq 'genel' -or $asama -eq 'yardim') { return 'lider' }
     if ($tip -eq 'altyapi') {
         $sorumlu = [string](Ozellik $G 'sorumlu'); if ($sorumlu -ne 'ag') { $sorumlu = 'sistem' }
@@ -184,6 +188,7 @@ function Asama-Adi-Bul($G) {
     $tip = Gorev-Tipi $G
     if ($tip -eq 'altyapi' -and $AltyapiAsamaAdlari.ContainsKey($asama)) { return $AltyapiAsamaAdlari[$asama] }
     if ($tip -eq 'uzman' -and $UzmanAsamaAdlari.ContainsKey($asama)) { return $UzmanAsamaAdlari[$asama] }
+    if ($tip -eq 'danisman' -and $DanismanAsamaAdlari.ContainsKey($asama)) { return $DanismanAsamaAdlari[$asama] }
     if ($tip -eq 'genel' -and $GenelAsamaAdlari.ContainsKey($asama)) { return $GenelAsamaAdlari[$asama] }
     if ($AsamaAdlari.ContainsKey($asama)) { return $AsamaAdlari[$asama] }
     return $asama
@@ -784,6 +789,9 @@ function Durum-Uret {
             elseif ($altyapi) {
                 $faaliyet = $AltyapiFaaliyet[$asama]; $metin = $AltyapiMetni[$asama]
                 if ($asama -eq 'gelistirme' -and $rol -eq 'ag') { $metin = 'Ağ işini yapıyor' }
+            } elseif ($aktifTip -eq 'danisman') {
+                $faaliyet = $(if ($asama -eq 'kontrol') { 'kontrol' } else { 'calisma' }); $metin = $DanismanMetni[$asama]
+                if (-not $metin) { $metin = 'Claude Code ile çalışıyor' }
             } elseif ($aktifTip -eq 'uzman') {
                 $faaliyet = $UzmanFaaliyet[$asama]; $metin = $UzmanMetni[$asama]
                 if ($asama -eq 'gelistirme' -and $uye.faaliyet_metni) { $metin = [string]$uye.faaliyet_metni }
@@ -845,7 +853,7 @@ function Durum-Uret {
         $roller.Add([ordered]@{
             anahtar = $rol; ad = [string]$uye.ad; departman = [string]$uye.departman; renk = [string](Ozellik $uye 'renk'); renk_koyu = [string](Ozellik $uye 'renk_koyu')
             uzmanlik = [string](Ozellik $uye 'uzmanlik'); yetki = [string](Ozellik $uye 'yetki'); yerlesik = [bool](Ozellik $uye 'yerlesik')
-            uzman_isi = [bool](Ozellik $uye 'uzman_isi'); tanisma = [string](Ozellik $uye 'tanisma'); ise_alan = [string](Ozellik $uye 'ise_alan')
+            uzman_isi = [bool](Ozellik $uye 'uzman_isi'); dogrudan_is = [bool](Ozellik $uye 'dogrudan_is'); tanisma = [string](Ozellik $uye 'tanisma'); ise_alan = [string](Ozellik $uye 'ise_alan')
             yeni = [bool]($iseAlinma -and ($simdi - $iseAlinma).TotalDays -lt 7)
             faaliyet = $faaliyet; metin = $metin; calisiyor = [bool]$isbasinda
             gorev = $gorevBilgi; baslangic = $baslangic; arac = $arac; arac_kaynak = $aracKaynak; zincir = $zincir
@@ -1451,6 +1459,7 @@ $script:RolIstemleri = @{
     sistem = @('altyapi-uygulama.md', 'altyapi-dogrulama.md'); ag = @('altyapi-uygulama.md', 'altyapi-dogrulama.md')
     tester = @('qa-test.md', 'tester-inceleme.md', 'uzman-calisma.md'); ik = @('ik-ise-alim.md')
     urun = @('urun-analiz.md'); kasif = @('kasif-kesif.md'); frontend = @('gelistirici.md'); backend = @('gelistirici.md'); cto = @('cto-degerlendirme.md')
+    danisman = @('danisman-gorev.md', 'danisman-claude.md')
 }
 $script:RolAdimlari = @{
     lider = @('İş ver yönlendirmesi', 'Plan ve iş dağılımı', 'Kabul / ret', 'Ekip içi yardım kararı'); 'sorun-giderici' = @('Takılan işi inceleme', 'Kök neden kategorisi')
@@ -1458,6 +1467,7 @@ $script:RolAdimlari = @{
     tester = @('Yazılım işinde test (birim / entegrasyon)', 'Ek inceleme (test)', 'Uzman işi inceleme', 'Test işi'); ik = @('İşe alım')
     urun = @('Gereksinim analizi (kabul ölçütleri)'); kasif = @('Kod tabanı keşfi'); frontend = @('Önyüz geliştirme parçası'); backend = @('Arka uç geliştirme parçası')
     cto = @('Yönetim değerlendirmesi (ofis boştayken)', 'Ekip ilkeleri', 'Önceliklendirme', 'İş önerisi')
+    danisman = @('Tek parça iş: terminal yetkili Claude Code (claude -p, CLAUDE.md kuralları)', 'Sonucu ve özeti ofise / sohbete raporlama')
 }
 function Karakter-Bilgisi([string]$Rol) {
     $Rol = Sohbet-Rolu $Rol
@@ -1499,7 +1509,7 @@ function Karakter-Bilgisi([string]$Rol) {
     $adimlar = @(); if ($RolAdimlari.ContainsKey($Rol)) { $adimlar = $RolAdimlari[$Rol] } elseif ([bool](Ozellik $uye 'uzman_isi')) { $adimlar = @('Uzman işi (sorumlu)', 'İnceleyen', 'Ek inceleme') }
     return [ordered]@{
         anahtar = $Rol; ad = [string]$uye.ad; rol_tr = [string](Ozellik $uye 'rol_tr'); departman = [string](Ozellik $uye 'departman')
-        yetki = [string](Ozellik $uye 'yetki'); uzmanlik = [string](Ozellik $uye 'uzmanlik'); uzman_isi = [bool](Ozellik $uye 'uzman_isi'); yerlesik = [bool](Ozellik $uye 'yerlesik')
+        yetki = [string](Ozellik $uye 'yetki'); uzmanlik = [string](Ozellik $uye 'uzmanlik'); uzman_isi = [bool](Ozellik $uye 'uzman_isi'); dogrudan_is = [bool](Ozellik $uye 'dogrudan_is'); yerlesik = [bool](Ozellik $uye 'yerlesik')
         tanisma = [string](Ozellik $uye 'tanisma'); ise_alan = [string](Ozellik $uye 'ise_alan'); ise_alinma = [string](Ozellik $uye 'ise_alinma')
         faaliyet_metni = [string](Ozellik $uye 'faaliyet_metni'); kadro_zinciri = @(Ozellik $uye 'araclar' | Where-Object { $_ })
         adimlar = $adimlar; istemler = $istemler; talimat = $talimat; istatistik = $st; isler = $isler; yardim_istedi = $yardimIstedi; yardim_etti = $yardimEtti
@@ -1589,7 +1599,7 @@ function Kaynak-Listesi {
         @('Adım istemleri', '*.md', 'istemler'), @('Rol talimatları (yetenekler)', '*.md', 'istemler\kadro'),
         @('Ayarlar', 'ayarlar.json', ''), @('Ayarlar', 'ayarlar.yerel.json', ''), @('Ayarlar', 'kadro.json', ''), @('Ayarlar', 'kadro.yerel.json', ''),
         @('Ayarlar', 'projeler.json', ''), @('Ayarlar', 'projeler.yerel.json', ''),
-        @('Araçlar', '*.ps1', 'araclar'), @('Araçlar', '*.py', 'araclar'), @('Testler', '*.ps1', 'testler'), @('Belgeler', 'README.md', '')
+        @('Araçlar', '*.ps1', 'araclar'), @('Araçlar', '*.py', 'araclar'), @('Testler', '*.ps1', 'testler'), @('Outsource Consultant masası', 'CLAUDE.md', 'danisman'), @('Belgeler', 'README.md', '')
     )
     $l = New-Object Collections.Generic.List[object]
     foreach ($g in $gruplar) {

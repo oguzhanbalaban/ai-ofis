@@ -33,6 +33,8 @@ $script:AktifAsamalar = @('yeni', 'analiz', 'kesif', 'plan', 'gelistirme', 'kont
 . (Join-Path $PSScriptRoot 'planlama.ps1')
 # Yönetim katmanı: CTOʼnun dönemsel değerlendirmesi, ekip ilkeleri, önceliklendirme
 . (Join-Path $PSScriptRoot 'yonetim.ps1')
+# Outsource Consultant: tek parça işler terminal yetkili Claude Codeʼa (tip = danisman)
+. (Join-Path $PSScriptRoot 'danisman.ps1')
 
 # ---------------------------------------------------------------- yardımcılar
 function Tur-Klasoru($G) {
@@ -507,6 +509,7 @@ function Gorev-Ilerlet-Adim($G) {
         elseif ($G.asama -eq 'analiz' -and @('altyapi', 'uzman') -notcontains [string]$G.tip) { Adim-Analiz $G }
         elseif ($G.tip -eq 'altyapi') { Altyapi-Adim $G }
         elseif ($G.tip -eq 'uzman') { Uzman-Adim $G }
+        elseif ($G.tip -eq 'danisman') { Danisman-Adim $G }
         elseif ($G.tip -eq 'genel') { Genel-Adim $G }
         else { switch ($G.asama) {
             'yeni'       { Adim-Hazirla $G }

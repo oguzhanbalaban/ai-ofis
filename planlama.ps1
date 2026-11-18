@@ -45,7 +45,7 @@ function Kod-Yazar-mi([string]$Rol) {
 }
 function Karar-Satirini-At([string]$Metin) {
     # Çıktının makine satırları (KARAR, KAPSAM, öneri alanları) başka istemlere girince taklit edilmesin
-    return ((([string]$Metin) -split "`r?`n" | Where-Object { $_ -notmatch '^\W{0,4}(KARAR|KAPSAM|GELISTIRME_ONERISI|GUVENLIK_HASSAS|TEST_KOMUTU|PUAN|PUAN_GEREKCE)\W{0,4}\s*[:=]' }) -join "`n").Trim()
+    return ((([string]$Metin) -split "`r?`n" | Where-Object { $_ -notmatch '^\W{0,4}(KARAR|KAPSAM|ATAMA|PROJE|GELISTIRME_ONERISI|GUVENLIK_HASSAS|TEST_KOMUTU|PUAN|PUAN_GEREKCE)\W{0,4}\s*[:=]' }) -join "`n").Trim()
 }
 
 # ---------------------------------------------------------------- hangi hazırlık adımı gerekli
@@ -93,7 +93,15 @@ function Adim-Analiz($G) {
         $klasor = $wt
         $proje = "Proje: $($G.proje). Çalışma klasörün bu projenin görev dalı; README ve genel yapıya bakabilirsin (kodu ayrıntılı taramak Codebase Explorerʼın işi)."
     } elseif ([string]$G.ipucu) { $proje = "Kullanıcının ipucu (ilgili proje / klasör): $($G.ipucu)" }
-    $istem = Sablon-Doldur 'urun-analiz.md' @{ GOREV = (Gorev-Ham-Metni $G); ONCEKI = $onceki; SORU_HAKKI = $soruNotu; PROJE = $proje }
+    # Karşılama kararı: tek parça iş Outsource Consultantʼa (danisman.ps1); kullanıcı doğrudan ona verdiyse zorunlu
+    $zorunluDanisman = ([string]$G.istenen_rol -eq 'danisman')
+    $danismanUygun = (Danisman-Hazir-mi) -and ([string]$G.tip -eq 'genel' -or $zorunluDanisman)
+    $dNot = 'Outsource Consultant bu iş için seçenek değil: ATAMA: ekip yaz.'
+    if ($danismanUygun) {
+        $dNot = 'Outsource Consultant kullanılabilir; işin yapısına göre karar ver.'
+        if ($zorunluDanisman) { $dNot = 'Kullanıcı bu işi doğrudan Outsource Consultantʼa verdi: ATAMA: danisman yaz ve "## Danışman brifi" bölümünü hazırla.' }
+    }
+    $istem = Sablon-Doldur 'urun-analiz.md' @{ GOREV = (Gorev-Ham-Metni $G); ONCEKI = $onceki; SORU_HAKKI = $soruNotu; PROJE = $proje; DANISMAN = $dNot }
     $r = Ajan-Cagir -Rol 'urun' -Istem $istem -Klasor $klasor -KayitKlasoru (Kayit-Klasoru $G) -Etiket 'analiz'
     if (-not $r.basarili) { Adim-Basarisiz $G "Product Manager talebi analiz edemedi: $($r.hata)"; return }
     Ayarla $G 'urun' ('{0}/{1}' -f $r.arac, $r.model)
@@ -117,10 +125,14 @@ function Adim-Analiz($G) {
         return
     }
     $ek = ''; if ($karar -eq 'SORU_VAR') { $ek = ' (soru hakkı dolu; varsayımlarla)' }
-    Metin-Yaz (Join-Path $gk 'gereksinimler.md') (Karar-Satirini-At $r.metin)
+    Metin-Yaz (Join-Path $gk 'gereksinimler.md') ([regex]::Replace((Karar-Satirini-At $r.metin), '(?ms)^#{1,3}\s*Danışman brifi\s*$.*?(?=^#{1,3}\s|\z)', '').Trim())
     Ayarla $G 'gereksinim_durumu' 'hazir'
     $kapsam = (Alan-Oku $r.metin 'KAPSAM').ToLowerInvariant()
     if (@('kucuk', 'küçük', 'orta', 'buyuk', 'büyük') -contains $kapsam) { Ayarla $G 'kapsam' ($kapsam -replace 'ü', 'u' -replace 'ç', 'c') }
+    if ($danismanUygun) {
+        $atama = (Alan-Oku $r.metin 'ATAMA').ToLowerInvariant()
+        if ($zorunluDanisman -or $atama -match '^\W*danisman') { Danismana-Aktar $G $r.metin $r 'Product Manager'; return }
+    }
     $sonraki = 'plan'
     if ([string]$G.tip -ne 'genel') { $sonraki = Hazirlik-Sonraki $G }
     Asama-Gec $G $sonraki ("gereksinimler hazır$ek") (Kisalt (Bolum-Oku $r.metin 'Talep özeti') 300) $r

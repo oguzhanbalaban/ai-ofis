@@ -383,6 +383,21 @@
             "ise_alinma": null,
             "ise_alan": null,
             "rol_tr": "Ses ve müzik tasarımcısı"
+        },
+        {
+            "anahtar": "danisman",
+            "ad": "Outsource Consultant",
+            "rol_tr": "Dış danışman (Claude Code)",
+            "departman": "Dış danışmanlık",
+            "yerlesik": true,
+            "uzman_isi": false,
+            "dogrudan_is": true,
+            "yetki": "tam",
+            "renk": "#be123c",
+            "renk_koyu": "#fb7185",
+            "uzmanlik": "Paralel ekip çalışması gerektirmeyen, tek bağlam penceresinde baştan sona çözülebilecek işleri iç ekibe dağıtılmadan tek başına yapar: terminal yetkili Claude Code (claude -p) olarak kendi masasındaki CLAUDE.md kurallarıyla çalışır, gerektiğinde diğer araçları ve modelleri terminalden kullanır, sonucu ve özetini ofise raporlar.",
+            "istem": "istemler\\kadro\\danisman.md",
+            "faaliyet_metni": "Claude Code ile çalışıyor"
         }
     ]
 }

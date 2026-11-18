@@ -61,6 +61,7 @@ function Kadro-Metni {
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('Yazılım işleri Full-Stack Developer+Code Reviewer akışında, sunucu/kurulum/ağ işleri System Administrator+Network Engineer akışında yürür; "uzman işi alır = evet" olanlar uzman işlerinde SORUMLU ya da INCELEYEN olabilir.')
     [void]$sb.AppendLine('Yetki: oku = yalnızca okur ve görüş verir; yaz = kendi çalışma klasöründe dosya yazar (Claude ile komut çalıştıramaz, Codex ile internetsiz komut çalıştırır); tam = bu bilgisayarda ve VMʼlerde komut, kurulum, internet.')
+    [void]$sb.AppendLine('Outsource Consultant (danisman) iç ekibe dağıtılmayan tek parça işleri terminal yetkili Claude Code olarak tek başına yapar (Product Manager karşılamada yönlendirir).')
     [void]$sb.AppendLine('Kimse yetkisi dışındaki işi kendisi yapamaz; Engineering Manager üzerinden ekip arkadaşından yardım ister: kısa işler (paket kurma, belge indirme, kodu çalıştırma / test) birlikte çalışmayla hemen, uzun işler ayrı yardım işiyle yapılır.')
     return $sb.ToString()
 }

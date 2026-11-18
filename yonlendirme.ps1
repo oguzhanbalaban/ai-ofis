@@ -176,6 +176,8 @@ function Yonetici-Yonlendir($G) {
 function Genel-Adim($G) {
     # Gereksinimler henüz netleşmediyse önce Product Manager (planlama.ps1); 'analiz' aşamasını ekip.ps1 > Gorev-Ilerlet-Adim yürütür
     if (Analiz-Gerekli $G) { Asama-Gec $G 'analiz' 'Product Manager talebi netleştirecek'; return }
+    # Kullanıcı işi doğrudan Outsource Consultantʼa verdiyse ve Product Manager devretmediyse (kapalı / modelsiz) görev metniyle devret
+    if ([string]$G.istenen_rol -eq 'danisman' -and (Danisman-Hazir-mi)) { Danismana-Aktar $G (Gorev-Metni $G) $null 'Kullanıcının doğrudan ataması'; return }
     # 'yeni' ilk yönlendirme; 'plan' gereksinimler hazır ya da kullanıcı soruyu yanıtladıktan sonra (Bekleyenleri-Kontrol) yönlendirme
     Yonetici-Yonlendir $G
 }

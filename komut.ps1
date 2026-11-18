@@ -81,6 +81,7 @@ function Adim-Rolu($G) {
     if ($a -eq 'takildi') { $a = [string]$G.takildi_asama }
     $tip = [string]$G.tip; if (-not $tip) { $tip = 'yazilim' }
     if ($a -eq 'analiz') { return 'urun' }   # Product Manager (planlama.ps1)
+    if ($tip -eq 'danisman') { return 'danisman' }   # Outsource Consultant (danisman.ps1)
     if ($a -eq 'yardim' -or $tip -eq 'genel') { return 'lider' }
     if ($tip -eq 'altyapi') {
         $s = [string]$G.sorumlu; if ($s -ne 'ag') { $s = 'sistem' }

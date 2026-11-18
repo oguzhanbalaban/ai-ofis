@@ -200,6 +200,16 @@
                 "model": "gpt-6.1-sol",
                 "efor": "high"
             }
+        ],
+        "danisman": [
+            {
+                "arac": "claude",
+                "model": "claude-opus-5-5"
+            },
+            {
+                "arac": "claude",
+                "model": "claude-sonnet-5-5"
+            }
         ]
     },
     "model_katalogu": {
@@ -291,6 +301,51 @@
         "en_az_biten": 1,
         "ilke_siniri": 15,
         "aciklama": "Yönetim katmanı (yonetim.ps1): CTO ofis boştayken aralik_saat saatte bir, son değerlendirmeden beri en az en_az_biten iş bittiyse / takıldıysa / iptal edildiyse (ya da panelden istenince) yönetim değerlendirmesi yapar; ekip ilkelerini (en fazla ilke_siniri madde, her iş istemine gider) günceller, başlamamış işleri önceliklendirir, iş önerir."
+    },
+    "danisman": {
+        "etkin": true,
+        "zaman_asimi_dk": 120,
+        "izinli_araclar": [
+            "Read",
+            "Glob",
+            "Grep",
+            "Edit",
+            "Write",
+            "NotebookEdit",
+            "Bash",
+            "PowerShell",
+            "WebFetch",
+            "WebSearch",
+            "Agent",
+            "Task",
+            "TodoWrite"
+        ],
+        "yasak_araclar": [
+            "Bash(git push *)",
+            "Bash(git remote *)",
+            "Bash(git config --global *)",
+            "Bash(vmrun *)",
+            "Bash(shutdown *)",
+            "Bash(netsh *)",
+            "Bash(reg add *)",
+            "Bash(reg delete *)",
+            "Bash(bcdedit *)",
+            "Bash(format *)",
+            "Bash(rm -rf /)",
+            "Bash(rm -rf /*)",
+            "Bash(rm -rf ~*)",
+            "PowerShell(git push *)",
+            "PowerShell(vmrun *)",
+            "PowerShell(Set-MpPreference *)",
+            "PowerShell(Add-MpPreference *)",
+            "PowerShell(Set-NetFirewallProfile *)",
+            "PowerShell(Set-NetFirewallRule *)",
+            "PowerShell(New-NetFirewallRule *)",
+            "PowerShell(Set-ExecutionPolicy *)",
+            "PowerShell(Stop-Computer *)",
+            "PowerShell(Restart-Computer *)"
+        ],
+        "aciklama": "Outsource Consultant (danisman.ps1): tek parça işleri terminal yetkili Claude Code (claude -p) yapar. Çalışma dizini danisman\\ (CLAUDE.md: kurallar ve öncelikler); işin klasörü --add-dir ile açılır. --permission-mode dontAsk: izinli_araclar dışındaki her araç sormadan reddedilir (arka planda onay bekleyip kilitlenmez); yasak_araclar kuralları (ör. Bash(git push *)) izinlerden önce gelir. zaman_asimi_dk: tek çalışmanın süre sınırı."
     },
     "korunan_desenler": [
         ".env",
