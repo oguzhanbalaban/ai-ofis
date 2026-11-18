@@ -26,13 +26,13 @@
             "alan": "SAP Data Services ETL işleri, SAP BusinessObjects universe (UNX) ve Web Intelligence raporları, veri ambarı (SAP IQ / SQL Server), BI analizi ve veri kalitesi"
         },
         {
-            "id": "creativity",
-            "ad": "Creativity Office",
-            "kisa_ad": "Creativity",
+            "id": "innovation-lab",
+            "ad": "Innovation Lab",
+            "kisa_ad": "Innovation",
             "kat_no": 1,
             "tur": "ekip",
-            "kok": "katlar\\creativity",
-            "panel": "panel-creativity.html",
+            "kok": "katlar\\innovation-lab",
+            "panel": "panel-innovation-lab.html",
             "renk": "#a21caf",
             "simge": "🎨",
             "alan": "Fikir üretme, ürün / oyun konsepti, eleştiri, POC planı ve maliyet (onaylanan POC ana kata yaptırılır, sonuç puanlanır); logo, görsel, arayüz ve ses tasarımı"

@@ -17,7 +17,7 @@ Yetkin: {YETKI}
 
 Kurallar:
 - Parola, anahtar ve benzeri gizli bilgileri dosyalara ve rapora yazma.
-- Ofisin (creativity-office) klasöründeki betiklere, ayarlara ve başka görevlerin dosyalarına dokunma.
+- Ofisin (katlar\innovation-lab) klasöründeki betiklere, ayarlara ve başka görevlerin dosyalarına dokunma.
 - Telif hakkıyla korunan karakter, marka ya da eserleri kopyalama; özgün üret.
 
 İşin bitince son mesajın şu başlıkları içersin:

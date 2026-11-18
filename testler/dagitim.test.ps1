@@ -44,11 +44,11 @@ try {
     $istemler = @(Get-ChildItem -LiteralPath (Join-Path $kaynak 'istemler') -Filter '*.md' -File -Recurse)
     Dogrula ($istemler.Count -eq 52) '36 akış (Comms, fikir hattı ve ofis geliştirme rehberi dahil) ve 16 kadro istemi'
     $katlarJ = Json (Join-Path $kaynak 'katlar.json')
-    Dogrula ((@($katlarJ.katlar | ForEach-Object { $_.id }) -join ',') -eq 'ana,data-analytics,creativity,creative-studio' -and @($katlarJ.katlar | Where-Object { [string]$_.kok -match ':' }).Count -eq 0) 'Şirket binası: dört kat, göreli kat klasörleri'
+    Dogrula ((@($katlarJ.katlar | ForEach-Object { $_.id }) -join ',') -eq 'ana,data-analytics,innovation-lab,creative-studio' -and @($katlarJ.katlar | Where-Object { [string]$_.kok -match ':' }).Count -eq 0) 'Şirket binası: dört kat, göreli kat klasörleri'
     $katMetni = (@(Get-ChildItem -LiteralPath (Join-Path $kaynak 'katlar') -Recurse -File | Where-Object { $_.Extension -in @('.json', '.md', '.ps1', '.py', '.java', '.unxspec') } | ForEach-Object { [IO.File]::ReadAllText($_.FullName) }) -join "`n")
     Dogrula ($katMetni -notmatch '(?i)C:\\Users\\[A-Za-z]|192\.168\.168\.|ntfy_konu"\s*:\s*"[a-z]') 'Kat şablonları kişisel yol / adres / bildirim konusu içermiyor'
     $daAyar = Json (Join-Path $kaynak 'katlar\data-analytics\ayarlar.json')
-    Dogrula (-not $daAyar.bildirim -and -not $daAyar.claude -and $daAyar.roller -and (Json (Join-Path $kaynak 'katlar\creativity\kadro.json')).uyeler.anahtar -contains 'iletisim') 'Kat ayarları yalnız kata özgü (ortak ayarlar ana kattan); Creativity katında Comms var'
+    Dogrula (-not $daAyar.bildirim -and -not $daAyar.claude -and $daAyar.roller -and (Json (Join-Path $kaynak 'katlar\innovation-lab\kadro.json')).uyeler.anahtar -contains 'iletisim') 'Kat ayarları yalnız kata özgü (ortak ayarlar ana kattan); Innovation Lab katında Comms var'
     $masaMd = Join-Path $kaynak 'danisman\CLAUDE.md'
     $masaAna = [IO.File]::ReadAllText($masaMd).Replace("`r`n", "`n").Trim()
     Dogrula ((@('AGENTS.md', 'GEMINI.md') | Where-Object { [IO.File]::ReadAllText((Join-Path $kaynak "danisman\$_")).Replace("`r`n", "`n").Contains($masaAna) }).Count -eq 2 -and $masaAna -notmatch '(?i)C:\\Users') 'Danışman masası: CLAUDE.md yol içermez; AGENTS.md ve GEMINI.md onun kopyası'
@@ -174,7 +174,7 @@ try {
     $yerel = Json (Join-Path $paket 'ayarlar.yerel.json')
     Dogrula ((@($yerel.roller.danisman)[0].arac -eq 'codex') -and (@($yerel.roller.danisman | Where-Object { $_.arac -eq 'claude' }).Count -ge 1) -and (@($yerel.roller.lider)[0].arac -eq 'claude')) 'Kurulumda seçilen yapay zeka (Codex) danışman oldu; diğer roller ve yedek zincir korunur'
     $katY = Json (Join-Path $paket 'katlar\data-analytics\ayarlar.yerel.json')
-    $katKadroY = Json (Join-Path $paket 'katlar\creativity\kadro.yerel.json')
+    $katKadroY = Json (Join-Path $paket 'katlar\innovation-lab\kadro.yerel.json')
     $katDurdur = Join-Path $paket 'katlar\data-analytics\DURDUR'
     Dogrula ($katY -and (@($katY.roller.lider | ForEach-Object { $_.arac }) -join ',') -eq (@($yerel.roller.lider | ForEach-Object { $_.arac }) -join ',') -and $katKadroY -and (Test-Path -LiteralPath $katDurdur) -and ([IO.File]::ReadAllText($katDurdur)).StartsWith('Ofis kapatıldı')) 'Kurulum alt katların rol zincirlerini uyarladı (*.yerel.json); katlar kapalı başlar'
     Dogrula ($script:listeCagrildi -and $yerel.altyapi.makineler.Count -eq 3) 'vmrun list ve VMX birleşimi, tekilleştirme, kapalı VM ve ana makine'
@@ -234,7 +234,7 @@ try {
     & git init -q -- $ignoreDepo | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Geçici depo oluşturulamadı (git init).' }
     Copy-Item -LiteralPath (Join-Path $kaynak '.gitignore') -Destination $ignoreDepo
-    $izin = @('durum/a.json','gunluk/a.log','raporlar/a.html','calisma/a','gorevler/0001/gorev.md','ayarlar.yerel.json','kadro.yerel.json','projeler.yerel.json','ayarlar.yerel.json.bak','eposta.json','BAGLANTI-BILGILERI.md','ofis/uzak.json','ofis/sunucu.json','danisman/notlar/a.md','sirket/yazismalar/a.json','katlar/data-analytics/durum/a.json','katlar/creativity/gorevler/0001/durum.json','katlar/data-analytics/ayarlar.yerel.json','katlar/data-analytics/DURDUR','katlar/creative-studio/.env','katlar/creative-studio/backend/.venv/a.py')
+    $izin = @('durum/a.json','gunluk/a.log','raporlar/a.html','calisma/a','gorevler/0001/gorev.md','ayarlar.yerel.json','kadro.yerel.json','projeler.yerel.json','ayarlar.yerel.json.bak','eposta.json','BAGLANTI-BILGILERI.md','ofis/uzak.json','ofis/sunucu.json','danisman/notlar/a.md','sirket/yazismalar/a.json','katlar/data-analytics/durum/a.json','katlar/innovation-lab/gorevler/0001/durum.json','katlar/data-analytics/ayarlar.yerel.json','katlar/data-analytics/DURDUR','katlar/creative-studio/.env','katlar/creative-studio/backend/.venv/a.py')
     foreach ($yol in $izin) {
         $null = & git -C $ignoreDepo check-ignore --quiet -- $yol
         Dogrula ($LASTEXITCODE -eq 0) "$yol Git dışında"
@@ -249,7 +249,7 @@ try {
         $adlar = @($arsiv.Entries | ForEach-Object { $_.FullName })
         Dogrula ($adlar.Count -eq 233) 'ZIP 233 dağıtım dosyası içeriyor (danışman masası, şirket binasının katları ve kendi kendini geliştirme dahil)'
         Dogrula (@($adlar | Where-Object { $_ -in @('kendini.ps1', 'istemler/ofis-gelistirme.md', 'testler/ofis-duman.test.ps1', 'testler/kendini-gelistirme.test.ps1') }).Count -eq 4) 'ZIP kendi kendini geliştirmeyi içeriyor (ayna, canlıya alma, rehber, testler)'
-        Dogrula (@($adlar | Where-Object { $_ -in @('katlar.json', 'katlar/data-analytics/kadro.json', 'katlar/creativity/kadro.json', 'katlar/creative-studio/backend/app/main.py', 'katlar/creative-studio/.env.example', 'ofis/bina.html', 'iletisim.ps1') }).Count -eq 7) 'ZIP şirket binasını içeriyor (katlar, bina paneli, Comms, Creative Studio kaynağı)'
+        Dogrula (@($adlar | Where-Object { $_ -in @('katlar.json', 'katlar/data-analytics/kadro.json', 'katlar/innovation-lab/kadro.json', 'katlar/creative-studio/backend/app/main.py', 'katlar/creative-studio/.env.example', 'ofis/bina.html', 'iletisim.ps1') }).Count -eq 7) 'ZIP şirket binasını içeriyor (katlar, bina paneli, Comms, Creative Studio kaynağı)'
         Dogrula (@($adlar | Where-Object { $_ -match '^katlar/.*(\.yerel\.|/DURDUR$|/\.env$|/durum/|/gorevler/|node_modules|\.venv)' }).Count -eq 0) 'ZIP katların kişisel / çalışma dosyalarını dışlıyor'
         Dogrula (@($adlar | Where-Object { $_ -in @('danisman/CLAUDE.md', 'danisman/AGENTS.md', 'danisman/GEMINI.md') }).Count -eq 3) 'ZIP danışman masasını (CLAUDE.md, AGENTS.md, GEMINI.md) içeriyor'
         Dogrula (@($adlar | Where-Object { $_ -match '\.yerel\.|ozel-not|^durum/|^gorevler/|^raporlar/' }).Count -eq 0) 'ZIP kişisel ayarları ve ek kullanıcı dosyalarını dışlıyor'

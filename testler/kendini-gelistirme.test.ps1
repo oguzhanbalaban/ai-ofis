@@ -77,7 +77,7 @@ try {
     Dogrula 'yönlendirme proje tablosu ofisin kendi projesini anlatır' ((Projeler-Metni) -match 'PROJE: ai-ekip-ofis')
     Kendi-Projesi-Hazirla
     Dogrula 'ikinci çağrı yeni kayıt açmaz' (@((Projeleri-Yukle).projeler | Where-Object { $_.kendi }).Count -eq 1)
-    Dogrula 'kapsam: kod / istem canlıya alınır, ayar JSON ve rehber alınmaz' ((Canliya-Alinir-mi 'ekip.ps1') -and (Canliya-Alinir-mi 'istemler\kadro\iletisim.md') -and (Canliya-Alinir-mi 'katlar\creativity\istemler\lider-plan.md') -and -not (Canliya-Alinir-mi 'ayarlar.json') -and -not (Canliya-Alinir-mi 'katlar\creativity\kadro.json') -and -not (Canliya-Alinir-mi 'CLAUDE.md'))
+    Dogrula 'kapsam: kod / istem canlıya alınır, ayar JSON ve rehber alınmaz' ((Canliya-Alinir-mi 'ekip.ps1') -and (Canliya-Alinir-mi 'istemler\kadro\iletisim.md') -and (Canliya-Alinir-mi 'katlar\innovation-lab\istemler\lider-plan.md') -and -not (Canliya-Alinir-mi 'ayarlar.json') -and -not (Canliya-Alinir-mi 'katlar\innovation-lab\kadro.json') -and -not (Canliya-Alinir-mi 'CLAUDE.md'))
 
     Write-Host ''
     Write-Host '2) Canlıdan eşitleme'

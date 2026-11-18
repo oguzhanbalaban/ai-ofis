@@ -5,14 +5,14 @@ Bu depo **AI Ekip Ofisi'nin kendi kodunun aynasıdır** (ayna: `{AYNA}`, canlı 
 aynanın main'ine birleştirir, canlıya kopyalar, doğrular; doğrulama geçmezse geri alır. Senin işin: küçük, geriye uyumlu, testli değişiklik.
 
 ## Yapı
-- Şirket binası: `katlar.json` (ana kat = AI Ekip Ofisi; diğer katlar `katlar\<id>`: Data and Analytics, Creativity; Creative Studio
+- Şirket binası: `katlar.json` (ana kat = AI Ekip Ofisi; diğer katlar `katlar\<id>`: Data and Analytics, Innovation Lab; Creative Studio
   ayrı bir uygulama, kendi deposu). Kod tek; her kat kendi verisiyle (kadro, ayarlar, görevler) kendi döngüsünde çalışır.
 - Motor (Windows PowerShell 5.1): `ortak.ps1` (dosya / JSON, kat çözümü `AIEKIP_KAT` → `$Kok` veri, `$KodKok` kod; Ajan-Cagir, bildirim),
   `ekip.ps1` (aşamalar, ana döngü), `planlama.ps1` (Product Manager, Explorer, QA), `yonlendirme.ps1` (İş ver), `uzman.ps1`,
   `altyapi.ps1`, `yardim.ps1`, `cozucu.ps1` (Incident Manager), `komut.ps1` / `paralel.ps1`, `yonetim.ps1` (CTO),
   `danisman.ps1`, `iletisim.ps1` (katlar arası Comms), `yaratici.ps1` / `kopru.ps1` (fikir hattı), `kendini.ps1` (bu akış: ayna ve canlıya alma).
 - Panel: `ofis\ofis.ps1` (127.0.0.1 TcpListener; istek başına kat seçimi), `ofis\bina.html` (kat seçici kabuk), `ofis\panel.html`
-  (kat paneli; ilk `<script>` PikselOfis sahne motoru IIFE, ikinci betik paneli bağlar), `ofis\panel-creativity.html`, `ofis\sohbet.ps1`.
+  (kat paneli; ilk `<script>` PikselOfis sahne motoru IIFE, ikinci betik paneli bağlar), `ofis\panel-innovation-lab.html`, `ofis\sohbet.ps1`.
 - İstemler `istemler\*.md` (şablon değişkenleri `{GOREV}` gibi), rol talimatları `istemler\kadro\`. Bir katın aynı adlı dosyası
   `katlar\<id>\istemler\` altındaysa o kullanılır.
 - Ayar dosyaları (`ayarlar.json`, `kadro.json`, `projeler.json`, katlarınkiler de) aynada testler için vardır ama **canlıya alınmaz**

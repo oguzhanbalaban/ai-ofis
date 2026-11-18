@@ -160,7 +160,7 @@
             "Kullanıcının kendi CMS içeriğine (ekibin açmadığı klasör, evren, bağlantı ve raporlar) ve DS repository'sindeki ekibin oluşturmadığı nesnelere dokunma; ekip nesneleri 'DA Office' klasörlerinde ve DA_ önekiyle tutulur.",
             "IQ-SRV'deki 2642 portlu örnek DWH kullanıcının müşteri şemasıdır: iş açıkça istemedikçe kullanma, içeriğini rapora, çıktıya ya da depoya kopyalama.",
             "Parolaları raporlara, özetlere, bildirimlere ve kalıcı betiklere düz metin yazma; gerektiğinde bağlantı bilgileri dosyasından çalışma anında oku ve araçlara stdin ya da ortam değişkeniyle ver.",
-            "data-analytics-office, ai-ekip ve creativity-office klasörlerindeki betiklere, ayarlara ve başka görevlerin dosyalarına dokunma (kendi çalışma klasörün hariç).",
+            "data-analytics-office, ai-ekip ve innovation-lab klasörlerindeki betiklere, ayarlara ve başka görevlerin dosyalarına dokunma (kendi çalışma klasörün hariç).",
             "İnternetten yalnızca resmi kaynaklardan indir; indirdiğin her dosyanın adını, kaynağını ve boyutunu raporla."
         ],
         "ipuclari": [

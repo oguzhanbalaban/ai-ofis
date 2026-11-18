@@ -77,7 +77,7 @@ ayarları, görev panosu ve döngüsüyle çalışır, kod ortaktır:
 | --- | --- | --- |
 | 3 | **AI Ekip Ofisi** (ana kat, genel merkez) | Yazılım, altyapı, tasarım, test; verisi kök klasörde |
 | 2 | **Data and Analytics Office** (`katlar\data-analytics`) | SAP Data Services ETL, BusinessObjects UNX universe ve Web Intelligence raporları; SAP ortamınızı `bilgi\sap-ortami.md` ve `altyapi.makineler` içine yazın |
-| 1 | **Creativity Office** (`katlar\creativity`) | Fikir hattı: fikir → eleştiri → POC planı → maliyet → karar; onaylanan POC ana kata gider, sonuç puanlanır (stüdyo paneli) |
+| 1 | **Innovation Lab** (`katlar\innovation-lab`) | Fikir hattı: fikir → eleştiri → POC planı → maliyet → karar; onaylanan POC ana kata gider, sonuç puanlanır (stüdyo paneli) |
 | Z | **Creative Studio** (`katlar\creative-studio`) | Uygulama katı: çocuk masalı YouTube Shorts üretim hattı (kendi sunucusu ve paneli). Kurulumu `katlar\creative-studio\README.md`; yayın / yükleme yalnızca sizin onayınızla |
 
 - **Katlar arası iletişimi Communications Coordinator'lar (Comms) yürütür.** Bir iş başka bir katın uzmanlığındaysa katın yöneticisi
@@ -199,8 +199,8 @@ Bu sürümden önceki bir kurulumdan yükseltiyorsanız: `ayarlar.json` içindek
 | `komut.ps1`, `paralel.ps1` | Çalışana doğrudan komut (Devam et / Devral) ve paralel çalışma hatları |
 | `kendini.ps1`, `istemler/ofis-gelistirme.md` | Kendi kendini geliştirme: ayna depo, canlıdan eşitleme, canlıya alma, doğrulama, geri alma |
 | `katlar.json`, `katlar/`, `iletisim.ps1` | Şirket binası: katlar (her biri kendi verisiyle) ve katlar arası iletişim (Comms, yazışmalar) |
-| `yaratici.ps1`, `kopru.ps1`, `proje-ekle.ps1`, `sonuc-ekle.ps1` | Fikir hattı (Creativity Office katı) ve onaylı POC'un ana kata köprüsü |
-| `ofis/bina.html`, `ofis/panel-creativity.html` | Bina paneli (solda Kat seçici) ve Creativity katının stüdyo paneli |
+| `yaratici.ps1`, `kopru.ps1`, `proje-ekle.ps1`, `sonuc-ekle.ps1` | Fikir hattı (Innovation Lab katı) ve onaylı POC'un ana kata köprüsü |
+| `ofis/bina.html`, `ofis/panel-innovation-lab.html` | Bina paneli (solda Kat seçici) ve Innovation Lab katının stüdyo paneli |
 | `danisman.ps1`, `danisman/` | Outsource Consultant: tek parça işler seçilen yapay zekanın terminal ajanına; masa (`CLAUDE.md` ana kurallar, `AGENTS.md` / `GEMINI.md` kopyaları) |
 | `gorev-ekle.ps1`, `talep-ekle.ps1`, `uzman-ekle.ps1` | Yazılım, altyapı ve uzman işini doğrudan ekleme |
 | `ayarlar.json`, `kadro.json`, `projeler.json` | Anonim ayar, kadro ve proje şablonları |

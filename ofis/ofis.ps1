@@ -241,7 +241,7 @@ function Bina-Bekcisi-P {
         if (-not (Kat-Dongusu-Calisiyor-P $id)) { try { Kat-Dongusu-Baslat-P $id } catch { Ofis-Kayit "Bina bekçisi: $id başlatılamadı: $($_.Exception.Message)" 'UYARI' } }
     }
 }
-# ---------------------------------------------------------------- fikir hattı (Creativity Office katı; tip = yaratici, yaratici.ps1)
+# ---------------------------------------------------------------- fikir hattı (Innovation Lab katı; tip = yaratici, yaratici.ps1)
 $script:YaraticiAsamaRol = @{ yeni = 'fikirci'; fikir = 'fikirci'; elestiri = 'elestirmen'; poc_plan = 'planlamaci'; maliyet = 'maliyet'; karar = 'karar-verici'; teslim = 'karar-verici'; bekleme = 'karar-verici'; puanlama = 'puanlayici' }
 $script:YaraticiAsamaAdlari = @{
     yeni = 'Sırada'; fikir = 'Fikir üretiliyor'; elestiri = 'Eleştiriliyor'; poc_plan = 'POC planlanıyor'; maliyet = 'Maliyet hesaplanıyor'
@@ -2084,7 +2084,7 @@ function Bina-Gonder($Akis) {
 function Panel-Gonder($Akis, [string]$KatId = 'ana') {
     $k = Kat-Bul-P $KatId
     if (-not $k -or -not (Kat-Ekip-mi $k)) { Yanit-Metin $Akis 404 'Bulunamadı'; return }
-    # Katın kendi paneli olabilir (katlar.json > panel, ofis\ altında; ör. Creativity Office'in stüdyo paneli)
+    # Katın kendi paneli olabilir (katlar.json > panel, ofis\ altında; ör. Innovation Lab'in stüdyo paneli)
     $dosya = $PanelDosyasi
     $ozel = [string]$k.panel
     if ($ozel -match '^[A-Za-z0-9][A-Za-z0-9._-]{0,80}\.html$' -and [IO.File]::Exists((Join-Path $OfisKok $ozel))) { $dosya = Join-Path $OfisKok $ozel }

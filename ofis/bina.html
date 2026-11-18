@@ -250,7 +250,7 @@ async function yenile() {
   } catch (e) { $('#sirketAlt').textContent = 'Bağlantı yok: ' + e.message; }
 }
 window.addEventListener('hashchange', () => { const k = hashKat(); if (k && k !== secili) katSec(k, true, hashGorev()); });
-// Kat panelleri başka bir kata geçmek isteyebilir (ör. Creativity'nin "ana ofis" bağlantısı): yalnızca aynı kökenden
+// Kat panelleri başka bir kata geçmek isteyebilir (ör. Innovation Lab'in "ana ofis" bağlantısı): yalnızca aynı kökenden
 window.addEventListener('message', e => { if (e.origin !== location.origin || !e.data || e.data.tur !== 'kat-sec') return; katSec(String(e.data.kat || ''), true, String(e.data.gorev || '')); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') yenile(); });
 yenile();

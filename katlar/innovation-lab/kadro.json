@@ -1,6 +1,6 @@
 {
     "surum": 1,
-    "aciklama": "Creativity Office katının kadrosu (AI Ekip Şirketi binası). Creativity Office kadrosu (şablon). ad = İngilizce şirket unvanı, rol_tr = Türkçe karşılığı. Fikir hattı ve yönetim rollerinin araçları ayarlar.json > roller içinde; tasarımcıların ve İK’nın araçları burada (araclar) ya da panelden seçilirse ayarlar.json > roller içinde. İK yeni çalışanları kadro.yerel.json’a ekler. yetki: oku | yaz (korumalı alan) | tam.",
+    "aciklama": "Innovation Lab katının kadrosu (AI Ekip Şirketi binası). Innovation Lab kadrosu (şablon). ad = İngilizce şirket unvanı, rol_tr = Türkçe karşılığı. Fikir hattı ve yönetim rollerinin araçları ayarlar.json > roller içinde; tasarımcıların ve İK’nın araçları burada (araclar) ya da panelden seçilirse ayarlar.json > roller içinde. İK yeni çalışanları kadro.yerel.json’a ekler. yetki: oku | yaz (korumalı alan) | tam.",
     "uyeler": [
         {
             "anahtar": "lider",

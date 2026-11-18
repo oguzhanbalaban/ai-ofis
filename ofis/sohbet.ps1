@@ -4,7 +4,7 @@ sohbet.ps1 - Paneldeki sohbet penceresinden gelen son mesajı ilgili çalışana
 Ofis sunucusu (ofis.ps1) her mesajda arka planda başlatır:  sohbet.ps1 -Rol <anahtar>
 - Salt okunur çalışır: çalışan dosya değiştirmez, komut çalıştırmaz (Claude: Read/Glob/Grep, Codex: read-only).
 - Kullanıcı bir iş isterse çalışan yanıtına bir iş önerisi ekler (```is {...}```); kullanıcı panelde onaylayıp ekibe verir.
-- Fikir hattı olan katta (Creativity Office) yeni bir fikir / konu için konu önerisi de ekleyebilir (```konu {...}```); kullanıcı panelde
+- Fikir hattı olan katta (Innovation Lab) yeni bir fikir / konu için konu önerisi de ekleyebilir (```konu {...}```); kullanıcı panelde
   onaylayıp fikir hattına ekler. Onaysız hiçbir şey eklenmez. Çalışan hangi katta (ofiste) olduğunu ve şirketin diğer katlarını bilir.
 - Günlük çağrı sınırları ve yedek zinciri döngüyle aynıdır (Ajan-Cagir).
 Kayıtlar: durum\sohbet\<rol>.jsonl (mesajlar), <rol>.isleniyor (yanıt yazılırken), kayit\<rol>\ (son istem ve çıktılar)

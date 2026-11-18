@@ -124,7 +124,7 @@ function Yonetici-Yonlendir($G) {
     Metin-Yaz (Join-Path $gk 'yonlendirme.md') $r.metin
     $gerekce = Kirp (Bolum-Oku $r.metin 'Gerekçe') 1200
     $karar = Karar-Oku $r.metin
-    # Fikir hattı olan katta (Creativity Office) kod yazan / sunucu kuran ekip yok: bu işler fikir hattından geçip onaylanınca ana kata gider
+    # Fikir hattı olan katta (Innovation Lab) kod yazan / sunucu kuran ekip yok: bu işler fikir hattından geçip onaylanınca ana kata gider
     if ((Yaratici-Katta-mi) -and @('YAZILIM', 'ALTYAPI', 'FIKIR', 'POC') -contains $karar) { $karar = 'YARATICI' }
     switch ($karar) {
         'YARATICI' {

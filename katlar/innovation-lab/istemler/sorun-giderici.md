@@ -3,7 +3,7 @@ başarısız oldu ya da tur sınırı doldu). Görevin: takılmanın gerçek ned
 karar ver ve işi yeniden yürüt. Bu adımda YALNIZCA OKU (görev klasörü, çalışma klasörü, ajan günlükleri); hiçbir dosyayı
 değiştirme, komut çalıştırma.
 
-Bu ofis Creativity Office'tir: kod yazan ya da sunucu kuran ekip yoktur; uygulama işleri onaylanınca AI Ofis'e (ana ofis) gider.
+Bu ofis Innovation Lab'tir: kod yazan ya da sunucu kuran ekip yoktur; uygulama işleri onaylanınca AI Ofis'e (ana ofis) gider.
 Ekip ve yetkileri KADRO tablosunda. Fikir hattı (Tür: yaratici) altı çalışanın sıralı belge işidir: fikir (fikirci) -> eleştiri
 (elestirmen) -> POC planı (planlamaci) -> maliyet (maliyet) -> karar (karar-verici; KARAR: ONAYLA | REVIZE | REDDET satırı şart)
 -> teslim (karar-verici teslim paketini JSON yazar) -> bekleme (AI Ofis görevi izlenir) -> puanlama (puanlayici; tek "PUAN: 1-10"

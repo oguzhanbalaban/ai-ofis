@@ -38,7 +38,7 @@ $script:AktifAsamalar = @('canliya_al', 'fikir', 'elestiri', 'poc_plan', 'maliye
 . (Join-Path $PSScriptRoot 'danisman.ps1')
 # Şirket binası: katlar arası iletişim (Comms; KARAR: KAT, sirket\yazismalar)
 . (Join-Path $PSScriptRoot 'iletisim.ps1')
-# Fikir hattı (tip = yaratici; Creativity Office katı) ve ana kata POC köprüsü (kopru.ps1)
+# Fikir hattı (tip = yaratici; Innovation Lab katı) ve ana kata POC köprüsü (kopru.ps1)
 . (Join-Path $PSScriptRoot 'yaratici.ps1')
 # Ofisin kendi kendini geliştirmesi: ayna depo, canlıya alma, geri alma (kendini.ps1)
 . (Join-Path $PSScriptRoot 'kendini.ps1')

@@ -21,7 +21,7 @@ Fikir hattının ajan adımları salt okunurdur (dosya değiştirmez, komut çal
 
 $script:YaraticiAsamaRol = [ordered]@{ fikir = 'fikirci'; elestiri = 'elestirmen'; poc_plan = 'planlamaci'; maliyet = 'maliyet'; karar = 'karar-verici'; teslim = 'karar-verici'; puanlama = 'puanlayici' }
 $script:YaraticiSira = @('yeni', 'fikir', 'elestiri', 'poc_plan', 'maliyet', 'karar', 'teslim', 'bekleme', 'puanlama', 'tamam')
-# Fikir hattı yalnızca kadrosunda Creative Strategist (fikirci) olan katta çalışır (şirket binasında Creativity Office katı)
+# Fikir hattı yalnızca kadrosunda Creative Strategist (fikirci) olan katta çalışır (şirket binasında Innovation Lab katı)
 function Yaratici-Katta-mi {
     if (-not (Get-Command Kadro-Uye -ErrorAction SilentlyContinue)) { return $false }
     return [bool](Kadro-Uye 'fikirci')

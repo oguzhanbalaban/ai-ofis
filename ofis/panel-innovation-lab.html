@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Creativity Office</title>
+<title>Innovation Lab</title>
 <meta name="theme-color" content="#161a23">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/simge-180.png">
@@ -370,7 +370,7 @@ details.kul-son .tablo-sar { margin-top:8px; }
 }
 /* "İş ver" formu ve Incident Manager rozetleri */
 .ekle-bilgi { margin:0; }
-/* Creativity Office: Ana ofis bağlantısı, fikir hattı rozetleri ve adımları */
+/* Innovation Lab: Ana ofis bağlantısı, fikir hattı rozetleri ve adımları */
 .ao-nokta { display:inline-block; width:8px; height:8px; border-radius:50%; background:#94a3b8; margin:0 2px; vertical-align:middle; }
 .ao-nokta.canli { background:#22c55e; } .ao-nokta.kapali { background:#eab308; } .ao-nokta.yok { background:transparent; border:1px solid #94a3b8; }
 #anaOfisLink.devre-disi { opacity:.6; }
@@ -721,7 +721,7 @@ dialog.diyalog.karakter { width:min(880px, calc(100vw - 32px)); overflow:hidden;
 <header class="ust">
   <div class="marka">
     <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#1b1524"/><circle cx="16" cy="13" r="6" fill="#fde047"/><rect x="13" y="19" width="6" height="3" rx="1" fill="#94a3b8"/><circle cx="7" cy="24" r="2.5" fill="#f472b6"/><circle cx="25" cy="24" r="2.5" fill="#a78bfa"/><rect x="15" y="3" width="2" height="3" fill="#fde68a"/></svg>
-    <div><h1>Creativity Office</h1><div class="alt" id="altBaslik">Bağlanıyor…</div></div>
+    <div><h1>Innovation Lab</h1><div class="alt" id="altBaslik">Bağlanıyor…</div></div>
   </div>
   <div class="saglik" id="saglik" role="status"><span class="nokta"></span><span id="saglikMetni">Bağlanıyor…</span></div>
   <div class="eylemler">
@@ -941,7 +941,7 @@ function aracRengi(a) {
   return '#93c5fd';
 }
 // Ofis kapalı: panelden "Ofisi kapat" (DURDUR dosyası "Ofis kapatıldı" ile başlar) ya da mesai dışı
-// Creativity Office her zaman açık değildir: ofis niyeti kapalıysa (panelden kapatıldı ya da hiç açılmadı) ekip evdedir
+// Innovation Lab her zaman açık değildir: ofis niyeti kapalıysa (panelden kapatıldı ya da hiç açılmadı) ekip evdedir
 const ofisKapaliMi = d => !!(d && ((d.duraklatildi && /^Ofis kapatıldı/.test(d.durdur_metni || '')) || d.kalp_durum === 'mesai dışı')) || !!(veri && veri.ofis && veri.ofis.niyet === false);
 // Paneldeki durum adları: calis | evde | soru | bekliyor | mola | uyku | bos
 function durumu(r, d) {
@@ -957,7 +957,7 @@ function durumu(r, d) {
 }
 const DURUM_RENK = { calis: '#4ade80', sohbet: '#a78bfa', soru: '#facc15', bekliyor: '#fb923c', mola: '#c4b5fd', uyku: '#f87171', bos: '#94a3b8', evde: '#64748b' };
 
-// ---------------------------------------------------------------- fikir hattı (Creativity Office stüdyosu)
+// ---------------------------------------------------------------- fikir hattı (Innovation Lab stüdyosu)
 // Altı istasyon sırayla: fikir kartı elden ele taşınır, onaylanan POC Ana ofis kapısından çıkar, sonuç kapıdan döner ve puanlanır.
 const HAT = {
   fikirci: { no: 1, simge: '💡', tabela: 'FİKİR' }, elestirmen: { no: 2, simge: '🔍', tabela: 'ELEŞTİRİ' }, planlamaci: { no: 3, simge: '📐', tabela: 'POC PLANI' },
@@ -1229,7 +1229,7 @@ function panoSprite(say, alarm) {
     if (alarm) R(x, 21, 0, 6, 2, '#ef4444');
   });
 }
-// Fikir hattı istasyonlarının ayakta duran aletleri ve beyin fırtınası alanı (Creativity Office)
+// Fikir hattı istasyonlarının ayakta duran aletleri ve beyin fırtınası alanı (Innovation Lab)
 const ampulLamba = () => sprite('ampulLamba', 12, 32, x => { R(x, 3, 30, 6, 2, '#374151'); R(x, 5, 9, 2, 21, '#4b5563'); R(x, 2, 0, 8, 8, '#fde68a'); R(x, 3, 1, 3, 3, '#fffbeb'); R(x, 3, 8, 6, 2, '#94a3b8'); });
 const flipchart = () => sprite('flipchart', 16, 28, x => {
   R(x, 2, 18, 1, 10, '#57534e'); R(x, 13, 18, 1, 10, '#57534e'); R(x, 7, 18, 2, 8, '#57534e');
@@ -1275,7 +1275,7 @@ let izgara = new Uint8Array(0);
 let statik = [], poiler = [], pencereler = [], bolgeler = [], bulutlar = [];
 const kisiler = new Map();
 let asansor = null, saatYeri = null, tvYeri = null, panoYeri = null, kahveYeri = null;
-// Creativity Office: istasyonlar (rol -> masa, alet, alarm), Ana ofis kapısı, fikir panosu, puan tablosu, neon tabela, beyaz tahta
+// Innovation Lab: istasyonlar (rol -> masa, alet, alarm), Ana ofis kapısı, fikir panosu, puan tablosu, neon tabela, beyaz tahta
 const istasyonlar = new Map();
 let portal = null, fikirPanoYeri = null, skorYeri = null, neonYeri = null, tahtaYeri = null, portalBitis = 0;
 let veri = null, onceki = null, yerlesimImza = '', ilkKurulum = true, gorunur = true, sonCizim = 0;
@@ -1971,7 +1971,7 @@ function kahveMolasi() {
   }
 }
 function asansorAc(ms) { kapiBitis = Math.max(kapiBitis, an() + ms); }
-// ---------------------------------------------------------------- fikir hattı olayları (Creativity Office)
+// ---------------------------------------------------------------- fikir hattı olayları (Innovation Lab)
 function hazirMi(k) { return k && !k.gitti && !azHareket() && k.durum !== 'calis' && k.durum !== 'evde'; }
 // Bir yere yürü, bekle; olay bitince kişi kendi durumuna göre karar verir
 function gorevYuru(k, hedef, yon, sure, ayar) {
@@ -2419,7 +2419,7 @@ function yazilariCiz(t) {
   if (asansor) { const tip = yaziTipi(8.5, 800); ctx.font = tip; const m = 'GİRİŞ'; const w = olc(m, tip); ctx.fillStyle = '#d6cfe0'; ctx.textBaseline = 'top'; ctx.fillText(m, (asansor.x + asansor.w / 2) * K - w / 2, (asansor.y + asansor.h + 1) * K); }
   if (neonYeri) {
     const kapali = veri && ofisKapaliMi(veri.dongu) && ![...kisiler.values()].some(k => !k.gitti);
-    const tip = yaziTipi(15, 800), m = 'CREATIVITY OFFICE';
+    const tip = yaziTipi(15, 800), m = 'INNOVATION LAB';
     ctx.font = tip; const w = olc(m, tip);
     const X = (neonYeri.x + neonYeri.w / 2) * K - w / 2, Y = (neonYeri.y + 13) * K;
     const titre = !azHareket() && Math.floor(t / 97) % 41 === 0;
@@ -2610,7 +2610,7 @@ return {
 'use strict';
 const ANAHTAR = '__OFIS_ANAHTARI__';
 // Şirket binası: bu panel hangi katın (sunucu /kat/<id>/ ile verirken yazar)
-const KAT = '__OFIS_KATI__'.startsWith('__') ? 'creativity' : '__OFIS_KATI__';
+const KAT = '__OFIS_KATI__'.startsWith('__') ? 'innovation-lab' : '__OFIS_KATI__';
 // Bina kabuğunun içindeyken ana kata (ya da başka kata) giden bağlantılar yeni sekme yerine kat değiştirir
 document.addEventListener('click', e => {
   const a = e.target && e.target.closest && e.target.closest('a[href^="/#kat="]');
@@ -2638,7 +2638,7 @@ const ASAMA_ADI = { yeni: 'Sırada', plan: 'Planlanıyor', gelistirme: 'Gelişti
   fikir: 'Fikir üretiliyor', elestiri: 'Eleştiriliyor', poc_plan: 'POC planlanıyor', maliyet: 'Maliyet hesaplanıyor', karar: 'Karar bekliyor',
   teslim: 'Teslim hazırlanıyor', bekleme: 'Ana ofisʼte uygulanıyor', puanlama: 'Puanlanıyor', reddedildi: 'Reddedildi' };
 const AKTIF_ASAMALAR = ['yeni', 'plan', 'gelistirme', 'kontrol', 'denetim', 'kabul', 'tamamla', 'yardim', 'fikir', 'elestiri', 'poc_plan', 'maliyet', 'karar', 'teslim', 'bekleme', 'puanlama'];
-// Fikir hattı (Creativity Office)
+// Fikir hattı (Innovation Lab)
 const HAT_ADIMLAR = ['yeni', 'fikir', 'elestiri', 'poc_plan', 'maliyet', 'karar', 'teslim', 'bekleme', 'puanlama', 'tamam'];
 const HAT_ADIM_ADI = { yeni: 'Sırada', fikir: 'Fikir', elestiri: 'Eleştiri', poc_plan: 'POC planı', maliyet: 'Maliyet', karar: 'Karar', teslim: 'Teslim', bekleme: 'Ana ofis', puanlama: 'Puan', tamam: 'Bitti' };
 const BELGE_ADI = { 'gorev.md': 'Konu', 'fikir.md': 'Fikirler', 'elestiri.md': 'Eleştiri', 'poc-plan.md': 'POC planı', 'maliyet.md': 'Maliyet', 'karar.md': 'Karar',
@@ -3791,7 +3791,7 @@ function uyarilariCiz(v) {
     E('span', { text: sende.map(g => `#${noKisa(g.id)} ${g.baslik}`).join(', ') }), E('span', { class: 'bosluk' }),
     E('button', { class: 'dugme kucuk', type: 'button', text: 'İncele', onclick: () => gorevAc(sende[0].id) })));
   if (!baglantiVar) parcalar.unshift(E('div', { class: 'serit hata' }, E('b', { text: 'Panel sunucusuna ulaşılamıyor.' }),
-    E('span', { text: 'Sunucu kapanmış olabilir. Masaüstündeki "Creativity Office" kısayoluna tıkla; sayfa kendiliğinden yeniden bağlanır.' })));
+    E('span', { text: 'Sunucu kapanmış olabilir. Masaüstündeki "Innovation Lab" kısayoluna tıkla; sayfa kendiliğinden yeniden bağlanır.' })));
   // Ana ofis köprüsü: orada takılan POC'lar ve bağlantı
   const ao = v.ana_ofis || {};
   const aoTakili = (v.gorevler || []).filter(g => yaraticiMi(g) && g.asama === 'bekleme' && g.ana_takildi);
