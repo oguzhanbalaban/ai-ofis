@@ -660,7 +660,11 @@ function Claude-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [st
         # Altyapı rolleri (altyapi.ps1): kullanıcı tam yetki verdi; tüm araçlar, izin sorulmaz
         $komut += ' --permission-mode bypassPermissions'
         if ($Ayar.zaman_asimi_dk.altyapi) { $zaman = [int]$Ayar.zaman_asimi_dk.altyapi }
-    } else { $komut += " --tools $araclar --allowedTools $araclar --permission-mode $mod" }
+    } else {
+        $komut += " --tools $araclar --allowedTools $araclar --permission-mode $mod"
+        # Ortak klasörler (Ajan-Cagir yalnızca yazma adımlarında verir): çalışma klasörüne ek yazılabilir dizin
+        foreach ($k in @($EkKlasorler | Where-Object { $_ })) { $komut += ' --add-dir ' + (Q $k) }
+    }
     if ($G.efor) { $komut += " --effort $($G.efor)" }
     $pe = Push-Engeli-Ac $Profil
     try { $s = Surec-Calistir -Komut $komut -Girdi $IstemYolu -Cikti $Out -Hata $Err -Klasor $Klasor -ZamanAsimiDk $zaman -Etiket 'claude' }
@@ -702,6 +706,9 @@ function Codex-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [str
         $kum = 'workspace-write'; $zaman = $iz.zaman_asimi_dk
         foreach ($k in @($EkKlasorler | Where-Object { $_ })) { $ek += ' --add-dir ' + (Q $k) }
         if ($iz.ag) { $ek += ' -c sandbox_workspace_write.network_access=true' }
+    } elseif ($Yazabilir -and -not $TamYetki) {
+        # Ortak klasörler (Ajan-Cagir yazma adımlarında verir): workspace-write için ek yazılabilir dizin
+        foreach ($k in @($EkKlasorler | Where-Object { $_ })) { $ek += ' --add-dir ' + (Q $k) }
     }
     $efor = 'high'; if ($G.efor) { $efor = $G.efor }
     if (Test-Path -LiteralPath $SonMesaj) { Remove-Item -LiteralPath $SonMesaj -Force }
@@ -740,6 +747,10 @@ function Gemini-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [st
         # Outsource Consultant: başsız kipte onay sorulamaz; araçlar onaysız (yolo), işin klasörü çalışma alanına eklenir. Araç bazında
         # yasak listesi yok: kurallar masadaki GEMINI.md'de, git push ortam düzeyinde engelli
         $mod = 'yolo'; $zaman = (Danisman-Izinleri).zaman_asimi_dk
+        $dirs = @($EkKlasorler | Where-Object { $_ })
+        if ($dirs.Count) { $ek = ' --include-directories ' + (Q ($dirs -join ',')) }
+    } elseif ($Yazabilir -and -not $TamYetki) {
+        # Ortak klasörler (Ajan-Cagir yazma adımlarında verir)
         $dirs = @($EkKlasorler | Where-Object { $_ })
         if ($dirs.Count) { $ek = ' --include-directories ' + (Q ($dirs -join ',')) }
     }
@@ -923,6 +934,29 @@ function Devralma-Notu([string]$Rol, [string]$Kisi) {
         'Rolün adım talimatlarına, yetki sınırlarına ve çıktı biçimine aynen uy; kendi uzmanlığını da kat.') -f (Calisan-Adi $Rol), (Calisan-Adi $Kisi)
 }
 
+# ---------------------------------------------------------------- ortak klasörler
+# ayarlar.json > ortak_klasorler.yollar: bütün ajanların yazma adımlarında çalışma klasörüne ek olarak yazabildiği klasörler
+# (Claude / Codex --add-dir, Gemini --include-directories). Göreli yol katın köküne göredir; olmayan klasör atlanır.
+# Kullanım: sıralı programların kontrol listeleri (ör. programlar\<ad>\PROGRAM.md); ajan kendi satırının kutusunu işaretler.
+function Ortak-Klasorler {
+    $o = $Ayar.ortak_klasorler
+    if (-not $o) { return @() }
+    $l = @()
+    foreach ($y in @($o.yollar | Where-Object { $_ })) {
+        $t = [Environment]::ExpandEnvironmentVariables([string]$y)
+        if (-not [IO.Path]::IsPathRooted($t)) { $t = Join-Path $Kok $t }
+        if (Test-Path -LiteralPath $t -PathType Container) { $l += (Resolve-Path -LiteralPath $t).Path }
+    }
+    return $l
+}
+function Ortak-Klasor-Notu([string[]]$Klasorler) {
+    $no = ([string]$script:AktifGorev -split '-')[0]
+    $s = "`n`n## Ortak klasörler`nÇalışma klasörüne ek olarak şu klasörlere de yazabilirsin: " + (($Klasorler | ForEach-Object { '`' + $_ + '`' }) -join ', ') + ".`n"
+    $s += "Buradaki dosyaları (ör. sıralı programların PROGRAM.md kontrol listeleri) yalnızca görev metni ya da o dosyanın kendi kuralları istediğinde ve istediği kadar değiştir; orada başka dosya oluşturma, silme.`n"
+    if ($no -match '^\d+$') { $s += "Bu işin numarası: #$no.`n" }
+    return $s
+}
+
 # ---------------------------------------------------------------- rol çağırma (yedek zinciriyle)
 function Ajan-Cagir {
     param(
@@ -941,6 +975,14 @@ function Ajan-Cagir {
     $Istem = Yardim-Istem-Ekle $Rol $Etiket $Istem
     $Istem += (Talimat-Istem-Metni $Etiket)
     $Istem += (Ilkeler-Istem-Metni $Etiket)
+    # Ortak yazılabilir klasörler (ayarlar.json > ortak_klasorler): yalnızca yazma adımlarında; tam yetkili altyapı rolleri zaten her yere yazar
+    if ($Yazabilir -and -not $TamYetki) {
+        $ortak = @(Ortak-Klasorler)
+        if ($ortak.Count) {
+            $EkKlasorler = @(@($EkKlasorler) + $ortak | Where-Object { $_ } | Select-Object -Unique)
+            $Istem += (Ortak-Klasor-Notu $ortak)
+        }
+    }
     # Kullanıcı bu işte rolü başka bir çalışana devrettiyse onun model zinciriyle çalış (komut.ps1)
     $kisi = $Rol
     if ($script:RolDegisimi -and $script:RolDegisimi.ContainsKey($Rol)) {

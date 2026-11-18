@@ -132,6 +132,19 @@ Unvanlar gerçek şirket pozisyonlarıdır: Chief Technology Officer, Engineerin
 
 Her çalışanın kullandığı modeller bir zincirdir: ilk model günlük sınırda ya da kilitliyse sonrakine geçilir. Zinciri paneldeki **karakter kartından** seçersiniz: Kadro bölümünde bir karta (ya da sohbet penceresinde ⓘ > **Karakter kartı**) tıklayın; model ekleyin / çıkarın, ↑↓ ile sırayı (önceliği) değiştirin, Codex için düşünme eforunu seçin ve **Kaydet**. Kayıt `ayarlar.yerel.json > roller` içine yazılır (önceki hâli `.bak`); **Kadro varsayılanına dön** rolün satırını siler ve `kadro.json > araclar` geçerli olur. Seçilebilen modeller `ayarlar.json > model_katalogu` içindedir (Claude Opus 5.5, Fable 5.2, Sonnet 5.5, Haiku 5.5, "en güncel" kısaltmaları; Codex gpt-6.1-sol, gpt-6-astra); kurulumda seçtiğiniz modeller kataloğa kendiliğinden eklenir, katalog dışı model kaydedilmez. Varsayılan olarak Engineering Manager önce Opus 5.5, sonra Fable 5.2, en son Codex kullanır.
 
+## Ortak klasörler ve sıralı programlar (18.11.2026)
+
+Ajanlar normalde yalnızca kendi iş klasörüne yazar. `ayarlar.json > ortak_klasorler.yollar` (varsayılan `programlar`, katın köküne göre)
+bütün ajanlara **yazma adımlarında** ek yazılabilir klasör olarak açılır: Claude ve Codex'e `--add-dir`, Gemini'ye `--include-directories`.
+Okuma adımları ve tam yetkili altyapı rolleri değişmez; olmayan klasör atlanır. İsteme "Ortak klasörler" notu ve işin numarası eklenir.
+
+Kullanım: birbirini izleyen aşamalardan oluşan bir program için `programlar\<ad>\PROGRAM.md` kontrol listesi. Her aşamada iki kutu
+vardır: **Yapıldı** (aşamayı uygulayan ajan işaretler, iş numarasını yazar) ve **Kontrol edildi** (kontrol eden ajan sonucu yazar,
+GEÇTİ ise işaretler). Ofise sırayla "sıradaki aşamayı uygula" ve "son aşamayı kontrol et" işleri verilir; sıradaki aşama ancak önceki
+aşama kontrolden geçince açılır.
+
+- Çevrimdışı sınama: `powershell -NoProfile -ExecutionPolicy Bypass -File testler\ortak-klasor.test.ps1`.
+
 ## Ekip içi yardımlaşma
 
 Bir çalışan iş sırasında kendi yapamayacağı ama ekipte başkasının yapabileceği bir şeyle karşılaşırsa (yazılım/SDK kurulumu, emülatör, ağ ayarı, uygulamayı çalıştırıp test etmek, tasarım varlığı, güvenlik görüşü, yalnızca sizin verebileceğiniz bir bilgi) işi başarısız saymaz: çıktısının sonuna bir ```` ```yardim {json} ```` bloğu ekler (talimat her uygun istemin sonuna kendiliğinden eklenir). Akış `yardim.ps1` içindedir:

@@ -295,6 +295,12 @@
         "onay_kapisi": true,
         "aciklama": "İşi alma ve planlama katmanı (planlama.ps1). analiz: Product Manager talebi netleştirir (kabul ölçütleri = Definition of Done). kesif: Codebase Explorer depoyu tarar. qa_testi: QA Engineer her yazılım işinde test yazar ve koşturur (Engineering Manager planda QA_TESTI: hayır diyebilir). urun_soru_hakki: Product Managerʼın bir işte kullanıcıya en fazla kaç kez soru sorabileceği. en_fazla_parca: Engineering Managerʼın geliştirmeyi en fazla kaç parçaya (Frontend / Backend…) bölebileceği. onay_kapisi: Code Reviewer (ve QA testi yapıldıysa QA Engineer) onaylamadan commit edilmez."
     },
+    "ortak_klasorler": {
+        "yollar": [
+            "programlar"
+        ],
+        "aciklama": "Bütün ajanların yazma adımlarında çalışma klasörüne ek olarak okuyup yazabildiği klasörler (göreli yol katın köküne göre; olmayan klasör atlanır). Sıralı programların kontrol listeleri (programlar\\<ad>\\PROGRAM.md) burada durur; işi yapan ajan kendi satırının kutusunu kendisi işaretler. Tam yetkili altyapı rolleri için gerekmez."
+    },
     "yonetim": {
         "etkin": true,
         "aralik_saat": 24,
