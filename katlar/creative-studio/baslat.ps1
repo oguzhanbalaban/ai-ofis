@@ -9,6 +9,7 @@
       powershell -ExecutionPolicy Bypass -File "<ofis klasörü>\katlar\creative-studio\baslat.ps1" -Tek
   Pencereli mod (hata ayıklarken çıktıyı canlı görmek için): -Gorunur
   Tarayıcıyı açmamak için: -TarayiciAcma
+  Sunucular açılınca ofisin mesaisini de açmak için: -OfisiAc (AI Ekip binasındaki "Katı aç / Başlat" bunu kullanır)
 
   Zaten çalışan sunucu yeniden başlatılmaz; betiği iki kez çalıştırmak güvenlidir.
 #>
@@ -16,6 +17,7 @@ param(
     [switch]$Tek,
     [switch]$Gorunur,
     [switch]$TarayiciAcma,
+    [switch]$OfisiAc,
     # İç kullanım: baslat.ps1 kendini bu parametreyle gizli/görünür konsolda yeniden çağırır.
     [ValidateSet('backend', 'panel')][string]$Sunucu
 )
@@ -168,6 +170,18 @@ if ($bekle.Count) {
         }
     }
     if ($hata) { exit 1 }
+}
+
+# Bina "Katı aç / Başlat" ile çağırınca: sunucu hazır olunca stüdyonun mesaisini de aç (paneldeki "Ofisi aç" ile aynı)
+if ($OfisiAc) {
+    $acildi = $false
+    for ($i = 0; $i -lt 20 -and -not $acildi; $i++) {
+        try {
+            Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:$port/api/office" -Body '{"eylem":"ac"}' -ContentType 'application/json' -TimeoutSec 5 | Out-Null
+            $acildi = $true
+        } catch { Start-Sleep -Milliseconds 500 }
+    }
+    if ($acildi) { Tamam 'Ofis açık: ekip işe geliyor.' } else { Uyari 'Ofis açılamadı; panelden "Ofisi aç" ile açın.' }
 }
 
 Tamam "Panel: $url"

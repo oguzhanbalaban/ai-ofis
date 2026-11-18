@@ -54,6 +54,8 @@
                 "baslat_arg": "-TarayiciAcma",
                 "durdur": "durdur.ps1",
                 "durdur_arg": "-Zorla",
+                "ofis": "office",
+                "ofis_ac_arg": "-OfisiAc",
                 "kisi": 8
             }
         }

@@ -52,7 +52,7 @@ aside.bina { border-right:1px solid var(--cizgi); background:var(--kart); displa
 .kat-ad { font-weight:600; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .kat-satir { display:flex; gap:6px; align-items:center; font-size:12px; color:var(--soluk); flex-wrap:wrap; }
 .nokta { width:8px; height:8px; border-radius:50%; background:var(--gri); flex:none; }
-.nokta.acik { background:var(--yesil); } .nokta.duraklatildi, .nokta.calismiyor { background:var(--sari); } .nokta.kapali, .nokta.kurulmadi { background:var(--gri); }
+.nokta.acik { background:var(--yesil); } .nokta.duraklatildi, .nokta.calismiyor { background:var(--sari); } .nokta.kapali, .nokta.kurulmadi { background:var(--gri); } .nokta.durduruldu { background:var(--kirmizi); }
 .rozet { display:inline-flex; align-items:center; gap:2px; font-size:11px; font-weight:600; padding:0 5px; border-radius:9px; background:var(--zemin); border:1px solid var(--cizgi); color:var(--yazi); }
 .rozet.uyari { color:var(--kirmizi); } .rozet.soru { color:var(--sari); }
 .yazisma { flex:1; min-height:0; overflow:auto; padding-bottom:8px; }
@@ -69,7 +69,10 @@ aside.bina { border-right:1px solid var(--cizgi); background:var(--kart); displa
 .dugme:hover { border-color:var(--vurgu); }
 .dugme:disabled { opacity:.5; cursor:default; }
 .dugme.birincil { background:var(--vurgu); color:var(--vurgu-yazi); border-color:var(--vurgu); }
+.dugme.tehlike { color:var(--kirmizi); } .dugme.tehlike:hover { border-color:var(--kirmizi); }
 .alt-cubuk .bilgi { font-size:12px; color:var(--soluk); flex:1; min-width:0; }
+/* Durum yazısı kendi satırında; "Katı kapat" solda, tam durdurma (⏹ Durdur) sağ uçta: yanlışlıkla basılmasın */
+.alt-cubuk { flex-wrap:wrap; } .alt-cubuk .bilgi { flex-basis:100%; } #katDurdur { margin-left:auto; }
 main { position:relative; min-width:0; min-height:0; overflow:hidden; }
 iframe { border:0; width:100%; height:100%; display:block; background:var(--zemin); }
 .yer-tutucu { position:absolute; inset:0; display:grid; place-items:center; padding:16px; }
@@ -108,7 +111,7 @@ iframe { border:0; width:100%; height:100%; display:block; background:var(--zemi
   <ul class="katlar" id="katlar" aria-labelledby="katBaslik"></ul>
   <div class="bolum-ad" id="yzBaslik" title="Katlar arası iletişimi her katın Communications Coordinator'ı (Comms) yürütür">Kat yazışmaları · Comms</div>
   <div class="yazisma"><ul class="yz-liste" id="yazismalar" aria-labelledby="yzBaslik"></ul></div>
-  <div class="alt-cubuk"><span class="bilgi" id="katBilgi"></span><button class="dugme" id="katDugme" type="button" hidden></button></div>
+  <div class="alt-cubuk"><span class="bilgi" id="katBilgi"></span><button class="dugme" id="katDugme" type="button" hidden></button><button class="dugme tehlike" id="katDurdur" type="button" hidden title="Katı tamamen durdur: uygulama katında sunucular, ekip katında döngü ve süren adım hemen durur"></button></div>
 </aside>
 <main>
   <iframe id="katCerceve" title="Kat paneli"></iframe>
@@ -120,7 +123,7 @@ iframe { border:0; width:100%; height:100%; display:block; background:var(--zemi
 const ANAHTAR = '__OFIS_ANAHTARI__';
 const $ = s => document.querySelector(s);
 let bina = null, secili = '', yuklenen = '';
-const DURUM_ADI = { acik: 'açık', kapali: 'kapalı', duraklatildi: 'duraklatıldı', calismiyor: 'döngü yok', kurulmadi: 'kurulmadı' };
+const DURUM_ADI = { acik: 'açık', kapali: 'kapalı', duraklatildi: 'duraklatıldı', calismiyor: 'döngü yok', kurulmadi: 'kurulmadı', durduruldu: 'durduruldu' };
 const YZ_DURUM = { gonderildi: 'sırada', calisiyor: 'çalışılıyor', takildi: 'takıldı', tamamlandi: 'tamamlandı', basarisiz: 'tamamlanamadı', iptal: 'iptal', beklemede: 'kat kapalı, bekliyor' };
 const renk = r => /^#[0-9a-fA-F]{6}$/.test(r || '') ? r : '';
 function E(t, o, ...c) {
@@ -183,22 +186,42 @@ function yazismaAc(y) {
   // Gönderen katın görevini aç (hedef ekip katındaysa onun görevi de o katın panosunda görünür)
   katSec(y.kaynak_kat, true, y.kaynak_gorev);
 }
+// Her katta iki ayrı düğme:
+//   Katı kapat / aç : mesai — ekip vedalaşıp eve gider, kat (paneliyle) görünür kalır; açınca ekip asansörden gelir.
+//   ⏹ Durdur / ▶ Başlat : tam durdurma — uygulama katında sunucular, ekip katında döngü ve süren adım hemen durur.
+// Ana katın düğmeleri kendi panelinin üst çubuğundadır (Ofisi kapat / Duraklat).
 function altCubuk() {
-  const k = katBul(secili); const d = $('#katDugme');
-  if (!k) { d.hidden = true; return; }
+  const k = katBul(secili); const d = $('#katDugme'); const dd = $('#katDurdur');
+  if (!k) { d.hidden = true; dd.hidden = true; return; }
   $('#katBilgi').textContent = `${k.ad}: ${DURUM_ADI[k.durum] || k.durum}`;
-  if (k.id === 'ana' || k.durum === 'kurulmadi' || (k.tur === 'uygulama' && bina.uzak)) { d.hidden = true; return; }
+  if (k.id === 'ana' || k.durum === 'kurulmadi' || (k.tur === 'uygulama' && bina.uzak)) { d.hidden = true; dd.hidden = true; return; }
   d.hidden = false;
-  const acik = k.tur === 'uygulama' ? k.acik : k.durum !== 'kapali';
+  if (k.durum === 'durduruldu') {
+    d.textContent = '▶ Başlat'; d.className = 'dugme birincil'; d.title = 'Katı başlat: ekip işe döner';
+    d.onclick = () => katEylem(k, 'ac'); dd.hidden = true; return;
+  }
+  const acik = k.durum !== 'kapali';
   d.textContent = acik ? 'Katı kapat' : 'Katı aç';
   d.className = 'dugme' + (acik ? '' : ' birincil');
-  d.onclick = () => katAcKapat(k, !acik);
+  d.title = acik ? 'Mesai biter: ekip eve gider, kat görünür kalır' : 'Mesai başlar: ekip asansörden gelir';
+  d.onclick = () => katEylem(k, acik ? 'kapat' : 'ac');
+  dd.hidden = false; dd.textContent = '⏹ Durdur'; dd.onclick = () => katEylem(k, 'durdur');
 }
-async function katAcKapat(k, ac) {
-  if (!ac && !confirm(`${k.ad} kapatılsın mı? ${k.tur === 'uygulama' ? 'Sunucuları durdurulur.' : 'Çalışan adımını bitiren çıkar; yeni iş almaz.'}`)) return;
-  const d = $('#katDugme'); d.disabled = true;
-  try { const r = await api(ac ? '/api/kat-ac' : '/api/kat-kapat', { kat: k.id }); tost(r.cikti || 'Tamam'); setTimeout(yenile, 1500); if (k.tur === 'uygulama') setTimeout(() => { yuklenen = ''; cerceveYukle(); }, ac ? 6000 : 1500); }
-  catch (e) { tost(e.message, true); } finally { d.disabled = false; }
+const KAT_SORU = {
+  kapat: k => `${k.ad} kapatılsın mı? Mesai biter: ${k.tur === 'uygulama' ? 'süren üretim tamamlanır, sıradaki işler bekler' : 'çalışan adımını bitiren çıkar, yeni iş alınmaz'}; ekip eve gider, kat görünür kalır.`,
+  durdur: k => k.tur === 'uygulama'
+    ? `${k.ad} tamamen durdurulsun mu? Sunucuları kapanır, paneli bu katta görünmez; süren üretim yarıda kalır (sonra panelden yeniden denenebilir).`
+    : `${k.ad} tamamen durdurulsun mu? Kat döngüsü ve süren adım hemen durur (adım, kat başlatılınca kaldığı yerden yeniden yapılır); ekip eve gider.`,
+};
+async function katEylem(k, eylem) {
+  if (KAT_SORU[eylem] && !confirm(KAT_SORU[eylem](k))) return;
+  const d = $('#katDugme'), dd = $('#katDurdur'); d.disabled = true; dd.disabled = true;
+  try {
+    const r = await api('/api/kat-' + eylem, { kat: k.id }); tost(r.cikti || 'Tamam'); setTimeout(yenile, 1500);
+    // Uygulama katı başlatılınca / durdurulunca kendi paneli yeniden yüklenir (mesai aç / kapat panelde canlı görünür)
+    if (k.tur === 'uygulama' && (eylem === 'durdur' || (eylem === 'ac' && k.durum === 'durduruldu'))) setTimeout(() => { yuklenen = ''; cerceveYukle(); }, eylem === 'ac' ? 7000 : 2000);
+  }
+  catch (e) { tost(e.message, true); } finally { d.disabled = false; dd.disabled = false; }
 }
 function yerTutucu(baslik, metin, dugme, eylem) {
   $('#katCerceve').hidden = true; $('#katCerceve').removeAttribute('src');
@@ -210,7 +233,7 @@ function cerceveYukle(gorev) {
   const ifr = $('#katCerceve');
   if (k.tur === 'uygulama') {
     if (bina.uzak) { yerTutucu(k.ad, `${k.ad} kendi sunucusunda çalışan bir uygulama; paneli yalnızca bu bilgisayardan açılır. Kat yazışmaları buradan izlenir.`); yuklenen = ''; return; }
-    if (!k.acik) { yerTutucu(k.ad, `${k.ad} şu an kapalı. Açınca kendi paneli bu katta görünür.`, 'Katı aç', () => katAcKapat(k, true)); yuklenen = ''; return; }
+    if (!k.acik) { yerTutucu(k.ad, `${k.ad} durduruldu (sunucuları kapalı). Başlatınca kendi paneli bu katta görünür; mesai kapalıyken de ekip evde görünür.`, '▶ Başlat', () => katEylem(k, 'ac')); yuklenen = ''; return; }
     if (yuklenen === k.id) return;
     $('#yerTutucu').hidden = true; ifr.hidden = false; ifr.src = k.adres; yuklenen = k.id; return;
   }

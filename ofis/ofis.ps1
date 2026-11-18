@@ -113,6 +113,45 @@ function Uygulama-Calisiyor($K) {
         try { $t = $c.ConnectAsync($u.Host, $u.Port); return ($t.Wait(400) -and $c.Connected) } finally { $c.Close() }
     } catch { return $false }
 }
+# Uygulama katının mesai API'si (katlar.json > uygulama.ofis, ör. Creative Studio /api/office): acik / duraklatildi / kapali.
+# "Katı kapat / aç" bununla yapılır (ekip eve gider, kat görünür kalır); "Durdur" sunucuları kapatır.
+function Uygulama-Ofis-Adresi($K) {
+    $y = [string]$K.uygulama.ofis; if (-not $y) { return '' }
+    return (([string]$K.uygulama.api).TrimEnd('/') + '/' + $y.TrimStart('/'))
+}
+function Uygulama-Ofis-Durumu($K) {
+    $u = Uygulama-Ofis-Adresi $K; if (-not $u) { return '' }
+    try {
+        $r = [Net.HttpWebRequest]::Create($u); $r.Timeout = 1500; $r.ReadWriteTimeout = 1500; $r.Proxy = $null
+        $y = $r.GetResponse()
+        try { $j = (New-Object IO.StreamReader($y.GetResponseStream(), [Text.Encoding]::UTF8)).ReadToEnd() | ConvertFrom-Json } finally { $y.Close() }
+        $d = [string]$j.durum; if (@('acik', 'duraklatildi', 'kapali') -contains $d) { return $d }
+    } catch {}
+    return ''
+}
+function Uygulama-Ofis-Eylemi($K, [string]$Eylem) {
+    $u = Uygulama-Ofis-Adresi $K; if (-not $u) { throw 'HTTP:400:Bu uygulama katının mesai (ofis) eylemi yok' }
+    $govde = [Text.Encoding]::UTF8.GetBytes(('{"eylem":"' + $Eylem + '"}'))
+    $r = [Net.HttpWebRequest]::Create($u); $r.Method = 'POST'; $r.ContentType = 'application/json'; $r.Timeout = 8000; $r.Proxy = $null
+    $s = $r.GetRequestStream(); try { $s.Write($govde, 0, $govde.Length) } finally { $s.Close() }
+    try { $y = $r.GetResponse(); $y.Close() } catch { throw "HTTP:502:$($K.ad) mesai eylemine yanıt vermedi: $($_.Exception.Message)" }
+}
+# Ekip katı "Durdur" ile tamamen durdurulduysa DURDUR metni "Ofis kapatıldı ve durduruldu" ile başlar (kapalı sayılır, bekçi başlatmaz)
+function Kat-Durduruldu-P([string]$KatKoku) {
+    $d = Join-Path $KatKoku 'DURDUR'
+    if (-not [IO.File]::Exists($d)) { return $false }
+    return ((Metin-Oku $d 200).TrimStart([char]0xFEFF).StartsWith('Ofis kapatıldı ve durduruldu'))
+}
+# Kat döngüsünün süreç kimliği (durum\kalp.json > pid): yalnızca kalp tazeyse ve süreç bu döngünün PowerShell'iyse
+function Kat-Dongusu-Pid-P([string]$KatKoku) {
+    $j = Json-Oku (Join-Path $KatKoku 'durum\kalp.json'); if (-not $j) { return 0 }
+    $p = 0; try { $p = [int]$j.pid } catch {}
+    if ($p -le 0 -or $p -eq $PID) { return 0 }
+    try { if (((Get-Date) - [datetime]$j.zaman).TotalMinutes -gt 15) { return 0 } } catch { return 0 }
+    $s = Get-CimInstance Win32_Process -Filter "ProcessId=$p" -ErrorAction SilentlyContinue
+    if (-not $s -or [string]$s.Name -notmatch '^powershell' -or [string]$s.CommandLine -notmatch '(baslat|ekip)\.ps1') { return 0 }
+    return $p
+}
 function Uygulama-Koku($K) {
     $y = ([string]$K.kok).Trim(); if (-not $y) { return '' }
     if (-not [IO.Path]::IsPathRooted($y)) { $y = Join-Path $KodKok $y }
@@ -126,8 +165,9 @@ function Kat-Ozeti($K) {
     if ($o.tur -eq 'uygulama') {
         $kk = Uygulama-Koku $K
         $o.kurulu = [bool]($kk -and [IO.Directory]::Exists($kk))
-        $o.acik = Uygulama-Calisiyor $K
-        $o.durum = $(if ($o.acik) { 'acik' } else { 'kapali' })
+        $o.acik = Uygulama-Calisiyor $K   # sunucular açık: kendi paneli bu katta görünür (mesai kapalıyken de)
+        $o.durum = 'durduruldu'
+        if ($o.acik) { $od = Uygulama-Ofis-Durumu $K; $o.durum = $(if ($od) { $od } else { 'acik' }) }
         $o.adres = [string]$K.uygulama.adres
         $o.kisi = [int]$K.uygulama.kisi
         return $o
@@ -139,7 +179,7 @@ function Kat-Ozeti($K) {
     $durdur = [IO.File]::Exists((Join-Path $kk 'DURDUR'))
     $o.dongu = Kat-Dongusu-Calisiyor-P $id
     $o.acik = -not $kapali
-    $o.durum = $(if ($kapali) { 'kapali' } elseif ($durdur) { 'duraklatildi' } elseif ($o.dongu) { 'acik' } else { 'calismiyor' })
+    $o.durum = $(if ($kapali -and -not $o.dongu -and (Kat-Durduruldu-P $kk)) { 'durduruldu' } elseif ($kapali) { 'kapali' } elseif ($durdur) { 'duraklatildi' } elseif ($o.dongu) { 'acik' } else { 'calismiyor' })
     $kd = Json-Oku (Join-Path $kk 'kadro.json'); $o.kisi = @($kd.uyeler | Where-Object { $_ -and $_.anahtar }).Count
     $yg = Join-Path $kk 'gorevler'
     if ([IO.Directory]::Exists($yg)) {
@@ -191,16 +231,22 @@ function Katlar-Bilgisi {
     foreach ($k in (Katlar-Listesi)) { $l.Add((Kat-Ozeti $k)) }
     return [ordered]@{ sirket = (Bina-Bilgisi); zaman = (Get-Date).ToString('o'); uzak = [bool]$script:IstekUzak; katlar = $l; yazismalar = (Yazisma-Listesi '' 20) }
 }
-# Katı aç: ekip katında DURDUR kaldırılır, döngü çalışmıyorsa başlatılır; uygulama katında kendi başlatıcısı (gizli) çalışır
+# Katı aç: ekip katında DURDUR kaldırılır, döngü çalışmıyorsa başlatılır. Uygulama katında sunucular açıksa mesai açılır,
+# durdurulmuşsa kendi başlatıcısı (gizli) mesaiyi de açacak argümanla çalışır (uygulama.ofis_ac_arg)
 function Eylem-KatAc($Veri) {
     $id = [string](Ozellik $Veri 'kat'); if (-not $id) { $id = $AktifKatId }
     $k = Kat-Bul-P $id; if (-not $k) { throw 'HTTP:404:Bilinmeyen kat' }
     if (-not (Kat-Ekip-mi $k)) {
         $kk = Uygulama-Koku $k; $b = [string]$k.uygulama.baslat
         if (-not $kk -or -not $b -or -not [IO.File]::Exists((Join-Path $kk $b))) { throw 'HTTP:400:Bu katın başlatıcısı yok' }
-        if (Uygulama-Calisiyor $k) { return [ordered]@{ basarili = $true; cikti = "$($k.ad) zaten açık."; hata = '' } }
-        Gizli-Baslat (Join-Path $kk $b) ([string]$k.uygulama.baslat_arg) ''
-        Ofis-Kayit "Uygulama katı açılıyor: $id"
+        if (Uygulama-Calisiyor $k) {
+            if (-not (Uygulama-Ofis-Adresi $k)) { return [ordered]@{ basarili = $true; cikti = "$($k.ad) zaten açık."; hata = '' } }
+            Uygulama-Ofis-Eylemi $k 'ac'
+            Ofis-Kayit "Uygulama katı açıldı (mesai): $id"
+            return [ordered]@{ basarili = $true; cikti = "$($k.ad) açıldı; ekip asansörden geliyor."; hata = '' }
+        }
+        Gizli-Baslat (Join-Path $kk $b) (([string]$k.uygulama.baslat_arg + ' ' + [string]$k.uygulama.ofis_ac_arg).Trim()) ''
+        Ofis-Kayit "Uygulama katı başlatılıyor: $id"
         return [ordered]@{ basarili = $true; cikti = "$($k.ad) açılıyor (sunucuların hazır olması birkaç saniye sürer)."; hata = '' }
     }
     $kk = Kat-Koku-P $k
@@ -211,9 +257,17 @@ function Eylem-KatAc($Veri) {
     Ofis-Kayit "Kat açıldı: $id"
     return [ordered]@{ basarili = $true; cikti = "$($k.ad) açıldı; ekip geliyor."; hata = '' }
 }
+# Katı kapat (mesai biter): ekip eve gider, kat panelde görünür kalır. Uygulama katında uygulamanın kendi "Ofisi kapat"ı;
+# mesai API'si olmayan uygulamada eskisi gibi sunucular durur. Tamamen durdurmak için Eylem-KatDurdur.
 function Eylem-KatKapat($Veri) {
     $id = [string](Ozellik $Veri 'kat'); if (-not $id) { $id = $AktifKatId }
     $k = Kat-Bul-P $id; if (-not $k) { throw 'HTTP:404:Bilinmeyen kat' }
+    if (-not (Kat-Ekip-mi $k) -and (Uygulama-Ofis-Adresi $k)) {
+        if (-not (Uygulama-Calisiyor $k)) { return [ordered]@{ basarili = $true; cikti = "$($k.ad) zaten durdurulmuş."; hata = '' } }
+        Uygulama-Ofis-Eylemi $k 'kapat'
+        Ofis-Kayit "Uygulama katı kapatıldı (mesai): $id"
+        return [ordered]@{ basarili = $true; cikti = "$($k.ad) kapanıyor: süren iş biter, ekip vedalaşıp çıkar; kat görünür kalır."; hata = '' }
+    }
     if (-not (Kat-Ekip-mi $k)) {
         $kk = Uygulama-Koku $k; $b = [string]$k.uygulama.durdur
         if (-not $kk -or -not $b -or -not [IO.File]::Exists((Join-Path $kk $b))) { throw 'HTTP:400:Bu katın durdurucusu yok' }
@@ -227,6 +281,38 @@ function Eylem-KatKapat($Veri) {
     [IO.File]::WriteAllText((Join-Path $kk 'DURDUR'), $metin, (New-Object Text.UTF8Encoding($false)))
     Ofis-Kayit "Kat kapatıldı: $id"
     return [ordered]@{ basarili = $true; cikti = "$($k.ad) kapanıyor: çalışan adımını bitiren çıkar."; hata = '' }
+}
+# Katı tamamen durdur (her kat için ayrı "Durdur"): uygulama katında sunucular kapanır (kendi durdurucusu); ekip katında DURDUR
+# yazılır ve kat döngüsü süren adımıyla birlikte hemen sonlandırılır (adım, kat başlatılınca kaldığı yerden yeniden yapılır).
+# Ana kat buradan durdurulmaz (zamanlanmış görevi ve bekçisi var); onun için panelindeki "Ofisi kapat".
+function Eylem-KatDurdur($Veri) {
+    $id = [string](Ozellik $Veri 'kat'); if (-not $id) { $id = $AktifKatId }
+    $k = Kat-Bul-P $id; if (-not $k) { throw 'HTTP:404:Bilinmeyen kat' }
+    if (-not (Kat-Ekip-mi $k)) {
+        $kk = Uygulama-Koku $k; $b = [string]$k.uygulama.durdur
+        if (-not $kk -or -not $b -or -not [IO.File]::Exists((Join-Path $kk $b))) { throw 'HTTP:400:Bu katın durdurucusu yok' }
+        Gizli-Baslat (Join-Path $kk $b) ([string]$k.uygulama.durdur_arg) ''
+        Ofis-Kayit "Uygulama katı durduruluyor: $id"
+        return [ordered]@{ basarili = $true; cikti = "$($k.ad) durduruluyor: sunucuları kapanıyor."; hata = '' }
+    }
+    if ($id -eq 'ana') { throw 'HTTP:400:Ana kat buradan durdurulmaz; panelindeki "Ofisi kapat" kullanılır.' }
+    $kk = Kat-Koku-P $k
+    if (-not [IO.File]::Exists((Join-Path $kk 'kadro.json'))) { throw 'HTTP:400:Bu kat kurulmamış' }
+    $metin = "Ofis kapatıldı ve durduruldu (panelden), {0}. Döngü ve süren adım durduruldu; başlatmak için panelde katı başlat.`n" -f (Get-Date).ToString('dd.MM.yyyy HH:mm')
+    [IO.File]::WriteAllText((Join-Path $kk 'DURDUR'), $metin, (New-Object Text.UTF8Encoding($false)))
+    $not = ''
+    if (Kat-Dongusu-Calisiyor-P $id) {
+        $p = Kat-Dongusu-Pid-P $kk
+        if ($p) {
+            # Ana döngüdeki ErrorActionPreference=Stop, taskkill'in stderr çıktısını hataya çevirmesin
+            $eap = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+            try { & (Join-Path $env:SystemRoot 'System32\taskkill.exe') /PID $p /T /F 2>&1 | Out-Null } catch {} finally { $ErrorActionPreference = $eap }
+            $not = ' Döngü ve süren adım sonlandırıldı.'
+            Ofis-Kayit "Kat döngüsü sonlandırıldı: $id (PID $p)"
+        } else { $not = ' Döngü süren adımını bitirince çıkar.' }
+    }
+    Ofis-Kayit "Kat durduruldu: $id"
+    return [ordered]@{ basarili = $true; cikti = "$($k.ad) durduruldu.$not"; hata = '' }
 }
 $script:SonBinaBekcisi = Get-Date
 # Panel açıkken açık katların döngüsü düşerse yeniden başlatır (ana katın zamanlanmış görevi de 10 dakikada bir bakar)
@@ -2126,7 +2212,7 @@ function Istek-Isle($Akis, $I) {
         if ($yol -eq '/api/katlar') { Yanit-Json $Akis 200 (Katlar-Bilgisi); return }
         if ($yol -eq '/api/yazismalar') { Yanit-Json $Akis 200 ([ordered]@{ yazismalar = (Yazisma-Listesi ([string]$I.sorgu['filtre']) 60) }); return }
         if ($yol -eq '/api/yazisma') { Yanit-Json $Akis 200 (Yazisma-Ayrinti ([string]$I.sorgu['id'])); return }
-        if (-not (Kat-Ekip-mi $AktifKat) -and $yol -notmatch '^/api/kat-(ac|kapat)$') { Yanit-Json $Akis 400 @{ hata = 'Bu kat bir uygulama katı; kendi paneli kullanılır.' }; return }
+        if (-not (Kat-Ekip-mi $AktifKat) -and $yol -notmatch '^/api/kat-(ac|kapat|durdur)$') { Yanit-Json $Akis 400 @{ hata = 'Bu kat bir uygulama katı; kendi paneli kullanılır.' }; return }
 
         if ($yontem -eq 'GET') {
             switch ($yol) {
@@ -2166,6 +2252,8 @@ function Istek-Isle($Akis, $I) {
                 '/api/ofis-ac' { $r = Eylem-KatAc ([pscustomobject]@{ kat = $AktifKatId }) }
                 '/api/kat-ac' { $r = Eylem-KatAc $v }
                 '/api/kat-kapat' { $r = Eylem-KatKapat $v }
+                '/api/kat-durdur' { $r = Eylem-KatDurdur $v }
+                '/api/ofis-durdur' { $r = Eylem-KatDurdur ([pscustomobject]@{ kat = $AktifKatId }) }
                 '/api/konu-ekle' { $r = Eylem-KonuEkle $v }
                 '/api/geri-al' { $gid = Metin-Alani $v 'id' 80 -Zorunlu; if ($gid -notmatch '^\d{4}(-[A-Za-z0-9-]{1,60})?$') { throw 'HTTP:400:Geçersiz görev' }; $r = Betik-Calistir 'durum.ps1' "-GeriAl $gid" }
                 '/api/canliya-al' { $gid = Metin-Alani $v 'id' 80 -Zorunlu; if ($gid -notmatch '^\d{4}(-[A-Za-z0-9-]{1,60})?$') { throw 'HTTP:400:Geçersiz görev' }; $r = Betik-Calistir 'durum.ps1' "-CanliyaAl $gid" }

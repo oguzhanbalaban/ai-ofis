@@ -88,7 +88,9 @@ ayarları, görev panosu ve döngüsüyle çalışır, kod ortaktır:
 - Alt katların ayarları yalnız kata özgü blokları taşır (roller, kat kuralları); araç yolları, bildirim, döngü ve model kataloğu ana kattan
   miras alınır. Kurulum sihirbazı katların rol zincirlerini de seçtiğiniz yapay zekaya uyarlar (`katlar\<id>\*.yerel.json`).
 - Katlar kapalı başlar: panelde katı seçip **Katı aç** deyin; döngüsü başlar (ana katın bekçisi açık katları ayakta tutar). Kapatınca
-  çalışan adım bitince döngü çıkar. Yeni kat eklemek için `katlar.json`'a kat ve `katlar\<id>\` altına `kadro.json` / `ayarlar.json` koyun.
+  çalışan adım bitince döngü çıkar. **Katı kapat** her katta mesai kapanışıdır (ekip eve gider, kat görünür kalır; Creative Studio'da
+  sunucular açık kalır). Ayrı **⏹ Durdur** tam durdurmadır: Creative Studio'nun sunucuları kapanır, ekip katının döngüsü süren
+  adımıyla hemen durur; **▶ Başlat** geri açar. Ana kat yalnız kendi panelinden kapatılır. Yeni kat eklemek için `katlar.json`'a kat ve `katlar\<id>\` altına `kadro.json` / `ayarlar.json` koyun.
 
 ## Kendi kendini geliştirme: ofis kendi kodu üzerinde çalışır
 
