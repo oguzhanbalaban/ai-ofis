@@ -67,6 +67,7 @@ function Kat-Sec([string]$Id) {
     $script:Kok = Kat-Koku-P $k
     $script:YolGorev = Join-Path $Kok 'gorevler'; $script:YolDurum = Join-Path $Kok 'durum'; $script:YolGunluk = Join-Path $Kok 'gunluk'
     $script:YolKullanim = Join-Path $YolDurum 'kullanim'
+    $script:YolSohbet = Join-Path $YolDurum 'sohbet'
     # Panelin başlattığı betikler (durum.ps1, is-ver.ps1, paralel.ps1...) bu katın verisinde çalışsın (ortak.ps1 AIEKIP_KAT okur)
     if ($Id -eq 'ana') { Remove-Item -LiteralPath env:AIEKIP_KAT -ErrorAction SilentlyContinue } else { $env:AIEKIP_KAT = $Id }
 }

@@ -4,6 +4,8 @@ sohbet.ps1 - Paneldeki sohbet penceresinden gelen son mesajı ilgili çalışana
 Ofis sunucusu (ofis.ps1) her mesajda arka planda başlatır:  sohbet.ps1 -Rol <anahtar>
 - Salt okunur çalışır: çalışan dosya değiştirmez, komut çalıştırmaz (Claude: Read/Glob/Grep, Codex: read-only).
 - Kullanıcı bir iş isterse çalışan yanıtına bir iş önerisi ekler (```is {...}```); kullanıcı panelde onaylayıp ekibe verir.
+- Fikir hattı olan katta (Creativity Office) yeni bir fikir / konu için konu önerisi de ekleyebilir (```konu {...}```); kullanıcı panelde
+  onaylayıp fikir hattına ekler. Onaysız hiçbir şey eklenmez. Çalışan hangi katta (ofiste) olduğunu ve şirketin diğer katlarını bilir.
 - Günlük çağrı sınırları ve yedek zinciri döngüyle aynıdır (Ajan-Cagir).
 Kayıtlar: durum\sohbet\<rol>.jsonl (mesajlar), <rol>.isleniyor (yanıt yazılırken), kayit\<rol>\ (son istem ve çıktılar)
 #>
@@ -17,9 +19,13 @@ try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
 $ust = Split-Path -Parent $PSScriptRoot
 . (Join-Path $ust 'ortak.ps1')
 . (Join-Path $ust 'uzman.ps1')
+# Fikir hattı (Yaratici-Katta-mi, Yaratici-Ayari) ve şirketin diğer katları (Katlar-Metni)
+. (Join-Path $ust 'yaratici.ps1')
+. (Join-Path $ust 'iletisim.ps1')
 function Kalp([string]$Durum) { }   # döngünün kalp atışı dosyasına bu süreç yazmasın
 Ayarlari-Yukle
 Kadro-Rolleri-Yukle
+$yaraticiKat = Yaratici-Katta-mi
 
 if ($Rol -notmatch '^[a-z0-9-]{1,40}$') { throw "Geçersiz rol: $Rol" }
 $klasor = Join-Path $YolDurum 'sohbet'
@@ -41,6 +47,7 @@ function Oneri-Dogrula($O) {
     $baslik = ([string]$O.baslik).Trim()
     if (-not $baslik) { return $null }
     $tur = [string]$O.tur; if (@('uzman', 'yazilim', 'altyapi') -notcontains $tur) { $tur = 'uzman' }
+    if ($yaraticiKat) { $tur = 'uzman' }   # fikir hattı katında yazılım / altyapı ekibi yok: uygulama işleri fikir hattından ana kata gider
     $s = [ordered]@{ tur = $tur; baslik = (Kisa $baslik 120); aciklama = (Kisa ([string]$O.aciklama).Trim() 8000); oncelik = 2 }
     if (@(1, 2, 3) -contains [int]$O.oncelik) { $s.oncelik = [int]$O.oncelik }
     $rolAnahtar = ([string]$O.rol).Trim()
@@ -51,12 +58,18 @@ function Oneri-Dogrula($O) {
     if ($O.kabul) { $s.kabul = @(@($O.kabul) | ForEach-Object { Kisa ([string]$_).Trim() 300 } | Where-Object { $_ } | Select-Object -First 12) }
     return $s
 }
+function Konu-Dogrula($O) {
+    $konu = ([string]$O.konu).Trim()
+    if (-not $konu -or $konu -eq 'Kısa ve net konu cümlesi') { return $null }
+    $alan = ([string]$O.alan).Trim(); if (-not $alan) { $alan = 'genel' }
+    return [ordered]@{ konu = (Kisa $konu 300); alan = (Kisa $alan 40) }
+}
 function Isler-Metni {
     $l = @(Gorevleri-Listele | Sort-Object { [string]$_.guncelleme } -Descending | Select-Object -First 15)
     if (-not $l.Count) { return '(henüz görev yok)' }
     $sb = New-Object Text.StringBuilder
     foreach ($g in $l) {
-        $tip = [string]$g.tip; if (-not $tip) { $tip = 'yazilim' }
+        $tip = [string]$g.tip; if (-not $tip) { $tip = 'yazilim' }; if ($tip -eq 'yaratici') { $tip = "fikir hattı, revizyon $([int]$g.revizyon)$(if ($g.puan) { ", puan $($g.puan)/10" })" }
         $kim = @()
         foreach ($a in @('sorumlu', 'inceleyen', 'destek')) { $v = [string]$g.$a; if ($v -and $v -ne 'yok') { $kim += "${a}: $v" } }
         if ($g.proje) { $kim += "proje: $($g.proje)" }
@@ -88,11 +101,38 @@ try {
     $makineler = '(yok)'
     if ($Ayar.altyapi -and $Ayar.altyapi.makineler) { $makineler = (@($Ayar.altyapi.makineler) | ForEach-Object { "$($_.ad) ($($_.ip))" }) -join ', ' }
     $talimat = Rol-Talimati $uye
+    # Şirket binası: hangi kat, diğer katlar; fikir hattı katında konu önerisi kuralı ve POC hedefi
+    $katSatiri = ''
+    $katlar = ''; try { $katlar = Katlar-Metni } catch {}
+    $katBolumu = ''
+    if ($katlar) {
+        $katSatiri = "Bu ofis çok katlı bir şirketin bir katıdır ($(Ofis-Adi)). Başka bir katın işi gerekiyorsa bunu söyle; işi o kata yöneticinin KAT kararıyla Communications Coordinator iletir."
+        $katBolumu = "`n`n## Şirketin diğer katları (kimlik: ad · uzmanlık alanı)`n$katlar"
+    }
+    $yaraticiSatiri = ''; $konuKurali = ''; $pocSatiri = ''
+    if ($yaraticiKat) {
+        $ya = Yaratici-Ayari
+        $hedef = '(belirtilmedi)'; if ($ya.varsayilan_proje) { $hedef = $ya.varsayilan_proje }
+        $kopru = 'yerel teslim'; if ($ya.ana_ofis_yolu) { $kopru = 'ana kata köprü açık' }
+        $yaraticiSatiri = "Fikir hattı: fikir → eleştiri → POC planı → maliyet → karar (ONAYLA / REVIZE / REDDET) → onaylı POC ana kata (AI Ekip Ofisi) gider → dönen sonuç 1-10 puanlanır. Bu katta kod yazan ya da sunucu kuran ekip yok; uygulamayı ana kat yapar."
+        $pocSatiri = "`n`n## POC hedefi`nPOC'ların varsayılan hedefi: $hedef · teslim: $kopru"
+        $konuKurali = @"
+
+- Yeni bir fikir / ürün / oyun / özellik üzerinde çalışılacaksa (kullanıcı istediğinde ya da sen önermek istediğinde) iş önerisi yerine
+  fikir hattına KONU önerisi ekle (geçerli JSON, tek blok; kullanıcı panelde "Konu olarak ekle" ile onaylar):
+
+``````konu
+{"konu": "Kısa ve net konu cümlesi", "alan": "oyun / eğitim / üretkenlik gibi tek kelime"}
+``````
+"@
+    }
 
     $istem = @"
 # Sohbet
 
-Sen bir yapay zeka ekibinde **$($uye.ad)** olarak çalışıyorsun ($($uye.departman)). Ekibin sahibi (kullanıcı) sana ofis panelindeki sohbet penceresinden yazıyor. Bugün: $((Get-Date).ToString('dd.MM.yyyy HH:mm')).
+Sen bir yapay zeka ekibinde (**$(Ofis-Adi)**) **$($uye.ad)** olarak çalışıyorsun ($($uye.departman)). Ekibin sahibi (kullanıcı) sana ofis panelindeki sohbet penceresinden yazıyor. Bugün: $((Get-Date).ToString('dd.MM.yyyy HH:mm')).
+$yaraticiSatiri
+$katSatiri
 
 ## Rolün
 $talimat
@@ -111,7 +151,7 @@ $talimat
 
   - tur: "uzman" (tasarım, mimari, güvenlik incelemesi, araştırma, iletişim, işe alım ...), "yazilim" (bir git projesinde kod; "proje" alanına proje adını yaz),
     "altyapi" (sunucu, kurulum, VM, ağ; "hedef" alanına makine adlarını yaz, ör. ["LAB-SRV"]).
-  - Yalnızca kullanıcı gerçekten bir iş istediğinde öneri ekle; sıradan sorularda ekleme.
+  - Yalnızca kullanıcı gerçekten bir iş istediğinde öneri ekle; sıradan sorularda ekleme.$konuKurali
 
 ## Kadro
 $(Kadro-Metni)
@@ -123,7 +163,7 @@ $(Isler-Metni)
 $projeler
 
 ## Makineler
-$makineler
+$makineler$pocSatiri$katBolumu
 
 ## Sohbet geçmişi
 $gecmisMetni
@@ -142,9 +182,18 @@ $([string]$son.metin)
             try { $oneri = Oneri-Dogrula ($m.Groups[1].Value | ConvertFrom-Json) } catch {}
             $metin = $metin.Remove($m.Index, $m.Length).Trim()
         }
+        $konuOnerisi = $null
+        if ($yaraticiKat) {
+            $mk = [regex]::Match($metin, '(?s)```konu\s*(\{.*?\})\s*```')
+            if ($mk.Success) {
+                try { $konuOnerisi = Konu-Dogrula ($mk.Groups[1].Value | ConvertFrom-Json) } catch {}
+                $metin = $metin.Remove($mk.Index, $mk.Length).Trim()
+            }
+        }
         if (-not $metin) { $metin = '(öneri hazırladım)' }
         $kayit = [ordered]@{ zaman = (Simdi); kim = 'ajan'; metin = (Kisa $metin 6000); arac = ('{0}/{1}' -f $r.arac, $r.model); sure_sn = $r.sure_sn }
         if ($oneri) { $kayit.oneri = $oneri }
+        if ($konuOnerisi) { $kayit.konu = $konuOnerisi }
         Mesaj-Ekle $kayit
     } else {
         Mesaj-Ekle ([ordered]@{ zaman = (Simdi); kim = 'sistem'; metin = "Yanıt alınamadı: $(Kisa ([string]$r.hata) 400)" })

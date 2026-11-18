@@ -57,7 +57,7 @@ Kadro-Yaz $veriK @((& $uye 'lider' 'Data Lead' @{ kisa_ad = 'Data Lead' }), (& $
     (& $uye 'tester' 'BI QA Engineer' @{}), (& $uye 'iletisim' 'Data Comms' @{ uzman_isi = $true; yetki = 'yaz' }))
 [IO.File]::WriteAllText((Join-Path $veriK 'ayarlar.json'), (([pscustomobject]@{ surum = 1; roller = [pscustomobject]@{ lider = @(& $s 'sahte-veri-lider'); iletisim = @(& $s 'sahte-veri-comms') }; gorev = [pscustomobject]@{ max_tur = 2 } }) | ConvertTo-Json -Depth 6), $bom)
 Kadro-Yaz $fikirK @((& $uye 'lider' 'Creative Director' @{}), (& $uye 'fikirci' 'Creative Strategist' @{}), (& $uye 'iletisim' 'Comms' @{ uzman_isi = $true }))
-[IO.File]::WriteAllText((Join-Path $fikirK 'ayarlar.json'), (([pscustomobject]@{ surum = 1; roller = [pscustomobject]@{ lider = @(& $s 'sahte-fikir-lider'); iletisim = @(& $s 'sahte-comms') } }) | ConvertTo-Json -Depth 6), $bom)
+[IO.File]::WriteAllText((Join-Path $fikirK 'ayarlar.json'), (([pscustomobject]@{ surum = 1; roller = [pscustomobject]@{ lider = @(& $s 'sahte-fikir-lider'); iletisim = @(& $s 'sahte-comms'); fikirci = @(& $s 'sahte-fikirci') } }) | ConvertTo-Json -Depth 6), $bom)
 $katlarJ = [pscustomobject]@{ surum = 1; sirket = 'Test Şirketi'; katlar = @(
     [pscustomobject]@{ id = 'ana'; ad = 'Ana Ofis'; kisa_ad = 'Ana'; kat_no = 3; tur = 'ekip'; kok = ''; alan = 'yazılım' }
     [pscustomobject]@{ id = 'veri'; ad = 'Veri Katı'; kisa_ad = 'Veri'; kat_no = 2; tur = 'ekip'; kok = 'katlar\veri'; alan = 'SAP ETL ve raporlar' }
@@ -267,6 +267,29 @@ try {
     Dogrula 'ana katta fikir hattı yok' (-not (Yaratici-Katta-mi))
     $l = @(Yazismalar-Listele)
     Dogrula 'tüm yazışmalar şirket klasöründe (5)' ($l.Count -eq 5) "$($l.Count)"
+
+    Write-Host ''
+    Write-Host '10) Sohbet katın klasöründe; fikir hattı katında konu önerisi'
+    New-Item -ItemType Directory -Force (Join-Path $kum 'ofis') | Out-Null
+    Copy-Item -LiteralPath (Join-Path $Kaynak 'ofis\sohbet.ps1') -Destination (Join-Path $kum 'ofis\sohbet.ps1')
+    $konuBlogu = '```konu' + "`n" + '{"konu": "Harf labirenti kelime oyunu", "alan": "oyun"}' + "`n" + '```'
+    $sk = Join-Path $fikirK 'durum\sohbet'; New-Item -ItemType Directory -Force $sk | Out-Null
+    [IO.File]::WriteAllText((Join-Path $sk 'fikirci.jsonl'), (([ordered]@{ zaman = (Simdi); kim = 'sen'; metin = 'Çocuklar için kelime oyunu fikri var mı?' } | ConvertTo-Json -Compress) + "`n"), $utf8)
+    Model-Yanit 'sahte-fikirci' ("Bence harfli bir labirent olur.`n`n" + $konuBlogu)
+    $env:AIEKIP_KAT = 'fikir'
+    $null = & "$PSHOME\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $kum 'ofis\sohbet.ps1') -Rol fikirci 2>&1
+    $env:AIEKIP_KAT = ''
+    $sonF = @([IO.File]::ReadAllLines((Join-Path $sk 'fikirci.jsonl'), $utf8) | Where-Object { $_ } | ForEach-Object { $_ | ConvertFrom-Json })[-1]
+    Dogrula 'fikir katında yanıt konu önerisi taşır, blok metinden çıkar' ($sonF.kim -eq 'ajan' -and $sonF.konu.konu -eq 'Harf labirenti kelime oyunu' -and $sonF.konu.alan -eq 'oyun' -and [string]$sonF.metin -notmatch 'konu') "$($sonF.kim): $($sonF.metin)"
+    $istF = (@(Get-ChildItem -LiteralPath (Join-Path $sk 'kayit') -Recurse -Filter '*.istem.md' | ForEach-Object { [IO.File]::ReadAllText($_.FullName) }) -join "`n")
+    Dogrula 'sohbet istemi katı, fikir hattını, konu kuralını ve diğer katları bilir' ($istF -match 'Fikir Katı' -and $istF -match 'Fikir hattı:' -and $istF -match 'KONU önerisi' -and $istF -match '- veri: Veri Katı')
+    $sa = Join-Path $kum 'durum\sohbet'; New-Item -ItemType Directory -Force $sa | Out-Null
+    [IO.File]::WriteAllText((Join-Path $sa 'lider.jsonl'), (([ordered]@{ zaman = (Simdi); kim = 'sen'; metin = 'Yeni bir fikir?' } | ConvertTo-Json -Compress) + "`n"), $utf8)
+    Model-Yanit 'sahte-yonetici' ("Fikir hattı bu katta yok.`n`n" + $konuBlogu)
+    $null = & "$PSHOME\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $kum 'ofis\sohbet.ps1') -Rol lider 2>&1
+    $sonA = @([IO.File]::ReadAllLines((Join-Path $sa 'lider.jsonl'), $utf8) | Where-Object { $_ } | ForEach-Object { $_ | ConvertFrom-Json })[-1]
+    Dogrula 'ana katta konu önerisi ayrıştırılmaz (fikir hattı yok)' ($sonA.kim -eq 'ajan' -and -not $sonA.konu) "$($sonA.kim)"
+    Dogrula 'fikir katının sohbeti ana katın klasörüne yazılmadı' (-not (Test-Path -LiteralPath (Join-Path $sa 'fikirci.jsonl')))
 } catch {
     $script:Kalan++
     Write-Host ("BEKLENMEYEN HATA: {0} @ {1}" -f $_.Exception.Message, ($_.InvocationInfo.PositionMessage -replace '\s+', ' '))
