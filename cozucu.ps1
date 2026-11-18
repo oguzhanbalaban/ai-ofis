@@ -45,6 +45,7 @@ function Cozulecek-Gorev {
         if ([int]$g.cozum_sayisi -ge $c.en_fazla) { continue }
         if ([string]$g.cozum_durumu -eq 'yardim_bekleniyor') { continue }
         if ($g.cozum_sonraki -and ([datetime]$g.cozum_sonraki) -gt $simdi) { continue }
+        if (Gorev-Kilitli-mi $g.id) { continue }   # paralel hat bu işi hâlâ tutuyor
         $tz = Takilma-Zamani $g
         if (($simdi - $tz).TotalHours -gt $c.en_eski_saat) { continue }
         if ($g.cozum_inceleme -and ([datetime]$g.cozum_inceleme) -ge $tz) { continue }
@@ -70,7 +71,7 @@ function Gorev-Surdur($G, [string]$Not = '', [string]$Kim = 'kullanıcı', [stri
         if ($notMd) { $f = Join-Path (Tur-Klasoru $G) 'geri-bildirim.md'; Metin-Yaz $f ($notMd + (Metin-Oku $f)) }
         $G.asama = $d
     } elseif (Test-Path -LiteralPath $bekleyen) {
-        # Tur sınırına takılmıştı: bir tur hakkı daha ver, son geri bildirimle Software Developerʼa dön
+        # Tur sınırına takılmıştı: bir tur hakkı daha ver, son geri bildirimle Full-Stack Developerʼa dön
         $gb = $notMd + (Metin-Oku $bekleyen)
         $G.max_tur = [int]$G.tur + 1
         $G.tur = [int]$G.tur + 1
@@ -94,7 +95,7 @@ function Gorev-Surdur($G, [string]$Not = '', [string]$Kim = 'kullanıcı', [stri
 # Kullanıcı işi başka bir aşamaya taşır: baştan başlatır (Sırada), yeniden planlatır, yeniden geliştirtir, incelemeye ya da
 # tamamlamaya alır. Geri taşımada yeni tur açılır (önceki turun raporları saklanır). Adım sürerken taşınırsa süren ajan durdurulur
 # ve adım sonucu kullanılmaz (ortak.ps1 > Gorev-Iptal-mi, ekip.ps1 > Gorev-Ilerlet).
-$script:AsamaSirasi = @{ yeni = 0; plan = 1; gelistirme = 2; kontrol = 3; denetim = 4; kabul = 5; tamamla = 6; tamam = 7; iptal = 7 }
+$script:AsamaSirasi = @{ yeni = 0; analiz = 1; kesif = 1; plan = 1; gelistirme = 2; kontrol = 3; test = 3; denetim = 4; kabul = 5; tamamla = 6; tamam = 7; iptal = 7 }
 $script:TasimaHedefleri = @('yeni', 'plan', 'gelistirme', 'kontrol', 'tamamla')
 # Bekleyen / takılan işin aslında durduğu aşama
 function Etkin-Asama($G) {
@@ -117,7 +118,7 @@ function Gorev-Asamaya-Tasi($G, [string]$Hedef, [string]$Not = '') {
     $planVar = [bool]([string](Plan-Metni $G)).Trim()
     if (@('gelistirme', 'kontrol', 'tamamla') -contains $Hedef -and -not $planVar) { throw 'Bu işin planı yok; önce Planlamaʼya taşı' }
     if ($Hedef -eq 'kontrol' -and $AsamaSirasi[$etkin] -lt 2) { throw 'Bu işte henüz çalışılmadı; önce Yapılıyorʼa taşı' }
-    if ($Hedef -eq 'tamamla' -and @('kontrol', 'denetim', 'kabul', 'tamamla') -notcontains $etkin) { throw 'Yalnızca incelemedeki bir iş tamamlanabilir; önce İncelemeʼye taşı' }
+    if ($Hedef -eq 'tamamla' -and @('kontrol', 'test', 'denetim', 'kabul', 'tamamla') -notcontains $etkin) { throw 'Yalnızca incelemedeki bir iş tamamlanabilir; önce İncelemeʼye taşı' }
     # Yazılım işi: çalışma ağacı gerekir (iş tamamlanınca kaldırılır; yeniden açılınca dal üzerinde kurulur)
     if ($tip -eq 'yazilim' -and $Hedef -ne 'yeni') {
         $wt = [string]$G.calisma_klasoru

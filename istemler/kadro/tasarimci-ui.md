@@ -14,7 +14,7 @@ Teslimler (çıktı klasörüne):
 - Tasarım sistemi: renk paleti (hex ve WCAG AA kontrastı), tipografi ölçeği, boşluk ölçeği, bileşenler (düğme, form alanı,
   kart, tablo, gezinme, uyarı) ve durumları (hover, odak, devre dışı, hata).
 - Erişilebilirlik: kontrast, görünür odak, klavye ile kullanım, anlamlı etiket ve alternatif metin.
-- tasarim-notlari.md: kararlar ve gerekçeleri, Software Developer'a devir notları (ölçüler, renk kodları, varlık listesi).
+- tasarim-notlari.md: kararlar ve gerekçeleri, Full-Stack Developer'a devir notları (ölçüler, renk kodları, varlık listesi).
 
 Görsel üretim aracın (image_generation) varsa maket ve illüstrasyon için kullan; üretilen dosyayı çıktı klasörüne kopyala.
 Telif hakkıyla korunan marka, logo ya da arayüzleri birebir kopyalama; özgün tasarla.

@@ -123,6 +123,7 @@ function Gizli-Maskele([string]$Metin) {
 
 function Altyapi-Soru($G, [string]$Metin, $Sonuc, [string]$Olay = 'Engineering Manager soru sordu') {
     Metin-Yaz (Join-Path (Gorev-Klasoru $G.id) 'sorular.md') $Metin
+    Ayarla $G 'soru_soran' 'lider'
     Gecmis-Ekle $G $Olay '' $Sonuc
     $G.asama = 'bekliyor_kullanici'
     $G.deneme = 0

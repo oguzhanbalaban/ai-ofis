@@ -59,7 +59,7 @@ function Kadro-Metni {
         [void]$sb.AppendLine(('| {0} | {1} | {2} | {3} | {4} | {5} |' -f $u.anahtar, $ad, $u.departman, $alir, $u.yetki, (([string]$u.uzmanlik) -replace '\|', '/')))
     }
     [void]$sb.AppendLine('')
-    [void]$sb.AppendLine('Yazılım işleri Software Developer+Code Reviewer akışında, sunucu/kurulum/ağ işleri System Administrator+Network Engineer akışında yürür; "uzman işi alır = evet" olanlar uzman işlerinde SORUMLU ya da INCELEYEN olabilir.')
+    [void]$sb.AppendLine('Yazılım işleri Full-Stack Developer+Code Reviewer akışında, sunucu/kurulum/ağ işleri System Administrator+Network Engineer akışında yürür; "uzman işi alır = evet" olanlar uzman işlerinde SORUMLU ya da INCELEYEN olabilir.')
     [void]$sb.AppendLine('Yetki: oku = yalnızca okur ve görüş verir; yaz = kendi çalışma klasöründe dosya yazar (Claude ile komut çalıştıramaz, Codex ile internetsiz komut çalıştırır); tam = bu bilgisayarda ve VMʼlerde komut, kurulum, internet.')
     [void]$sb.AppendLine('Kimse yetkisi dışındaki işi kendisi yapamaz; Engineering Manager üzerinden ekip arkadaşından yardım ister: kısa işler (paket kurma, belge indirme, kodu çalıştırma / test) birlikte çalışmayla hemen, uzun işler ayrı yardım işiyle yapılır.')
     return $sb.ToString()
@@ -605,7 +605,8 @@ function Ek-Inceleme-Coz([string]$Metin) {
 }
 function Ek-Inceleme-Raporlari([string]$Tk) {
     $s = ''
-    foreach ($f in @(Get-ChildItem -LiteralPath $Tk -Filter 'inceleme-*.md' -File -ErrorAction SilentlyContinue | Sort-Object Name)) {
+    # Yalnızca rapor dosyaları (inceleme-<rol>.md); ajan kayıtları (inceleme-<rol>-<araç>-<model>.istem.md / .son.md) istemlere girmesin
+    foreach ($f in @(Get-ChildItem -LiteralPath $Tk -Filter 'inceleme-*.md' -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^inceleme-[a-z0-9-]+\.md$' } | Sort-Object Name)) {
         $s += "`n`n---`n`n# EK İNCELEME ($($f.BaseName.Substring(9)))`n`n" + (Metin-Oku $f.FullName)
     }
     return $s

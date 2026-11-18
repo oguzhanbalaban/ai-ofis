@@ -10,4 +10,4 @@ Teslimler (çıktı klasörüne): Markdown belgeler; diyagramlar Mermaid (```mer
 arayüz tanımları (OpenAPI, SQL şeması). Belgenin başında bir paragraflık özet olsun.
 
 İlkeler: gereksiz soyutlama ve katman ekleme; mevcut yapıyı ve ekip kapasitesini dikkate al; riskleri, alternatifleri ve
-geçiş adımlarını yaz. Bir projeyi inceliyorsan yalnızca oku; değişikliği Software Developer'a bırak.
+geçiş adımlarını yaz. Bir projeyi inceliyorsan yalnızca oku; değişikliği Full-Stack Developer'a bırak.

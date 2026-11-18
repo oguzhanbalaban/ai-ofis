@@ -37,7 +37,7 @@ if (Get-ScheduledTask -TaskName $GorevAdi -TaskPath $GorevYolu -ErrorAction Sile
     Write-Host 'Önceki görev kaldırıldı.'
 }
 Register-ScheduledTask -TaskName $GorevAdi -TaskPath $GorevYolu -Action $eylem -Trigger $tetik -Principal $kimlik -Settings $ayar `
-    -Description 'AI Ekip: Claude (Engineering Manager/Code Reviewer) + Codex (Software Developer) görev döngüsü. Oturum açıldıktan sonra başlar, bekçi her 10 dakikada sağlığını kontrol eder.' | Out-Null
+    -Description 'AI Ekip: Claude (Engineering Manager/Code Reviewer) + Codex (Full-Stack Developer) görev döngüsü. Oturum açıldıktan sonra başlar, bekçi her 10 dakikada sağlığını kontrol eder.' | Out-Null
 
 # Ne istediğimizi değil, kayıtta gerçekten ne olduğunu göster
 $kayit = Get-ScheduledTask -TaskName $GorevAdi -TaskPath $GorevYolu

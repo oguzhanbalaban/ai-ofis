@@ -12,7 +12,7 @@ klasörde senin bıraktığın değişiklikler geri alınır.
 
 Kabul ölçütlerini işlev testiyle, kullanıcı deneyimini simüle kullanıcı testiyle sına (talimatındaki yöntem). Çalıştıramadığın
 bir şey varsa "geçti" sayma. Kabul ölçütlerinden biri karşılanmıyorsa ya da ciddi bir kullanılabilirlik / işlev hatası
-bulduysan DUZELT ver ve her bulguyu yeniden üretme adımlarıyla, Software Developer'ın düzeltebileceği netlikte yaz.
+bulduysan DUZELT ver ve her bulguyu yeniden üretme adımlarıyla, Full-Stack Developer'ın düzeltebileceği netlikte yaz.
 
 Çıktın tam olarak şu biçimde olsun (ilk satır zorunlu):
 

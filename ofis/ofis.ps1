@@ -9,7 +9,8 @@ ofis.ps1 - AI Ekip "görsel ofis" paneli: yalnızca 127.0.0.1'e bağlanan küç�
   * Tek kopya çalışır (mutex). İkinci çağrı yalnızca paneli tarayıcıda açar.
   * Okuma: gorevler\*\durum.json, durum\*.json, bildirimler.jsonl, günlük doğrudan okunur.
     Dosyalar FileShare.ReadWrite|Delete ile açılır; döngünün atomik yazmalarını engellemez.
-  * Eylemler mevcut betikleri çağırır: gorev-ekle.ps1, durum.ps1 (-Duraklat/-Surdur/-Devam/-Iptal).
+  * Eylemler mevcut betikleri çağırır: gorev-ekle.ps1, durum.ps1 (-Duraklat/-Surdur/-Devam/-Iptal/-Tasi/-Komut).
+    Çalışana doğrudan komutta (/api/komut) iş hemen ilerleyecekse paralel hattı (paralel.ps1) bu sunucu başlatır.
     Soru yanıtı görevin gorev.md dosyasına eklenir (BENIOKU'daki akış; döngü değişikliği görüp yeniden planlar).
   * BosKapanDk dakika boyunca hiç istek gelmezse kendini kapatır (kısayol yeniden başlatır).
   * Güvenlik: yalnızca 127.0.0.1; Host başlığı denetimi (DNS rebinding'e karşı); tüm /api isteklerinde
@@ -44,10 +45,10 @@ foreach ($a in $adlar) { Remove-Item -LiteralPath "env:$a" -ErrorAction Silently
 $env:GIT_OPTIONAL_LOCKS = '0'
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
 
-$script:AktifAsamalar = @('yeni', 'plan', 'gelistirme', 'kontrol', 'denetim', 'kabul', 'tamamla', 'yardim')
+$script:AktifAsamalar = @('yeni', 'analiz', 'kesif', 'plan', 'gelistirme', 'kontrol', 'test', 'denetim', 'kabul', 'tamamla', 'yardim')
 $script:AsamaAdlari = @{
-    yeni = 'Sırada'; plan = 'Planlanıyor'; gelistirme = 'Geliştiriliyor'; kontrol = 'Kontrol ediliyor'
-    denetim = 'Denetleniyor'; kabul = 'Engineering Manager onayında'; tamamla = 'Commit ediliyor'; tamam = 'Tamamlandı'
+    yeni = 'Sırada'; analiz = 'Gereksinimler netleşiyor'; kesif = 'Kod tabanı taranıyor'; plan = 'Planlanıyor'; gelistirme = 'Geliştiriliyor'
+    kontrol = 'Kontrol ediliyor'; test = 'Test ediliyor'; denetim = 'Denetleniyor'; kabul = 'Engineering Manager onayında'; tamamla = 'Commit ediliyor'; tamam = 'Tamamlandı'
     takildi = 'Takıldı'; bekliyor_kullanici = 'Senden yanıt bekliyor'; iptal = 'İptal'
     yardim = 'Engineering Managerʼda (yardım isteği)'; yardim_bekliyor = 'Ekipten yardım bekliyor'
 }
@@ -55,8 +56,8 @@ $script:AsamaAdlari = @{
 $script:GenelAsamaAdlari = @{ yeni = 'Engineering Managerʼda'; plan = 'Engineering Managerʼda' }
 # kadro.json yoksa ya da bozuksa kullanılacak en küçük kadro (rol anahtarı "lider" = Engineering Manager)
 $script:VarsayilanKadro = @(
-    [pscustomobject]@{ anahtar = 'lider'; ad = 'Engineering Manager'; departman = 'Yönetim'; yerlesik = $true }
-    [pscustomobject]@{ anahtar = 'gelistirici'; ad = 'Software Developer'; departman = 'Yazılım'; yerlesik = $true }
+    [pscustomobject]@{ anahtar = 'lider'; ad = 'Engineering Manager'; departman = 'Teknik koordinasyon'; yerlesik = $true }
+    [pscustomobject]@{ anahtar = 'gelistirici'; ad = 'Full-Stack Developer'; departman = 'Yazılım'; yerlesik = $true }
     [pscustomobject]@{ anahtar = 'denetci'; ad = 'Code Reviewer'; departman = 'Yazılım'; yerlesik = $true }
     [pscustomobject]@{ anahtar = 'sistem'; ad = 'System Administrator'; departman = 'Altyapı ve güvenlik'; yerlesik = $true }
     [pscustomobject]@{ anahtar = 'ag'; ad = 'Network Engineer'; departman = 'Altyapı ve güvenlik'; yerlesik = $true }
@@ -69,11 +70,14 @@ function Kadro-Listesi {
     return , $l
 }
 function Kadro-Bul($Liste, [string]$Anahtar) { foreach ($u in $Liste) { if ([string]$u.anahtar -eq $Anahtar) { return $u } }; return $null }
-$script:AsamaRol = @{ yeni = 'lider'; plan = 'lider'; gelistirme = 'gelistirici'; kontrol = 'denetci'; denetim = 'denetci'; kabul = 'lider'; tamamla = 'lider' }
-$script:AsamaFaaliyet = @{ yeni = 'plan'; plan = 'plan'; gelistirme = 'gelistirme'; kontrol = 'kontrol'; denetim = 'denetim'; kabul = 'kabul'; tamamla = 'kabul' }
+# Yazılım akışı (planlama.ps1): analiz = Product Manager, kesif = Codebase Explorer, test = QA Engineer
+$script:AsamaRol = @{ yeni = 'lider'; analiz = 'urun'; kesif = 'kasif'; plan = 'lider'; gelistirme = 'gelistirici'; kontrol = 'denetci'; test = 'tester'; denetim = 'denetci'; kabul = 'lider'; tamamla = 'lider' }
+$script:AsamaFaaliyet = @{ yeni = 'plan'; analiz = 'analiz'; kesif = 'kesif'; plan = 'plan'; gelistirme = 'gelistirme'; kontrol = 'kontrol'; test = 'test'; denetim = 'denetim'; kabul = 'kabul'; tamamla = 'kabul' }
 $script:AsamaMetni = @{
-    yeni = 'Çalışma dalını hazırlıyor'; plan = 'Plan yazıyor'; gelistirme = 'Kodu yazıyor'
-    kontrol = 'Testleri ve taramaları çalıştırıyor'; denetim = 'Kodu inceliyor'; kabul = 'Son kararı veriyor'; tamamla = 'Commit ediyor'
+    yeni = 'Çalışma dalını hazırlıyor'; analiz = 'Talebi netleştiriyor, kabul ölçütlerini yazıyor'; kesif = 'Kod tabanını tarıyor'
+    plan = 'Plan yazıyor, işi dağıtıyor'; gelistirme = 'Kodu yazıyor'
+    kontrol = 'Testleri ve taramaları çalıştırıyor'; test = 'Birim / entegrasyon testi yazıp koşturuyor'; denetim = 'Kodu inceliyor'
+    kabul = 'Son kararı veriyor'; tamamla = 'Onayları denetleyip commit ediyor'
 }
 # Sunucu / kurulum talepleri (tip = altyapi): aynı aşama adları, farklı roller ve metinler (bkz. altyapi.ps1)
 $script:AltyapiFaaliyet = @{ yeni = 'kesif'; plan = 'plan'; gelistirme = 'uygulama'; kontrol = 'kontrol'; denetim = 'dogrulama'; kabul = 'kabul'; tamamla = 'kabul' }
@@ -97,13 +101,61 @@ function Gorev-Tipi($G) {
     return 'yazilim'
 }
 function Altyapi-Mi($G) { return ((Gorev-Tipi $G) -eq 'altyapi') }
+# Kullanıcının "Devral" komutu: bu işte o rolün işini başka bir çalışan yapar (görevde devralan = { rol: çalışan }; komut.ps1)
 function Gorev-Rolu($G, [string]$Etiket = '') {
+    $r = Gorev-Rolu-Ham $G $Etiket
+    if (-not $r -or $Etiket -eq 'ise_alim' -or $Etiket -match '^(inceleme|birlikte)-') { return $r }
+    $d = Ozellik $G 'devralan'
+    if ($d) { $k = [string](Ozellik $d $r); if ($k) { return $k } }
+    return $r
+}
+# Kalp atışındaki "etiket (araç/model)" -> o anki ajan adımının etiketi ve aracı (adım görevin aşamasına uymuyorsa boş)
+function Kalp-Etiketi([string]$Adim, $G) {
+    $e = ''; $arac = ''
+    if ($G -and $Adim -match '^(\S+) \((.+)\)$') {
+        $e = $Matches[1]; $kimlik = $Matches[2]
+        $x = $e
+        if ($x -match '^inceleme-') { $x = 'denetim' }
+        if ($x -match '^birlikte-') { $x = 'yardim' }   # yardımcı, yardım isteyen işin içinde hemen çalışıyor
+        if ($x -eq 'yonlendirme') { $x = [string]$G.asama }   # Engineering Managerʼın "İş ver" yönlendirmesi (yeni ya da plan)
+        if ($EtiketAsama.ContainsKey($x)) { $x = $EtiketAsama[$x] }
+        if ($x -eq [string]$G.asama) { $arac = $kimlik } else { $e = '' }
+    }
+    return @{ etiket = $e; arac = $arac }
+}
+# Panelden komutla açılan paralel hatlar (paralel.ps1 > durum\paralel\<no>.json); süreci ölmüş kayıtlar atlanır
+function Paralel-Hatlari-Oku($Gorevler, $BostaDurumlari) {
+    $l = New-Object Collections.Generic.List[object]
+    $kl = Join-Path $YolDurum 'paralel'
+    if (-not [IO.Directory]::Exists($kl)) { return , $l }
+    foreach ($f in [IO.Directory]::GetFiles($kl, '*.json')) {
+        $h = Json-Oku $f
+        if (-not $h) { continue }
+        $pidNo = [int](Ozellik $h 'pid')
+        $canli = $false
+        if ($pidNo -gt 0) { $canli = [bool](Get-Process -Id $pidNo -ErrorAction SilentlyContinue) }
+        $z = Tarih (Ozellik $h 'zaman')
+        if (-not $canli -and -not ($z -and ((Get-Date) - $z).TotalSeconds -lt 20)) { continue }
+        $g = $null; $hid = [string](Ozellik $h 'gorev')
+        foreach ($x in $Gorevler) { if ([string]$x.id -eq $hid) { $g = $x; break } }
+        if (-not $g) { continue }
+        $durum = [string](Ozellik $h 'durum')
+        $hCalisiyor = ($AktifAsamalar -contains [string]$g.asama) -and ($BostaDurumlari -notcontains $durum)
+        $ke = @{ etiket = ''; arac = '' }; if ($hCalisiyor) { $ke = Kalp-Etiketi ([string](Ozellik $h 'adim')) $g }
+        $l.Add([ordered]@{ gorev = $hid; kim = [string](Ozellik $h 'kim'); emir = [string](Ozellik $h 'emir'); baslangic = (Ozellik $h 'baslangic')
+            zaman = (Ozellik $h 'zaman'); durum = $durum; adim_sayisi = [int](Ozellik $h 'adim_sayisi'); pid = $pidNo
+            g = $g; etiket = $ke.etiket; arac = $ke.arac; calisiyor = [bool]$hCalisiyor; paralel = $true })
+    }
+    return , $l
+}
+function Gorev-Rolu-Ham($G, [string]$Etiket = '') {
     # Görevin şu anki aşamasını hangi rol yürütüyor (kalp atışındaki etiket önceliklidir: işe alım, ek inceleme)
     if ($Etiket -eq 'ise_alim') { return 'ik' }
     if ($Etiket -match '^inceleme-(.+)$') { return $Matches[1] }
     if ($Etiket -match '^birlikte-(.+)$') { return $Matches[1] }
     $asama = [string]$G.asama
     $tip = Gorev-Tipi $G
+    if ($asama -eq 'analiz') { return 'urun' }   # Product Manager ("İş ver" ve yazılım işleri)
     if ($tip -eq 'genel' -or $asama -eq 'yardim') { return 'lider' }
     if ($tip -eq 'altyapi') {
         $sorumlu = [string](Ozellik $G 'sorumlu'); if ($sorumlu -ne 'ag') { $sorumlu = 'sistem' }
@@ -120,6 +172,11 @@ function Gorev-Rolu($G, [string]$Etiket = '') {
         if ($asama -eq 'kontrol') { if ($inceleyen) { return $inceleyen }; return $sorumlu }
         return 'lider'
     }
+    if ($asama -eq 'gelistirme') {
+        # Bölünmüş geliştirmede sıradaki parçanın geliştiricisi (Backend / Frontend Developer…)
+        foreach ($p in @(Ozellik $G 'gelistirme_isleri')) { if ($p -and [string](Ozellik $p 'rol') -and [string](Ozellik $p 'durum') -ne 'tamam') { return [string]$p.rol } }
+    }
+    if ($asama -eq 'kontrol' -and (Ozellik $G 'qa_testi') -eq $true) { return 'tester' }
     return $AsamaRol[$asama]
 }
 function Asama-Adi-Bul($G) {
@@ -646,15 +703,11 @@ function Durum-Uret {
     $anlikArac = ''
     $kalpEtiket = ''
     $kalpAdim = [string](Ozellik $kalp 'adim')
-    if ($calisiyor -and $kalpAdim -match '^(\S+) \((.+)\)$') {
-        $kalpEtiket = $Matches[1]; $kimlikAnlik = $Matches[2]
-        $etiket = $kalpEtiket
-        if ($etiket -match '^inceleme-') { $etiket = 'denetim' }
-        if ($etiket -match '^birlikte-') { $etiket = 'yardim' }   # yardımcı, yardım isteyen işin içinde hemen çalışıyor
-        if ($etiket -eq 'yonlendirme') { $etiket = [string]$aktif.asama }   # Engineering Managerʼın "İş ver" yönlendirmesi (yeni ya da plan)
-        if ($EtiketAsama.ContainsKey($etiket)) { $etiket = $EtiketAsama[$etiket] }
-        if ($etiket -eq [string]$aktif.asama) { $anlikArac = $kimlikAnlik } else { $kalpEtiket = '' }
-    }
+    if ($calisiyor) { $ke = Kalp-Etiketi $kalpAdim $aktif; $kalpEtiket = $ke.etiket; $anlikArac = $ke.arac }
+    # Panelden komutla açılan paralel hatlar: ana döngüden bağımsız yürüyen işler
+    $paralelHatlar = Paralel-Hatlari-Oku $gorevler $bostaDurumlari
+    $paralelGorev = @{}; foreach ($h in $paralelHatlar) { $paralelGorev[[string]$h.gorev] = $h }
+    $anaHat = [ordered]@{ g = $aktif; etiket = $kalpEtiket; arac = $anlikArac; calisiyor = $calisiyor; paralel = $false }
     # Incident Manager takılan bir işi inceliyor (görev aşaması 'takildi' olduğundan yukarıdaki "aktif" görev değildir)
     $cozumGorev = $null; $cozumArac = ''
     $cozumTur = ''
@@ -662,6 +715,9 @@ function Durum-Uret {
         $cozumTur = [string]$Matches[1]; $cozumArac = [string]$Matches[2]
         foreach ($g in $gorevler) { if ($g.id -eq $kalpGorev) { $cozumGorev = $g; break } }
     }
+    # CTO yönetim değerlendirmesi yapıyor (yonetim.ps1: görev yok, kalp adımı "yonetim" ya da "yonetim (araç/model)")
+    $ctoCalisiyor = $false; $ctoArac = ''
+    if ($saglik -eq 'saglikli' -and ($bostaDurumlari -notcontains $kalpDurum) -and $kalpAdim -match '^yonetim(?: \((.+)\))?$') { $ctoCalisiyor = $true; $ctoArac = [string]$Matches[1] }
     $yardimBekleyen = $null
     foreach ($g in $gorevler) { if ([string]$g.asama -eq 'takildi' -and [string](Ozellik $g 'cozum_durumu') -eq 'yardim_bekleniyor') { $yardimBekleyen = $g; break } }
     $bugunRol = @{}
@@ -671,8 +727,15 @@ function Durum-Uret {
     # ---- roller (kadro.json sırasıyla)
     $kadro = Kadro-Listesi
     $roller = New-Object Collections.Generic.List[object]
+    $anaAktif = $aktif; $anaEtiket = $kalpEtiket
     foreach ($uye in $kadro) {
         $rol = [string]$uye.anahtar
+        # Bu çalışan hangi hatta iş başında: ana döngü ya da panelden komutla açılan paralel hat
+        $hat = $null
+        if ($calisiyor -and ((Gorev-Rolu $anaAktif $anaEtiket) -eq $rol)) { $hat = $anaHat }
+        else { foreach ($h in $paralelHatlar) { if ($h.calisiyor -and ((Gorev-Rolu $h.g $h.etiket) -eq $rol)) { $hat = $h; break } } }
+        if ($hat) { $aktif = $hat.g; $kalpEtiket = $hat.etiket; $anlikArac = $hat.arac }
+        else { $aktif = $anaAktif; $kalpEtiket = $anaEtiket; $anlikArac = '' }
         $aktifTip = ''; if ($aktif) { $aktifTip = Gorev-Tipi $aktif }
         $haric = @()
         if ($aktifTip -eq 'yazilim' -and ($rol -eq 'denetci' -or $kalpEtiket -eq "inceleme-$rol") -and (Ozellik $aktif 'gelistirici')) { $haric = @([string]$aktif.gelistirici) }
@@ -693,7 +756,7 @@ function Durum-Uret {
             if (-not $neden -and -not $siradaki) { $siradaki = $kimlik }
             $zincir.Add([ordered]@{ kimlik = $kimlik; arac = [string]$gi.arac; model = [string]$gi.model; efor = [string](Ozellik $gi 'efor'); neden = $neden })
         }
-        $isbasinda = $calisiyor -and ((Gorev-Rolu $aktif $kalpEtiket) -eq $rol)
+        $isbasinda = [bool]$hat
         $faaliyet = 'bosta'; $metin = 'Boşta'; $gorevBilgi = $null; $baslangic = $null
         $arac = $siradaki; $aracKaynak = 'sıradaki'; $not = ''
         if ($rol -eq 'sorun-giderici' -and $cozumGorev) {
@@ -702,13 +765,20 @@ function Durum-Uret {
             $gorevBilgi = [ordered]@{ id = $cozumGorev.id; baslik = $cozumGorev.baslik; tur = $cozumGorev.tur; max_tur = $cozumGorev.max_tur }
             $baslangic = Ozellik $kalp 'zaman'
             if ($cozumArac) { $arac = $cozumArac; $aracKaynak = 'şu an' }
+        } elseif ($rol -eq 'cto' -and $ctoCalisiyor) {
+            $isbasinda = $true
+            $faaliyet = 'yonetim'; $metin = 'Yönetim değerlendirmesi yapıyor'
+            $baslangic = Ozellik $kalp 'zaman'
+            if ($ctoArac) { $arac = $ctoArac; $aracKaynak = 'şu an' }
         } elseif ($isbasinda) {
             $asama = [string]$aktif.asama
             $altyapi = ($aktifTip -eq 'altyapi')
             if ($kalpEtiket -eq 'ise_alim') { $faaliyet = 'ise_alim'; $metin = 'İşe alım yapıyor' }
             elseif ($kalpEtiket -match '^birlikte-') { $faaliyet = 'calisma'; $metin = 'Ekip arkadaşıyla birlikte çalışıyor (anlık yardım)' }
             elseif ($asama -eq 'yardim') { $faaliyet = 'plan'; $metin = 'Ekip içi yardım isteğini değerlendiriyor' }
+            elseif ($asama -eq 'analiz') { $faaliyet = 'analiz'; $metin = $AsamaMetni['analiz'] }
             elseif ($aktifTip -eq 'genel') { $faaliyet = 'plan'; $metin = 'Yeni işi okuyup kime vereceğine karar veriyor' }
+            elseif ($rol -eq 'tester' -and $asama -eq 'test') { $faaliyet = 'test'; $metin = $AsamaMetni['test'] }
             elseif ($rol -eq 'tester') { $faaliyet = 'inceleme'; $metin = 'Uygulamayı test ediyor' }
             elseif ($kalpEtiket -match '^inceleme-') { $faaliyet = 'inceleme'; $metin = 'Kodu kendi alanından inceliyor' }
             elseif ($altyapi) {
@@ -717,7 +787,10 @@ function Durum-Uret {
             } elseif ($aktifTip -eq 'uzman') {
                 $faaliyet = $UzmanFaaliyet[$asama]; $metin = $UzmanMetni[$asama]
                 if ($asama -eq 'gelistirme' -and $uye.faaliyet_metni) { $metin = [string]$uye.faaliyet_metni }
-            } else { $faaliyet = $AsamaFaaliyet[$asama]; $metin = $AsamaMetni[$asama] }
+            } else {
+                $faaliyet = $AsamaFaaliyet[$asama]; $metin = $AsamaMetni[$asama]
+                if ($asama -eq 'gelistirme' -and $uye.faaliyet_metni) { $metin = [string]$uye.faaliyet_metni }
+            }
             $gorevBilgi = [ordered]@{ id = $aktif.id; baslik = $aktif.baslik; tur = $aktif.tur; max_tur = $aktif.max_tur }
             $baslangic = Ozellik $aktif 'olusturma'
             $gecmis = @(Ozellik $aktif 'gecmis')
@@ -780,8 +853,10 @@ function Durum-Uret {
             sohbette = [bool](Sohbet-Isleniyor $rol); sohbet_son = (Sohbet-Son $rol)
             bugun = $(if ($bugunRol.ContainsKey($rol)) { [ordered]@{ cagri = $bugunRol[$rol].cagri; toplam = $bugunRol[$rol].toplam } } else { [ordered]@{ cagri = 0; toplam = 0 } })
             zincir_kaynak = $zincirKaynak; rol_tr = [string](Ozellik $uye 'rol_tr')
+            hat = $(if ($hat -and $hat.paralel) { 'paralel' } elseif ($hat) { 'ana' } else { '' })
         })
     }
+    $aktif = $anaAktif; $kalpEtiket = $anaEtiket; $anlikArac = $anaHat.arac
 
     # ---- görev kartları (son 60 günün token toplamlarıyla)
     $gorevToken = @{}
@@ -802,7 +877,7 @@ function Durum-Uret {
             son_hata = (Ozellik $g 'son_hata'); ozet = (Ozellik $g 'ozet'); commit = (Ozellik $g 'commit')
             sonraki_deneme = (Ozellik $g 'sonraki_deneme'); guncelleme = (Ozellik $g 'guncelleme'); olusturma = (Ozellik $g 'olusturma')
             lider = (Ozellik $g 'lider'); gelistirici = (Ozellik $g 'gelistirici'); denetci = (Ozellik $g 'denetci')
-            aktif = [bool]($calisiyor -and $aktif.id -eq $g.id)
+            aktif = [bool](($calisiyor -and $aktif.id -eq $g.id) -or ($paralelGorev.ContainsKey([string]$g.id) -and $paralelGorev[[string]$g.id].calisiyor))
             cozuluyor = [bool]($cozumGorev -and $cozumGorev.id -eq $g.id)
             cozum_durumu = (Ozellik $g 'cozum_durumu'); cozum_son_karar = (Ozellik $g 'cozum_son_karar'); cozum_teshis = (Ozellik $g 'cozum_teshis')
             cozum_kullaniciya = (Ozellik $g 'cozum_kullaniciya'); cozum_sayisi = (Ozellik $g 'cozum_sayisi')
@@ -812,6 +887,11 @@ function Durum-Uret {
             kok_neden = (Ozellik $g 'kok_neden'); tur_sayisi = $g.tur
             puan_yonetici = (Ozellik $g 'puan_yonetici'); puan_ajan = (Ozellik $g 'puan_ajan')
             birlikte_sayisi = @(Ozellik $g 'birlikte' | Where-Object { $_ }).Count
+            devralan = (Ozellik $g 'devralan'); one_al = [bool](Ozellik $g 'one_al'); komut_sayisi = @(Ozellik $g 'komutlar' | Where-Object { $_ }).Count
+            gelistirme_isleri = @(Ozellik $g 'gelistirme_isleri' | Where-Object { $_ } | ForEach-Object { [ordered]@{ rol = [string](Ozellik $_ 'rol'); is = [string](Ozellik $_ 'is'); durum = [string](Ozellik $_ 'durum'); tur = (Ozellik $_ 'tur') } })
+            qa_testi = (Ozellik $g 'qa_testi'); gereksinim_durumu = (Ozellik $g 'gereksinim_durumu'); kesif_durumu = (Ozellik $g 'kesif_durumu')
+            kapsam = (Ozellik $g 'kapsam'); soru_soran = (Ozellik $g 'soru_soran'); urun = (Ozellik $g 'urun'); kasif = (Ozellik $g 'kasif'); tester = (Ozellik $g 'tester')
+            paralel = $(if ($paralelGorev.ContainsKey([string]$g.id)) { $ph = $paralelGorev[[string]$g.id]; [ordered]@{ kim = $ph.kim; emir = $ph.emir; baslangic = $ph.baslangic; adim_sayisi = $ph.adim_sayisi; durum = $ph.durum } } else { $null })
             sahip = $(if ($AktifAsamalar -contains $asama) { Gorev-Rolu $g }
                 elseif ($asama -eq 'yardim_bekliyor') {
                     $yi = [string](Ozellik $g 'yardim_isteyen')
@@ -856,11 +936,14 @@ function Durum-Uret {
         zaman = $simdi.ToString('o')
         kok = $Kok
         dongu = [ordered]@{
-            saglik = $saglik; calisiyor = [bool]($calisiyor -or $cozumGorev); duraklatildi = $duraklatildi
+            saglik = $saglik; calisiyor = [bool]($calisiyor -or $cozumGorev -or $ctoCalisiyor -or @($paralelHatlar | Where-Object { $_.calisiyor }).Count); duraklatildi = $duraklatildi
             durdur_metni = $(if ($duraklatildi) { (Metin-Oku $durdurYolu 500).Trim() } else { '' })
             kalp_durum = $kalpDurum; kalp_zaman = (Ozellik $kalp 'zaman'); kalp_gorev = $kalpGorev; kalp_adim = $kalpAdim
             yas_sn = $yasSn; pid = $kalpPid; pid_canli = $pidCanli; bekci_dk = $bekciDk
             aktif_gorev = $(if ($aktif) { $aktif.id } else { '' })
+            paralel = @($paralelHatlar | ForEach-Object { [ordered]@{ gorev = $_.gorev; kim = $_.kim; emir = $_.emir; baslangic = $_.baslangic; adim_sayisi = $_.adim_sayisi; durum = $_.durum; calisiyor = $_.calisiyor } })
+            paralel_etkin = [bool](-not ($ayar -and $ayar.paralel -and $ayar.paralel.etkin -eq $false))
+            paralel_en_fazla = $(if ($ayar -and $ayar.paralel -and $ayar.paralel.en_fazla) { [int]$ayar.paralel.en_fazla } else { 2 })
         }
         roller = $roller
         gorevler = $kartlar
@@ -877,6 +960,7 @@ function Durum-Uret {
         duyurular = $duyurular
         eposta_kurulu = $epostaKurulu
         model_katalogu = $(if ($ayar -and $ayar.model_katalogu) { $mk = [ordered]@{}; foreach ($mkArac in @('claude', 'codex', 'gemini')) { if ($ayar.model_katalogu.PSObject.Properties[$mkArac]) { $mk[$mkArac] = @($ayar.model_katalogu.$mkArac | Where-Object { $_ }) } }; $mk } else { $null })
+        yonetim = (Yonetim-Ozeti $ayar $ctoCalisiyor)
         sorun_giderici = [ordered]@{
             etkin = [bool]($ayar -and $ayar.roller -and (Ozellik $ayar.roller 'sorun-giderici') -and -not ($ayar.sorun_giderici -and $ayar.sorun_giderici.etkin -eq $false))
             en_fazla = $(if ($ayar -and $ayar.sorun_giderici -and $ayar.sorun_giderici.gorev_basina_en_fazla) { [int]$ayar.sorun_giderici.gorev_basina_en_fazla } else { 2 })
@@ -933,6 +1017,7 @@ function Gorev-Ayrinti([string]$Id) {
         ciktilar = (Cikti-Listesi $Id)
         sonuc_md = (Metin-Oku (Join-Path $gk 'sonuc.md') 100000)
         kesif_md = (Metin-Oku (Join-Path $gk 'kesif.md') 50000)
+        gereksinimler_md = (Metin-Oku (Join-Path $gk 'gereksinimler.md') 100000)
         gorev_md = (Metin-Oku (Join-Path $gk 'gorev.md') 200000)
         plan_md = (Metin-Oku (Join-Path $gk 'plan.md') 200000)
         plan_gecersiz_md = (Metin-Oku (Join-Path $gk 'plan-gecersiz.md') 100000)
@@ -1219,6 +1304,73 @@ function Eylem-Tasi($Veri) {
     if ($not) { $a += ' -Not ' + (Ps-Tirnak $not) }
     return (Betik-Calistir 'durum.ps1' $a)
 }
+# Çalışana doğrudan komut (karakter kartı / görev ayrıntısı): durum.ps1 -Komut kaydeder (komut.ps1); iş hemen ilerleyecekse
+# paralel hattı (paralel.ps1) bu sunucu görünmez pencerede başlatır
+function Eylem-Komut($Veri) {
+    $id = Metin-Alani $Veri 'id' 80 -Zorunlu
+    $kim = Sohbet-Rolu (Metin-Alani $Veri 'kim' 40 -Zorunlu)
+    $emir = Metin-Alani $Veri 'emir' 10 -Zorunlu
+    if (@('devam', 'devral') -notcontains $emir) { throw 'HTTP:400:Bilinmeyen komut (devam | devral)' }
+    $not = Metin-Alani $Veri 'not' 4000
+    [void](Gorev-Klasoru-Bul $id)
+    $a = '-Komut ' + (Ps-Tirnak $id) + ' -Kim ' + (Ps-Tirnak $kim) + ' -Emir ' + $emir + ' -Baslatma'
+    if ($not) { $a += ' -Not ' + (Ps-Tirnak $not) }
+    $r = Betik-Calistir 'durum.ps1' $a
+    if ($r.basarili -and ([string]$r.cikti -match '(?m)^PARALEL: (\d{4}-[A-Za-z0-9-]{1,60})\s*$')) {
+        $gid = $Matches[1]
+        $arg = '--headless "{0}" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{1}" -Gorev {2} -Kim {3} -Komut {4}' -f $PsExe, (Join-Path $Kok 'paralel.ps1'), $gid, $kim, $emir
+        $p = Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\conhost.exe') -ArgumentList $arg -WindowStyle Hidden -PassThru
+        # Hat kendi kaydını yazana kadar panel "başlıyor" göstersin (paralel.ps1 aynı dosyayı günceller)
+        $kl = Join-Path $YolDurum 'paralel'
+        if (-not [IO.Directory]::Exists($kl)) { [void][IO.Directory]::CreateDirectory($kl) }
+        $kf = Join-Path $kl "$gid.json"
+        if (-not [IO.File]::Exists($kf)) {
+            $on = [ordered]@{ pid = $p.Id; gorev = $gid; kim = $kim; emir = $emir; baslangic = (Get-Date).ToString('o'); zaman = (Get-Date).ToString('o'); durum = 'başlıyor'; adim = ''; asama = ''; adim_sayisi = 0 }
+            try { [IO.File]::WriteAllText($kf, ($on | ConvertTo-Json -Compress), $Utf8) } catch {}
+        }
+        Ofis-Kayit "Paralel hat başlatıldı: $gid, $kim ($emir), PID $($p.Id)"
+        $r.cikti = ([string]$r.cikti -replace '(?m)^PARALEL: .*$', 'Paralel hat başladı: iş ana sırayı beklemeden ilerliyor.').Trim()
+        $r['paralel'] = $true
+    }
+    return $r
+}
+# ---------------------------------------------------------------- yönetim (CTO; yonetim.ps1 > durum\yonetim\)
+function Yonetim-Ozeti($Ayar, [bool]$Calisiyor) {
+    $kl = Join-Path $YolDurum 'yonetim'
+    $son = $null; if ([IO.Directory]::Exists($kl)) { $son = Json-Oku (Join-Path $kl 'son.json') }
+    $y = $null; if ($Ayar) { $y = Ozellik $Ayar 'yonetim' }
+    $etkin = [bool]($Ayar -and $Ayar.roller -and (Ozellik $Ayar.roller 'cto') -and -not ($y -and $y.etkin -eq $false))
+    return [ordered]@{
+        etkin = $etkin; aralik_saat = $(if ($y -and $y.aralik_saat) { [int]$y.aralik_saat } else { 24 }); calisiyor = $Calisiyor
+        istek = [IO.File]::Exists((Join-Path $kl 'istek'))
+        zaman = (Ozellik $son 'zaman'); durum = (Ozellik $son 'durum'); ozet = (Ozellik $son 'ozet'); hata = (Ozellik $son 'hata')
+        oneriler = @(Ozellik $son 'oneriler' | Where-Object { $_ }); ilke_sayisi = [int](Ozellik $son 'ilke_sayisi')
+        oncelik_degisiklikleri = @(Ozellik $son 'oncelik_degisiklikleri' | Where-Object { $_ })
+    }
+}
+function Yonetim-Bilgisi {
+    $kl = Join-Path $YolDurum 'yonetim'
+    $rapor = ''; $ad = ''; $ilkeler = ''; $sayi = 0
+    if ([IO.Directory]::Exists($kl)) {
+        $ilkeler = Metin-Oku (Join-Path $kl 'ekip-ilkeleri.md') 20000
+        $raporlar = @([IO.Directory]::GetFiles($kl, 'degerlendirme-*.md') | Sort-Object -Descending)
+        $sayi = $raporlar.Count
+        if ($sayi) { $ad = [IO.Path]::GetFileName($raporlar[0]); $rapor = Metin-Oku $raporlar[0] 100000 }
+    }
+    return [ordered]@{ rapor_md = $rapor; rapor_adi = $ad; rapor_sayisi = $sayi; ilkeler_md = $ilkeler }
+}
+function Eylem-YonetimIste {
+    $kl = Join-Path $YolDurum 'yonetim'
+    if (-not [IO.Directory]::Exists($kl)) { [void][IO.Directory]::CreateDirectory($kl) }
+    [IO.File]::WriteAllText((Join-Path $kl 'istek'), ("Panelden {0}ʼde istendi.`n" -f (Get-Date).ToString('dd.MM.yyyy HH:mm')), $Utf8)
+    Ofis-Kayit 'CTO değerlendirmesi istendi.'
+    return [ordered]@{ basarili = $true; cikti = 'CTO değerlendirmesi istendi: ofis boşalınca (sırada iş yokken) birkaç dakika içinde yapılır.'; hata = '' }
+}
+function Eylem-ParalelDurdur($Veri) {
+    $id = Metin-Alani $Veri 'id' 80 -Zorunlu
+    [void](Gorev-Klasoru-Bul $id)
+    return (Betik-Calistir 'durum.ps1' ('-ParalelDurdur ' + (Ps-Tirnak $id)))
+}
 function Eylem-Iptal($Veri) {
     $id = Metin-Alani $Veri 'id' 80 -Zorunlu
     [void](Gorev-Klasoru-Bul $id)
@@ -1297,12 +1449,15 @@ $script:RolIstemleri = @{
     lider = @('yonetici-yonlendirme.md', 'lider-plan.md', 'lider-kabul.md', 'lider-uzman-plan.md', 'lider-uzman-kabul.md', 'lider-altyapi-plan.md', 'lider-altyapi-kabul.md', 'yonetici-yardim.md')
     'sorun-giderici' = @('sorun-giderici.md', 'sorun-kategori.md'); gelistirici = @('gelistirici.md'); denetci = @('denetci.md')
     sistem = @('altyapi-uygulama.md', 'altyapi-dogrulama.md'); ag = @('altyapi-uygulama.md', 'altyapi-dogrulama.md')
-    tester = @('tester-inceleme.md', 'uzman-calisma.md'); ik = @('ik-ise-alim.md')
+    tester = @('qa-test.md', 'tester-inceleme.md', 'uzman-calisma.md'); ik = @('ik-ise-alim.md')
+    urun = @('urun-analiz.md'); kasif = @('kasif-kesif.md'); frontend = @('gelistirici.md'); backend = @('gelistirici.md'); cto = @('cto-degerlendirme.md')
 }
 $script:RolAdimlari = @{
-    lider = @('İş ver yönlendirmesi', 'Plan', 'Kabul / ret', 'Ekip içi yardım kararı'); 'sorun-giderici' = @('Takılan işi inceleme', 'Kök neden kategorisi')
-    gelistirici = @('Geliştirme'); denetci = @('Kod denetimi'); sistem = @('Sunucu / kurulum uygulama', 'Doğrulama'); ag = @('Ağ uygulama', 'Doğrulama')
-    tester = @('Ek inceleme (test)', 'Uzman işi inceleme', 'Test işi'); ik = @('İşe alım')
+    lider = @('İş ver yönlendirmesi', 'Plan ve iş dağılımı', 'Kabul / ret', 'Ekip içi yardım kararı'); 'sorun-giderici' = @('Takılan işi inceleme', 'Kök neden kategorisi')
+    gelistirici = @('Geliştirme (tek başına ya da bir parça)'); denetci = @('Kod ve güvenlik denetimi (onay kapısı)'); sistem = @('Sunucu / kurulum uygulama', 'Doğrulama'); ag = @('Ağ uygulama', 'Doğrulama')
+    tester = @('Yazılım işinde test (birim / entegrasyon)', 'Ek inceleme (test)', 'Uzman işi inceleme', 'Test işi'); ik = @('İşe alım')
+    urun = @('Gereksinim analizi (kabul ölçütleri)'); kasif = @('Kod tabanı keşfi'); frontend = @('Önyüz geliştirme parçası'); backend = @('Arka uç geliştirme parçası')
+    cto = @('Yönetim değerlendirmesi (ofis boştayken)', 'Ekip ilkeleri', 'Önceliklendirme', 'İş önerisi')
 }
 function Karakter-Bilgisi([string]$Rol) {
     $Rol = Sohbet-Rolu $Rol
@@ -1576,6 +1731,7 @@ function Istek-Isle($Akis, $I) {
                 '/api/sohbet' { Yanit-Json $Akis 200 (Sohbet-Oku ([string]$I.sorgu['rol'])); return }
                 '/api/kullanim' { $gn = 7; [void][int]::TryParse([string]$I.sorgu['gun'], [ref]$gn); Yanit-Json $Akis 200 (Kullanim-Ozeti $gn); return }
                 '/api/karakter' { Yanit-Json $Akis 200 (Karakter-Bilgisi ([string]$I.sorgu['rol'])); return }
+                '/api/yonetim' { Yanit-Json $Akis 200 (Yonetim-Bilgisi); return }
                 '/api/kaynak' {
                     $ky = [string]$I.sorgu['yol']
                     if ($ky) { Yanit-Metin $Akis 200 (Kaynak-Oku $ky) } else { Yanit-Json $Akis 200 ([ordered]@{ kok = $Kok; dosyalar = (Kaynak-Listesi) }) }
@@ -1602,6 +1758,9 @@ function Istek-Isle($Akis, $I) {
                 '/api/devam' { $r = Eylem-Devam $v }
                 '/api/iptal' { $r = Eylem-Iptal $v }
                 '/api/tasi' { $r = Eylem-Tasi $v }
+                '/api/komut' { $r = Eylem-Komut $v }
+                '/api/paralel-durdur' { $r = Eylem-ParalelDurdur $v }
+                '/api/yonetim-iste' { $r = Eylem-YonetimIste }
                 '/api/yanit' { $r = Eylem-Yanit $v }
             }
             if ($null -eq $r) { Yanit-Json $Akis 404 @{ hata = 'Bulunamadı' }; return }

@@ -4,13 +4,20 @@ durum.ps1 - AI Ekip'in anlık durumu ve görev yönetimi.
   .\durum.ps1                       durum özeti
   .\durum.ps1 -Ac                   HTML raporu tarayıcıda aç
   .\durum.ps1 -Devam 0003           takılan/bekleyen görevi sürdür (gerekirse bir tur hakkı daha verir)
-  .\durum.ps1 -Devam 0003 -Not "..."  sürdürürken Software Developerʼa kendi notunu ekle
+  .\durum.ps1 -Devam 0003 -Not "..."  sürdürürken Full-Stack Developerʼa kendi notunu ekle
   .\durum.ps1 -Iptal 0003           görevi iptal et (dal ve dosyalar silinmez)
   .\durum.ps1 -Tasi 0003 -Asama plan  görevi başka aşamaya taşı: yeni (baştan), plan, gelistirme, kontrol (incelemeye), tamamla
+                                    (yazılım akışı: yeni > analiz > kesif > plan > gelistirme > kontrol > test > denetim > kabul > tamamla)
+  .\durum.ps1 -Komut 0003 -Kim lider [-Emir devam|devral] [-Not "..."]
+                                    çalışana doğrudan komut: devam = iş hemen ayrı hatta ilerler; devral = bu çalışan şu anki adımın
+                                    sahibinin rolünü bu işte üstlenir (ayrıntı: komut.ps1). -Baslatma: hattı başlatma (panel başlatır)
+  .\durum.ps1 -ParalelDurdur 0003   işin paralel hattını durdur (iş bulunduğu aşamada ana sıraya döner)
+  .\durum.ps1 -Degerlendir          CTOʼdan yönetim değerlendirmesi iste (ofis boşalınca yapılır; rapor durum\yonetim\)
   .\durum.ps1 -Duraklat / -Surdur   tüm ekibi duraklat / sürdür (DURDUR dosyası)
   .\durum.ps1 -KilitleriSifirla     araç kilitlerini kaldır (ör. "claude auth login" yaptıktan sonra)
 #>
-param([string]$Devam, [string]$Not, [string]$Iptal, [string]$Tasi, [string]$Asama, [switch]$Ac, [switch]$Duraklat, [switch]$Surdur, [switch]$KilitleriSifirla)
+param([string]$Devam, [string]$Not, [string]$Iptal, [string]$Tasi, [string]$Asama, [string]$Komut, [string]$Kim, [string]$Emir = 'devam',
+    [switch]$Baslatma, [string]$ParalelDurdur, [switch]$Ac, [switch]$Duraklat, [switch]$Surdur, [switch]$KilitleriSifirla, [switch]$Degerlendir)
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'ortak.ps1')
 . (Join-Path $PSScriptRoot 'rapor.ps1')
@@ -26,6 +33,11 @@ function Gorev-Bul([string]$Kisa) {
 $durdurDosyasi = Join-Path $Kok 'DURDUR'
 if ($Duraklat) { Metin-Yaz $durdurDosyasi "Ekip $((Get-Date).ToString('dd.MM.yyyy HH:mm'))'de duraklatıldı.`n"; Write-Host 'Ekip duraklatıldı (çalışan adım bitince bekler).' }
 if ($Surdur -and (Test-Path -LiteralPath $durdurDosyasi)) { Remove-Item -LiteralPath $durdurDosyasi -Force; Write-Host 'Ekip sürdürülüyor.' }
+if ($Degerlendir) {
+    [void](Yonetim-Klasoru)
+    Metin-Yaz (Yonetim-Istek-Yolu) ("Kullanıcı {0}ʼde istedi.`n" -f (Get-Date).ToString('dd.MM.yyyy HH:mm'))
+    Write-Host 'CTO değerlendirmesi istendi: ofis boşalınca (sırada iş yokken) yapılır.'
+}
 if ($KilitleriSifirla) { Json-Yaz (New-Object psobject) (Join-Path $YolDurum 'kilitler.json'); Write-Host 'Araç kilitleri kaldırıldı; ekip bir sonraki adımda tüm araçları yeniden dener.' }
 
 if ($Devam) {
@@ -41,6 +53,21 @@ if ($Tasi) {
     $m = Gorev-Asamaya-Tasi $g $Asama $Not
     Gorev-Kaydet $g
     Write-Host "Görev taşındı: $m"
+}
+if ($Komut) {
+    $g = Gorev-Bul $Komut
+    if (-not $Kim) { throw '-Kim <kadro anahtarı> gerekli' }
+    $s = Gorev-Komut-Ver $g $Kim $Emir $Not
+    Write-Host "Komut: #$(No-Kisa $g.id) $($s.ozet)"
+    if ($s.karar -eq 'paralel') {
+        if ($Baslatma) { Write-Host "PARALEL: $($g.id)" }
+        else { $hp = Paralel-Baslat $g.id $Kim $Emir; Write-Host "Paralel hat başladı (PID $hp): iş ana sırayı beklemeden ilerliyor." }
+    } elseif ($s.karar -eq 'surer') { Write-Host 'İş şu an yürütülüyor; komut sonraki adımdan geçerli.' }
+    else { Write-Host "Sırada öne alındı ($($s.neden)); ana döngü bir sonraki adımda bu işe geçer." }
+}
+if ($ParalelDurdur) {
+    $g = Gorev-Bul $ParalelDurdur
+    Write-Host (Paralel-Durdur $g)
 }
 if ($Iptal) {
     $g = Gorev-Bul $Iptal

@@ -18,8 +18,8 @@ Kararlar:
   işi alacak kişinin başka bilgiye ihtiyaç duymadan yapabileceği netlikte ne yapacağını (nerede, hangi klasörde, nasıl
   doğrulanacak), "## Kabul" bölümüne ölçütleri madde madde yaz. Bu iş ayrı bir yardım işi olarak açılır; bitince sonucu
   isteyene iletilir. Atanabilecekler: sistem ve ag (kurulum, sunucu, ağ, SDK, emülatör, servis; tam yetkili) ile
-  "uzman işi alır = evet" olan herkes (tasarım, güvenlik, mimari, test, iletişim…). Software Developer ve Code Reviewer yazılım akışının
-  içindedir: kod yazılması gerekiyorsa ve iş zaten yazılım akışındaysa YANIT ile Software Developer'a yol göster.
+  "uzman işi alır = evet" olan herkes (tasarım, güvenlik, mimari, test, iletişim…). Full-Stack Developer ve Code Reviewer yazılım akışının
+  içindedir: kod yazılması gerekiyorsa ve iş zaten yazılım akışındaysa YANIT ile Full-Stack Developer'a yol göster.
 - KARAR: YANIT  Bilgi, karar ya da yol gösterme yeterli (ya da isteyen kişi bunu aslında kendisi yapabilir). "## Yanıt"
   bölümüne isteyene doğrudan, uygulanabilir yanıtını yaz.
 - KARAR: ISE_ALIM  Kadroda bunu yapabilecek kimse yok. "ARANAN: <bir cümle>" yaz; "## İş" ve "## Kabul" bölümlerini

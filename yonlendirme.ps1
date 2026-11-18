@@ -1,7 +1,8 @@
 ﻿<#
 yonlendirme.ps1 - Türü seçilmeden verilen işler (durum.json > tip = "genel"; panelde "İş ver", is-ver.ps1). ekip.ps1 dot-source eder.
 
-İş doğrudan Engineering Managerʼa gelir (rol anahtarı: lider). Engineering Manager işi okur ve kimin yapacağına karar verir:
+Önce Product Manager talebi netleştirir (aşama analiz; gereksinimler.md, planlama.ps1 > Adim-Analiz; ayarlar.json > planlama.analiz).
+Sonra iş Engineering Managerʼa gelir (rol anahtarı: lider). Engineering Manager işi ve gereksinimleri okur, kimin yapacağına karar verir:
   YAZILIM   yazılım akışı: kayıtlı bir proje seçer ya da YENI_PROJE ile boş bir git deposu açtırır
   ALTYAPI   System Administrator + Network Engineer (HEDEF: makineler)
   UZMAN     kadrodan SORUMLU (uzman akışı; Engineering Manager orada brifi yazar ve inceleyeni seçer)
@@ -173,6 +174,8 @@ function Yonetici-Yonlendir($G) {
 }
 
 function Genel-Adim($G) {
-    # 'yeni' ilk yönlendirme; 'plan' kullanıcı soruyu yanıtladıktan sonra (Bekleyenleri-Kontrol) yeniden yönlendirme
+    # Gereksinimler henüz netleşmediyse önce Product Manager (planlama.ps1); 'analiz' aşamasını ekip.ps1 > Gorev-Ilerlet-Adim yürütür
+    if (Analiz-Gerekli $G) { Asama-Gec $G 'analiz' 'Product Manager talebi netleştirecek'; return }
+    # 'yeni' ilk yönlendirme; 'plan' gereksinimler hazır ya da kullanıcı soruyu yanıtladıktan sonra (Bekleyenleri-Kontrol) yönlendirme
     Yonetici-Yonlendir $G
 }

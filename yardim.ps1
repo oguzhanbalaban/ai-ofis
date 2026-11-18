@@ -312,7 +312,7 @@ function Plan-Yardimlari($G, [string]$Metin) {
 }
 
 # ---------------------------------------------------------------- QA Engineer
-# Testçi test edilen git ağacında değişiklik bıraktıysa geri alır: Software Developerʼın işi index'tedir (kontrol / diff adımları
+# Testçi test edilen git ağacında değişiklik bıraktıysa geri alır: Full-Stack Developerʼın işi index'tedir (kontrol / diff adımları
 # "git add -A" yaptı); index'e eklenmemiş değişiklikler ve izlenmeyen (yok sayılmayan) dosyalar testçinindir.
 function Test-Sonrasi-Agaci-Temizle([string]$Wt) {
     $degisen = Git-Calistir $Wt @('diff', '--name-only') -Sessiz                         # index'e göre değişen izlenen dosyalar

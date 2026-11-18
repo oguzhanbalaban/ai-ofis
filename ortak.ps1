@@ -21,18 +21,37 @@ $script:AktifAdim  = ''
 # Kök neden analizi iptal edilmiş görevler üzerinde çalışır: o sırada iptal izlemesi kapatılır (cozucu.ps1 > Kok-Neden-Belirle)
 $script:IptalIzleme = $true
 $script:YardimIstegi = $null   # son ajan çağrısının ekip içi yardım isteği (yardim.ps1 > Yardim-Istegi-Kaydet işler)
+# Kullanıcının "Devral" komutu: bu adımda { rol = devralan çalışan } (komut.ps1 > Rol-Degisimi-Kur; Ajan-Cagir uygular)
+$script:RolDegisimi = $null
+# Bu süreç bir paralel hatsa yürüttüğü görev (paralel.ps1 kurar; Gorev-Iptal-mi "paralel-durdur" dosyasına bakar)
+$script:ParalelGorev = ''
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
 # ---------------------------------------------------------------- dosya / json
 function Metin-Oku([string]$Yol) {
-    if ($Yol -and (Test-Path -LiteralPath $Yol)) { return [IO.File]::ReadAllText($Yol, $Utf8) }
-    return ''
+    if (-not $Yol -or -not (Test-Path -LiteralPath $Yol)) { return '' }
+    # Paylaşımlı okuma: dosyayı başka bir süreç yazmak için açık tutsa da okunur. Örn. ajanın err / out kaydının tanıtıcısını
+    # devralıp bırakmayan adb sunucusu ([IO.File]::ReadAllText bu durumda "dosya kullanımda" hatası verip döngüyü kilitliyordu)
+    $fs = New-Object IO.FileStream($Yol, [IO.FileMode]::Open, [IO.FileAccess]::Read, ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+    try {
+        $sr = New-Object IO.StreamReader($fs, $Utf8, $true)
+        return $sr.ReadToEnd()
+    } finally { $fs.Dispose() }
 }
 function Metin-Yaz([string]$Yol, [string]$Metin) {
-    $tmp = "$Yol.tmp"
-    [IO.File]::WriteAllText($tmp, $Metin, $Utf8)
-    if (Test-Path -LiteralPath $Yol) { [IO.File]::Replace($tmp, $Yol, "$Yol.bak") }
-    else { [IO.File]::Move($tmp, $Yol) }
+    # Süreç başına geçici dosya ve kısa yeniden deneme: ana döngü ile paralel hatlar (paralel.ps1) aynı dosyaya yazabilir
+    $tmp = "$Yol.$PID.tmp"
+    for ($i = 0; ; $i++) {
+        try {
+            [IO.File]::WriteAllText($tmp, $Metin, $Utf8)
+            if (Test-Path -LiteralPath $Yol) { [IO.File]::Replace($tmp, $Yol, "$Yol.bak") }
+            else { [IO.File]::Move($tmp, $Yol) }
+            return
+        } catch [IO.IOException], [UnauthorizedAccessException] {
+            if ($i -ge 6) { try { if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Force } } catch {}; throw }
+            Start-Sleep -Milliseconds (50 * ($i + 1))
+        }
+    }
 }
 function Json-Oku([string]$Yol) {
     $Yol = Yapilandirma-Yolu $Yol
@@ -96,6 +115,14 @@ function Proje-Bul([string]$AdVeyaKlasor) {
             ((Resolve-Path -LiteralPath $AdVeyaKlasor).Path.TrimEnd('\') -eq ([string]$x.klasor).TrimEnd('\'))) { return $x }
     }
     return $null
+}
+
+# Kadro anahtarından görünen ad (kadro.json); bulunamazsa anahtarın kendisi
+function Calisan-Adi([string]$Anahtar) {
+    $k = Json-Oku (Join-Path $Kok 'kadro.json')
+    foreach ($u in @($k.uyeler)) { if ($u -and [string]$u.anahtar -eq $Anahtar -and $u.ad) { return [string]$u.ad } }
+    if ($Anahtar -eq 'lider') { return 'Engineering Manager' }
+    return $Anahtar
 }
 
 # ---------------------------------------------------------------- kalp atışı (bekçi bunu izler)
@@ -432,7 +459,7 @@ function Claude-Haklari-Kaydet($H) {
     Ayarla $d 'claude' ([pscustomobject][ordered]@{ guncelleme = (Simdi); bes_saat = (& $cevir $w.five_hour); haftalik = (& $cevir $w.seven_day); asim = [string]$H.overageStatus })
     Json-Yaz $d $yol
 }
-function Kullanim-Kaydet([string]$Rol, [string]$Etiket, $Giris, $R, [int]$IstemKarakter) {
+function Kullanim-Kaydet([string]$Rol, [string]$Etiket, $Giris, $R, [int]$IstemKarakter, [string]$Yerine = '') {
     try {
         if (-not (Test-Path -LiteralPath $YolKullanim)) { New-Item -ItemType Directory -Force $YolKullanim | Out-Null }
         $k = $R.kullanim
@@ -450,6 +477,7 @@ function Kullanim-Kaydet([string]$Rol, [string]$Etiket, $Giris, $R, [int]$IstemK
         if ($k -and $k.Contains('maliyet_usd') -and [double]$k['maliyet_usd'] -gt 0) { $kayit.maliyet_usd = [Math]::Round([double]$k['maliyet_usd'], 4) }
         $kayit.olcum = 'yok'; if ($k -and $k.Contains('olcum')) { $kayit.olcum = [string]$k['olcum'] }
         if (-not $R.basarili -and $R.hata) { $kayit.hata = Kisalt ([string]$R.hata) 160 }
+        if ($Yerine -and $Yerine -ne $Rol) { $kayit.yerine = $Yerine }   # kullanıcının "Devral" komutuyla bu rolün işini yaptı
         $yol = Join-Path $YolKullanim ('kullanim-{0}.jsonl' -f (Get-Date).ToString('yyyyMM'))
         [void](Satir-Ekle $yol ($kayit | ConvertTo-Json -Compress))
     } catch { Gunluk "Kullanım kaydı yazılamadı: $($_.Exception.Message)" 'UYARI' }
@@ -615,6 +643,8 @@ function Puan-Istem-Metni([string]$Rol, [string]$Etiket) {
     if (-not $g) { return '' }
     if ($lider) { if ($g.puan_yonetici) { return '' }; return $PuanYoneticiMetni }
     if ($g.puan_ajan -and [string]$g.puan_ajan.rol -eq $Rol) { return '' }
+    # Bölünmüş geliştirmede yalnızca ilk parçayı üstlenen geliştirici puanlar (planlama.ps1)
+    if ($g.puan_ajan -and (Get-Command Kod-Yazar-mi -ErrorAction SilentlyContinue) -and (Kod-Yazar-mi $Rol) -and (Kod-Yazar-mi ([string]$g.puan_ajan.rol))) { return '' }
     return $PuanAjanMetni
 }
 
@@ -626,7 +656,8 @@ function Yardim-Uygun-mu([string]$Rol, [string]$Etiket) {
     $a = $Ayar.yardimlasma
     if (-not $a -or -not $a.etkin) { return $false }
     if ($Rol -eq 'sorun-giderici') { return $false }
-    if (@('yardim', 'cozum', 'yonlendirme', 'ise_alim', 'kategori') -contains $Etiket -or $Etiket -like 'sohbet*' -or $Etiket -like 'birlikte-*') { return $false }
+    # Product Manager (analiz) ve Codebase Explorer (kesif) salt okunur rapor yazar; yardım istemez
+    if (@('yardim', 'cozum', 'yonlendirme', 'ise_alim', 'kategori', 'analiz', 'kesif') -contains $Etiket -or $Etiket -like 'sohbet*' -or $Etiket -like 'birlikte-*') { return $false }
     if ($Rol -eq 'lider' -and $Etiket -ne 'kabul') { return $false }   # Engineering Manager planda ön işleri "YARDIM:" satırlarıyla ister
     return $true
 }
@@ -634,7 +665,7 @@ function Yardim-Talimati-Metni {
     $k = Json-Oku (Join-Path $Kok 'kadro.json')
     $satirlar = @()
     foreach ($u in @($k.uyeler)) {
-        if ($u -and $u.anahtar -and @('lider', 'sorun-giderici') -notcontains [string]$u.anahtar) { $satirlar += ('- {0} ({1}): {2}' -f $u.anahtar, $u.ad, (Kisalt ([string]$u.uzmanlik) 120)) }
+        if ($u -and $u.anahtar -and @('lider', 'sorun-giderici', 'cto') -notcontains [string]$u.anahtar) { $satirlar += ('- {0} ({1}): {2}' -f $u.anahtar, $u.ad, (Kisalt ([string]$u.uzmanlik) 120)) }
     }
     $metin = @'
 
@@ -694,6 +725,28 @@ function Yardim-Blogu-Oku([string]$Metin) {
     return $j
 }
 
+# ---------------------------------------------------------------- kullanıcının doğrudan komutları (komut.ps1)
+# Kullanıcı panelden bir çalışana komut verirken eklediği talimatlar (gorevler\<no>\kullanici-talimatlari.md): bu işteki her istemde
+function Talimat-Istem-Metni([string]$Etiket) {
+    if (-not $script:AktifGorev -or $Etiket -like 'sohbet*') { return '' }
+    $t = Metin-Oku (Join-Path (Join-Path $YolGorev $script:AktifGorev) 'kullanici-talimatlari.md')
+    if (-not $t.Trim()) { return '' }
+    if ($t.Length -gt 6000) { $t = '…' + $t.Substring($t.Length - 6000) }
+    return "`n`n---`n`n# KULLANICININ TALİMATLARI (panelden doğrudan verdi; işini bunlara göre yap, görev metniyle çelişirse bunlar geçerli)`n`n" + $t.Trim()
+}
+# CTOʼnun ekip ilkeleri (yonetim.ps1; durum\yonetim\ekip-ilkeleri.md): ekibin önceki işlerden öğrendikleri, her iş isteminde
+function Ilkeler-Istem-Metni([string]$Etiket) {
+    if (-not $script:AktifGorev -or $Etiket -like 'sohbet*' -or $Etiket -eq 'yonetim') { return '' }
+    $t = Metin-Oku (Join-Path (Join-Path $YolDurum 'yonetim') 'ekip-ilkeleri.md')
+    if (-not $t.Trim()) { return '' }
+    if ($t.Length -gt 3000) { $t = $t.Substring(0, 3000) + '…' }
+    return "`n`n---`n`n# EKİP İLKELERİ (CTO; ekibin önceki işlerden öğrendikleri, işini yaparken bunlara uy)`n`n" + $t.Trim()
+}
+function Devralma-Notu([string]$Rol, [string]$Kisi) {
+    return ("`n`n---`n`n# DEVRALMA (kullanıcının komutu)`n`nBu adım normalde {0} rolünün işi; kullanıcı panelden bu işte o rolü sana ({1}) devretti. " +
+        'Rolün adım talimatlarına, yetki sınırlarına ve çıktı biçimine aynen uy; kendi uzmanlığını da kat.') -f (Calisan-Adi $Rol), (Calisan-Adi $Kisi)
+}
+
 # ---------------------------------------------------------------- rol çağırma (yedek zinciriyle)
 function Ajan-Cagir {
     param(
@@ -703,20 +756,30 @@ function Ajan-Cagir {
         [Parameter(Mandatory)][string]$KayitKlasoru,
         [Parameter(Mandatory)][string]$Etiket,
         [switch]$Yazabilir,
-        [string[]]$Haric = @(),     # bu araçları atla (ör. Code Reviewer Software Developerʼla aynı model olmasın)
+        [string[]]$Haric = @(),     # bu araçları atla (ör. Code Reviewer Full-Stack Developerʼla aynı model olmasın)
         [switch]$TamYetki           # altyapı rolleri: sandbox'sız, izin sormadan (altyapı görev kapsamı)
     )
     if (-not (Test-Path -LiteralPath $KayitKlasoru)) { New-Item -ItemType Directory -Force $KayitKlasoru | Out-Null }
     $Istem = Yardim-Istem-Ekle $Rol $Etiket $Istem
+    $Istem += (Talimat-Istem-Metni $Etiket)
+    $Istem += (Ilkeler-Istem-Metni $Etiket)
+    # Kullanıcı bu işte rolü başka bir çalışana devrettiyse onun model zinciriyle çalış (komut.ps1)
+    $kisi = $Rol
+    if ($script:RolDegisimi -and $script:RolDegisimi.ContainsKey($Rol)) {
+        $aday = [string]$script:RolDegisimi[$Rol]
+        if (@($Ayar.roller.$aday | Where-Object { $_ }).Count) { $kisi = $aday; $Istem += (Devralma-Notu $Rol $aday) }
+        else { Gunluk "$Rol rolünü devralan $aday için model zinciri yok; rolün kendi zinciri kullanılıyor" 'UYARI' }
+    }
+    $kimAdi = $Rol; if ($kisi -ne $Rol) { $kimAdi = "$kisi ($Rol yerine)" }
     $puanIstemi = Puan-Istem-Metni $Rol $Etiket
     if ($puanIstemi) { $Istem += $puanIstemi }
     $notlar = @()
     $gorevId = [string]$script:AktifGorev
     $iptalHata = 'görev kullanıcı tarafından iptal edildi'
-    foreach ($g in @($Ayar.roller.$Rol)) {
+    foreach ($g in @($Ayar.roller.$kisi)) {
         # İptal edilen görevde yedek zincirdeki sonraki araca geçme
         if ($script:IptalIzleme -and $gorevId -and (Gorev-Iptal-mi $gorevId)) {
-            Gunluk "$Rol çağrısı yapılmadı: görev $gorevId iptal edildi ya da panoda taşındı [$Etiket]" 'UYARI'
+            Gunluk "$kimAdi çağrısı yapılmadı: görev $gorevId iptal edildi, panoda taşındı ya da paralel hat durduruldu [$Etiket]" 'UYARI'
             return [pscustomobject]@{ basarili = $false; metin = ''; hata = $iptalHata; sure_sn = 0; arac = ''; model = ''; iptal = $true }
         }
         $kimlik = "{0}/{1}" -f $g.arac, $g.model
@@ -732,16 +795,16 @@ function Ajan-Cagir {
         Sayac-Artir ([string]$g.arac)
         $script:AktifAdim = "$Etiket ($kimlik)"
         Kalp 'ajan'
-        Gunluk "$Rol -> $kimlik başlıyor [$($script:AktifGorev) / $Etiket]"
+        Gunluk "$kimAdi -> $kimlik başlıyor [$($script:AktifGorev) / $Etiket]"
         switch ($g.arac) {
             'claude' { $r = Claude-Calistir $g $istemYolu $out $err $Klasor ([bool]$Yazabilir) ([bool]$TamYetki) }
             'codex'  { $r = Codex-Calistir  $g $istemYolu $out $err $son $Klasor ([bool]$Yazabilir) ([bool]$TamYetki) }
             'gemini' { $r = Gemini-Calistir $g $istemYolu $out $err $Klasor ([bool]$Yazabilir) ([bool]$TamYetki) }
         }
-        Kullanim-Kaydet $Rol $Etiket $g $r $Istem.Length
+        Kullanim-Kaydet $kisi $Etiket $g $r $Istem.Length $Rol
         if ($r.basarili) {
             $r.arac = [string]$g.arac; $r.model = [string]$g.model
-            Gunluk "$Rol -> $kimlik bitti ($($r.sure_sn) sn)"
+            Gunluk "$kimAdi -> $kimlik bitti ($($r.sure_sn) sn)"
             if ($script:IptalIzleme -and $gorevId -and (Gorev-Iptal-mi $gorevId)) {
                 # Ajan iptalden sonra bitti: adım bu sonuçla ilerlemesin (soru, aktarma, e-posta, yeni tur...)
                 Gunluk "$Rol -> $kimlik sonucu kullanılmadı: görev $gorevId ajan çalışırken iptal edildi ya da panoda taşındı" 'UYARI'
@@ -764,7 +827,7 @@ function Ajan-Cagir {
             }
             return $r
         }
-        Gunluk "$Rol -> $kimlik başarısız: $($r.hata)" 'UYARI'
+        Gunluk "$kimAdi -> $kimlik başarısız: $($r.hata)" 'UYARI'
         $notlar += "${kimlik}: $($r.hata)"
     }
     return [pscustomobject]@{ basarili = $false; metin = ''; hata = ($notlar -join ' | '); sure_sn = 0; arac = ''; model = '' }
@@ -852,12 +915,42 @@ function Gorev-Iptal-mi([string]$Id) {
     $d = Gorev-Diskten $Id
     if (-not $d) { return $false }
     if ([string]$d.asama -eq 'iptal') { return $true }
+    # Kullanıcı bu süreçteki paralel hattı durdurdu (komut.ps1 > Paralel-Durdur): süren ajan sonlandırılır, adım başarısız sayılmaz
+    if ($script:ParalelGorev -and $Id -eq $script:ParalelGorev -and (Test-Path -LiteralPath (Join-Path (Gorev-Klasoru $Id) 'paralel-durdur'))) { return $true }
     return (Gorev-Elle-Tasindi-mi $d)
 }
 $script:AdimBaslangic = $null
 function Gorev-Elle-Tasindi-mi($D) {
     if (-not $script:AdimBaslangic -or -not $D -or -not $D.elle_tasima) { return $false }
     try { return ([datetime][string]$D.elle_tasima.zaman -gt $script:AdimBaslangic) } catch { return $false }
+}
+# ---------------------------------------------------------------- görev kilidi
+# Ana döngü (ekip.ps1 > Gorev-Ilerlet) ve paralel hatlar (paralel.ps1) bir işi yürütürken adlandırılmış mutex tutar; aynı işi iki
+# süreç aynı anda yürütmez. Süreç ölürse kilit kendiliğinden bırakılır. Kilit aynı iş parçacığında yeniden alınabilir.
+function Gorev-Kilit-Adi([string]$Id) { 'Local\AIEkipGorev_' + ($Id -replace '[^A-Za-z0-9-]', '_') }
+function Gorev-Kilidi-Al([string]$Id) {
+    $m = New-Object Threading.Mutex($false, (Gorev-Kilit-Adi $Id))
+    $al = $false
+    try { $al = $m.WaitOne(0) } catch [Threading.AbandonedMutexException] { $al = $true }
+    if ($al) { return $m }
+    $m.Dispose()
+    return $null
+}
+function Gorev-Kilidi-Birak($M) {
+    if (-not $M) { return }
+    try { $M.ReleaseMutex() } catch {}
+    $M.Dispose()
+}
+# Bu işi şu an başka bir süreç mi yürütüyor
+function Gorev-Kilitli-mi([string]$Id) {
+    $m = $null
+    if (-not [Threading.Mutex]::TryOpenExisting((Gorev-Kilit-Adi $Id), [ref]$m)) { return $false }
+    try {
+        $al = $false
+        try { $al = $m.WaitOne(0) } catch [Threading.AbandonedMutexException] { $al = $true }
+        if ($al) { $m.ReleaseMutex(); return $false }
+        return $true
+    } finally { $m.Dispose() }
 }
 function Gorevleri-Listele {
     $liste = @()
@@ -868,8 +961,8 @@ function Gorevleri-Listele {
     return $liste
 }
 $script:AsamaAdlari = @{
-    yeni = 'Sırada'; plan = 'Planlanıyor'; gelistirme = 'Geliştiriliyor'; kontrol = 'Kontrol ediliyor'
-    denetim = 'Denetleniyor'; kabul = 'Engineering Manager onayında'; tamamla = 'Commit ediliyor'; tamam = 'Tamamlandı'
+    yeni = 'Sırada'; analiz = 'Gereksinimler netleşiyor'; kesif = 'Kod tabanı taranıyor'; plan = 'Planlanıyor'; gelistirme = 'Geliştiriliyor'
+    kontrol = 'Kontrol ediliyor'; test = 'Test ediliyor'; denetim = 'Denetleniyor'; kabul = 'Engineering Manager onayında'; tamamla = 'Commit ediliyor'; tamam = 'Tamamlandı'
     takildi = 'Takıldı'; bekliyor_kullanici = 'Senden yanıt bekliyor'; iptal = 'İptal'
     yardim = 'Engineering Managerʼda (yardım isteği)'; yardim_bekliyor = 'Ekipten yardım bekliyor'
 }

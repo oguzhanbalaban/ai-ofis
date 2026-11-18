@@ -134,7 +134,7 @@ code { font-size:12px; }
 </div>
 <h2>Görevler</h2>
 <div class="tablo"><table>
-<tr><th>No</th><th>Görev</th><th>Proje</th><th>Durum</th><th>Tur</th><th>Dal</th><th>Son olay</th><th>Engineering Manager / Software Developer / Code Reviewer</th></tr>
+<tr><th>No</th><th>Görev</th><th>Proje</th><th>Durum</th><th>Tur</th><th>Dal</th><th>Son olay</th><th>Engineering Manager / Full-Stack Developer / Code Reviewer</th></tr>
 $($satirlar.ToString())
 </table></div>
 <h2>Kısıtlı araçlar</h2>

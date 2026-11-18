@@ -1,245 +1,340 @@
 {
-    "surum":  1,
-    "dongu":  {
-                  "bos_bekleme_sn":  300,
-                  "adim_arasi_sn":  10,
-                  "hata_bekleme_dk":  10,
-                  "max_adim_denemesi":  4,
-                  "bekci_dk":  12,
-                  "calisma_saatleri":  "00:00-24:00"
-              },
-    "zaman_asimi_dk":  {
-                           "claude":  25,
-                           "codex":  45,
-                           "gemini":  20,
-                           "dogrulama":  15,
-                           "altyapi":  240
-                       },
-    "gunluk_sinir":  {
-                         "claude":  100,
-                         "codex":  60,
-                         "gemini":  40
-                     },
-    "claude":  {
-                   "exe":  "C:\\Users\\\u003cKULLANICI\u003e\\.local\\bin\\claude.exe",
-                   "kullanim_dosyasi":  "",
-                   "kullanim_dosyasi_gecerlilik_saat":  3,
-                   "min_kalan_yuzde":  30
-               },
-    "roller":  {
-                   "lider":  [
-                                 {
-                                     "arac":  "claude",
-                                     "model":  "claude-opus-5-5"
-                                 },
-                                 {
-                                     "arac":  "claude",
-                                     "model":  "claude-fable-5-2"
-                                 },
-                                 {
-                                     "arac":  "codex",
-                                     "model":  "gpt-6.1-sol",
-                                     "efor":  "high"
-                                 }
-                             ],
-                   "gelistirici":  [
-                                       {
-                                           "arac":  "claude",
-                                           "model":  "sonnet"
-                                       },
-                                       {
-                                           "arac":  "codex",
-                                           "model":  "gpt-6.1-sol",
-                                           "efor":  "high"
-                                       },
-                                       {
-                                           "arac":  "codex",
-                                           "model":  "gpt-6-astra",
-                                           "efor":  "high"
-                                       }
-                                   ],
-                   "denetci":  [
-                                   {
-                                       "arac":  "claude",
-                                       "model":  "opus"
-                                   },
-                                   {
-                                       "arac":  "claude",
-                                       "model":  "sonnet"
-                                   },
-                                   {
-                                       "arac":  "codex",
-                                       "model":  "gpt-6-astra",
-                                       "efor":  "high"
-                                   }
-                               ],
-                   "sistem":  [
-                                  {
-                                      "arac":  "claude",
-                                      "model":  "sonnet"
-                                  },
-                                  {
-                                      "arac":  "codex",
-                                      "model":  "gpt-6.1-sol",
-                                      "efor":  "high"
-                                  },
-                                  {
-                                      "arac":  "codex",
-                                      "model":  "gpt-6-astra",
-                                      "efor":  "high"
-                                  }
-                              ],
-                   "ag":  [
-                              {
-                                  "arac":  "claude",
-                                  "model":  "sonnet"
-                              },
-                              {
-                                  "arac":  "claude",
-                                  "model":  "opus"
-                              },
-                              {
-                                  "arac":  "codex",
-                                  "model":  "gpt-6-astra",
-                                  "efor":  "high"
-                              },
-                              {
-                                  "arac":  "codex",
-                                  "model":  "gpt-6.1-sol",
-                                  "efor":  "high"
-                              }
-                          ],
-                   "sorun-giderici":  [
-                                          {
-                                              "arac":  "claude",
-                                              "model":  "opus"
-                                          },
-                                          {
-                                              "arac":  "claude",
-                                              "model":  "sonnet"
-                                          },
-                                          {
-                                              "arac":  "codex",
-                                              "model":  "gpt-6.1-sol",
-                                              "efor":  "high"
-                                          }
-                                      ]
-               },
-    "model_katalogu":  {
-        "aciklama":  "Panelde model seçicide görünen modeller. Kısaltmalar (opus, sonnet) Claude CLI sürümünün en güncel modeline gider.",
-        "claude":  [
+    "surum": 1,
+    "dongu": {
+        "bos_bekleme_sn": 300,
+        "adim_arasi_sn": 10,
+        "hata_bekleme_dk": 10,
+        "max_adim_denemesi": 4,
+        "bekci_dk": 12,
+        "calisma_saatleri": "00:00-24:00"
+    },
+    "zaman_asimi_dk": {
+        "claude": 25,
+        "codex": 45,
+        "gemini": 20,
+        "dogrulama": 15,
+        "altyapi": 240
+    },
+    "gunluk_sinir": {
+        "claude": 100,
+        "codex": 60,
+        "gemini": 40
+    },
+    "claude": {
+        "exe": "C:\\Users\\<KULLANICI>\\.local\\bin\\claude.exe",
+        "kullanim_dosyasi": "",
+        "kullanim_dosyasi_gecerlilik_saat": 3,
+        "min_kalan_yuzde": 30
+    },
+    "roller": {
+        "lider": [
             {
-                "model":  "claude-opus-5-5",
-                "ad":  "Claude Opus 5.5",
-                "not":  "en güçlü genel model"
+                "arac": "claude",
+                "model": "claude-opus-5-5"
             },
             {
-                "model":  "claude-fable-5-2",
-                "ad":  "Claude Fable 5.2",
-                "not":  "en yeni model"
+                "arac": "claude",
+                "model": "claude-fable-5-2"
             },
             {
-                "model":  "claude-sonnet-5-5",
-                "ad":  "Claude Sonnet 5.5",
-                "not":  "hızlı ve dengeli"
-            },
-            {
-                "model":  "claude-haiku-5-5",
-                "ad":  "Claude Haiku 5.5",
-                "not":  "en hızlı, en ucuz"
-            },
-            {
-                "model":  "opus",
-                "ad":  "Opus (en güncel)",
-                "not":  "CLI'nin en güncel Opus modeli"
-            },
-            {
-                "model":  "sonnet",
-                "ad":  "Sonnet (en güncel)",
-                "not":  "CLI'nin en güncel Sonnet modeli"
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
             }
         ],
-        "codex":  [
+        "gelistirici": [
             {
-                "model":  "gpt-6.1-sol",
-                "ad":  "GPT-6.1 Sol",
-                "not":  "Codex; korumalı alanda komut çalıştırır, görsel üretir"
+                "arac": "claude",
+                "model": "sonnet"
             },
             {
-                "model":  "gpt-6-astra",
-                "ad":  "GPT-6 Astra",
-                "not":  "Codex"
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6-astra",
+                "efor": "high"
+            }
+        ],
+        "denetci": [
+            {
+                "arac": "claude",
+                "model": "opus"
+            },
+            {
+                "arac": "claude",
+                "model": "sonnet"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6-astra",
+                "efor": "high"
+            }
+        ],
+        "sistem": [
+            {
+                "arac": "claude",
+                "model": "sonnet"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6-astra",
+                "efor": "high"
+            }
+        ],
+        "ag": [
+            {
+                "arac": "claude",
+                "model": "sonnet"
+            },
+            {
+                "arac": "claude",
+                "model": "opus"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6-astra",
+                "efor": "high"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            }
+        ],
+        "sorun-giderici": [
+            {
+                "arac": "claude",
+                "model": "opus"
+            },
+            {
+                "arac": "claude",
+                "model": "sonnet"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            }
+        ],
+        "urun": [
+            {
+                "arac": "claude",
+                "model": "claude-opus-5-5"
+            },
+            {
+                "arac": "claude",
+                "model": "claude-sonnet-5-5"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            }
+        ],
+        "kasif": [
+            {
+                "arac": "claude",
+                "model": "claude-sonnet-5-5"
+            },
+            {
+                "arac": "claude",
+                "model": "claude-opus-5-5"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            }
+        ],
+        "frontend": [
+            {
+                "arac": "claude",
+                "model": "claude-opus-5-5"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6-astra",
+                "efor": "high"
+            }
+        ],
+        "backend": [
+            {
+                "arac": "claude",
+                "model": "claude-opus-5-5"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6-astra",
+                "efor": "high"
+            }
+        ],
+        "cto": [
+            {
+                "arac": "claude",
+                "model": "claude-opus-5-5"
+            },
+            {
+                "arac": "claude",
+                "model": "claude-fable-5-2"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
             }
         ]
     },
-    "gorev":  {
-                  "max_tur":  3,
-                  "max_degisen_dosya":  60,
-                  "diff_karakter_siniri":  80000,
-                  "lider_kabul":  true,
-                  "yeni_proje_kok":  ""
-              },
-    "sorun_giderici":  {
-                           "etkin":  true,
-                           "gorev_basina_en_fazla":  2,
-                           "en_eski_saat":  72
-                       },
-    "yardimlasma":  {
-                        "etkin":  true,
-                        "gorev_basina_en_fazla":  4,
-                        "derinlik":  2
-                    },
-    "puanlama":  {
-                     "etkin":  true,
-                     "aciklama":  "Engineering Manager ve işi yapan çalışan işi Fibonacci (1-21) story point ile puanlar; panoda kartlarda görünür."
-                 },
-    "korunan_desenler":  [
-                             ".env",
-                             ".env.*",
-                             "*.pfx",
-                             "*.p12",
-                             "*.key",
-                             "*.pem",
-                             "id_rsa*",
-                             "*.kdbx"
-                         ],
-    "ik":  {
-               "tam_yetki_verebilir":  true,
-               "gunluk_ise_alim_siniri":  3
-           },
-    "iletisim":  {
-                     "gunluk_eposta_siniri":  30
-                 },
-    "altyapi":  {
-                    "vmrun":  "",
-                    "baglanti_bilgileri":  "",
-                    "makineler":  [
-
-                                  ],
-                    "kurallar":  [
-                                     "Yalnızca kullanıcının tanımladığı makinelerde ve açıkça istediği görev kapsamında çalış.",
-                                     "Ana makinenin güvenlik ayarlarını değiştirme; yönetici yetkisi isteyen adımları raporla.",
-                                     "VM kapatmadan önce etkin oturumları kontrol et; açıkça istenmedikçe oturumu kesme. Yumuşak kapatmayı tercih et.",
-                                     "Geri alınamaz işlemler için talepte açık yetki ve önceden yedek gerekir.",
-                                     "Parolaları rapora, bildirime veya kalıcı betiğe yazma; bağlantı bilgilerini yalnızca çalışma anında oku.",
-                                     "Ekip betiklerine ve diğer görevlerin dosyalarına dokunma.",
-                                     "İndirmelerde resmi kaynakları kullan; kaynak ve dosya bilgisini raporla."
-                                 ],
-                    "ipuclari":  [
-
-                                 ]
-                },
-    "bildirim":  {
-                     "masaustu":  true,
-                     "telefon":  {
-                                     "kanal":  "ntfy",
-                                     "ntfy_sunucu":  "https://ntfy.sh",
-                                     "ntfy_konu":  ""
-                                 },
-                     "ayni_bildirim_arasi_dk":  60,
-                     "ozet_saatleri":  [
-                                           "12:30",
-                                           "18:30"
-                                       ]
-                 }
+    "model_katalogu": {
+        "aciklama": "Panelde model seçicide görünen modeller. Kısaltmalar (opus, sonnet) Claude CLI sürümünün en güncel modeline gider.",
+        "claude": [
+            {
+                "model": "claude-opus-5-5",
+                "ad": "Claude Opus 5.5",
+                "not": "en güçlü genel model"
+            },
+            {
+                "model": "claude-fable-5-2",
+                "ad": "Claude Fable 5.2",
+                "not": "en yeni model"
+            },
+            {
+                "model": "claude-sonnet-5-5",
+                "ad": "Claude Sonnet 5.5",
+                "not": "hızlı ve dengeli"
+            },
+            {
+                "model": "claude-haiku-5-5",
+                "ad": "Claude Haiku 5.5",
+                "not": "en hızlı, en ucuz"
+            },
+            {
+                "model": "opus",
+                "ad": "Opus (en güncel)",
+                "not": "CLI'nin en güncel Opus modeli"
+            },
+            {
+                "model": "sonnet",
+                "ad": "Sonnet (en güncel)",
+                "not": "CLI'nin en güncel Sonnet modeli"
+            }
+        ],
+        "codex": [
+            {
+                "model": "gpt-6.1-sol",
+                "ad": "GPT-6.1 Sol",
+                "not": "Codex; korumalı alanda komut çalıştırır, görsel üretir"
+            },
+            {
+                "model": "gpt-6-astra",
+                "ad": "GPT-6 Astra",
+                "not": "Codex"
+            }
+        ]
+    },
+    "gorev": {
+        "max_tur": 3,
+        "max_degisen_dosya": 60,
+        "diff_karakter_siniri": 80000,
+        "lider_kabul": true,
+        "yeni_proje_kok": ""
+    },
+    "sorun_giderici": {
+        "etkin": true,
+        "gorev_basina_en_fazla": 2,
+        "en_eski_saat": 72
+    },
+    "yardimlasma": {
+        "etkin": true,
+        "gorev_basina_en_fazla": 4,
+        "derinlik": 2
+    },
+    "puanlama": {
+        "etkin": true,
+        "aciklama": "Engineering Manager ve işi yapan çalışan işi Fibonacci (1-21) story point ile puanlar; panoda kartlarda görünür."
+    },
+    "paralel": {
+        "etkin": true,
+        "en_fazla": 2,
+        "adim_siniri": 12,
+        "aciklama": "Panelden çalışana verilen komut (Devam et / Devral) işi ana döngüyü beklemeden ayrı bir hatta yürütür; aynı anda en fazla en_fazla hat, hat başına en fazla adim_siniri adım."
+    },
+    "planlama": {
+        "analiz": true,
+        "kesif": true,
+        "qa_testi": true,
+        "urun_soru_hakki": 2,
+        "en_fazla_parca": 3,
+        "onay_kapisi": true,
+        "aciklama": "İşi alma ve planlama katmanı (planlama.ps1). analiz: Product Manager talebi netleştirir (kabul ölçütleri = Definition of Done). kesif: Codebase Explorer depoyu tarar. qa_testi: QA Engineer her yazılım işinde test yazar ve koşturur (Engineering Manager planda QA_TESTI: hayır diyebilir). urun_soru_hakki: Product Managerʼın bir işte kullanıcıya en fazla kaç kez soru sorabileceği. en_fazla_parca: Engineering Managerʼın geliştirmeyi en fazla kaç parçaya (Frontend / Backend…) bölebileceği. onay_kapisi: Code Reviewer (ve QA testi yapıldıysa QA Engineer) onaylamadan commit edilmez."
+    },
+    "yonetim": {
+        "etkin": true,
+        "aralik_saat": 24,
+        "en_az_biten": 1,
+        "ilke_siniri": 15,
+        "aciklama": "Yönetim katmanı (yonetim.ps1): CTO ofis boştayken aralik_saat saatte bir, son değerlendirmeden beri en az en_az_biten iş bittiyse / takıldıysa / iptal edildiyse (ya da panelden istenince) yönetim değerlendirmesi yapar; ekip ilkelerini (en fazla ilke_siniri madde, her iş istemine gider) günceller, başlamamış işleri önceliklendirir, iş önerir."
+    },
+    "korunan_desenler": [
+        ".env",
+        ".env.*",
+        "*.pfx",
+        "*.p12",
+        "*.key",
+        "*.pem",
+        "id_rsa*",
+        "*.kdbx"
+    ],
+    "ik": {
+        "tam_yetki_verebilir": true,
+        "gunluk_ise_alim_siniri": 3
+    },
+    "iletisim": {
+        "gunluk_eposta_siniri": 30
+    },
+    "altyapi": {
+        "vmrun": "",
+        "baglanti_bilgileri": "",
+        "makineler": [],
+        "kurallar": [
+            "Yalnızca kullanıcının tanımladığı makinelerde ve açıkça istediği görev kapsamında çalış.",
+            "Ana makinenin güvenlik ayarlarını değiştirme; yönetici yetkisi isteyen adımları raporla.",
+            "VM kapatmadan önce etkin oturumları kontrol et; açıkça istenmedikçe oturumu kesme. Yumuşak kapatmayı tercih et.",
+            "Geri alınamaz işlemler için talepte açık yetki ve önceden yedek gerekir.",
+            "Parolaları rapora, bildirime veya kalıcı betiğe yazma; bağlantı bilgilerini yalnızca çalışma anında oku.",
+            "Ekip betiklerine ve diğer görevlerin dosyalarına dokunma.",
+            "İndirmelerde resmi kaynakları kullan; kaynak ve dosya bilgisini raporla."
+        ],
+        "ipuclari": []
+    },
+    "bildirim": {
+        "masaustu": true,
+        "telefon": {
+            "kanal": "ntfy",
+            "ntfy_sunucu": "https://ntfy.sh",
+            "ntfy_konu": ""
+        },
+        "ayni_bildirim_arasi_dk": 60,
+        "ozet_saatleri": [
+            "12:30",
+            "18:30"
+        ]
+    }
 }

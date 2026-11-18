@@ -25,7 +25,9 @@ try {
         Dogrula ($b.Length -ge 3 -and $b[0] -eq 239 -and $b[1] -eq 187 -and $b[2] -eq 191) "$($f.Name) UTF-8 BOM"
     }
     $a = Json (Join-Path $kaynak 'ayarlar.json'); $k = Json (Join-Path $kaynak 'kadro.json')
-    Dogrula (@($k.uyeler).Count -eq 14) 'Tam kadro: kaynak sistemdeki 14 çalışan (Incident Manager ve QA Engineer dahil)'
+    Dogrula (@($k.uyeler).Count -eq 19) 'Tam kadro: 19 çalışan (CTO, Product Manager, Codebase Explorer, Frontend / Backend Developer, Incident Manager ve QA Engineer dahil)'
+    $dep = @{}; foreach ($u in $k.uyeler) { $dep[[string]$u.anahtar] = [string]$u.departman }
+    Dogrula ($dep['cto'] -eq 'Yönetim' -and $dep['lider'] -eq 'Teknik koordinasyon' -and $dep['urun'] -eq 'Karşılama ve planlama' -and $a.planlama.analiz -and $a.planlama.qa_testi -and $a.yonetim.etkin -and $a.paralel.etkin -and $a.roller.cto -and $a.roller.urun -and $a.roller.kasif -and $a.roller.frontend -and $a.roller.backend) 'Yönetim (CTO), teknik koordinasyon ve planlama katmanı; paralel hat ayarları'
     Dogrula (@($k.uyeler | Where-Object { $_.ise_alinma -or $_.ise_alan }).Count -eq 0) 'İşe alım geçmişi anonim'
     Dogrula (@($a.altyapi.makineler).Count -eq 0 -and -not $a.altyapi.vmrun -and -not $a.altyapi.baglanti_bilgileri -and -not $a.bildirim.telefon.ntfy_konu -and -not $a.claude.kullanim_dosyasi -and -not $a.gorev.yeni_proje_kok) 'Ayarlar kişisel envanter, yol ve bildirim adresi içermiyor'
     Dogrula (@((Json (Join-Path $kaynak 'projeler.json')).projeler).Count -eq 0) 'Dağıtımda boş proje listesi'
@@ -38,7 +40,7 @@ try {
     $yardimIstemi = [IO.File]::ReadAllText((Join-Path $kaynak 'istemler\yonetici-yardim.md'))
     Dogrula ($a.puanlama.etkin -and $yardimIstemi -match 'KARAR: BIRLIKTE' -and (Test-Path -LiteralPath (Join-Path $kaynak 'istemler\yardim-birlikte.md'))) 'Fibonacci puanlama açık; Engineering Manager birlikte çalışma kararı ve istemi var'
     $istemler = @(Get-ChildItem -LiteralPath (Join-Path $kaynak 'istemler') -Filter '*.md' -File -Recurse)
-    Dogrula ($istemler.Count -eq 29) '20 akış ve 9 kadro istemi'
+    Dogrula ($istemler.Count -eq 39) '24 akış ve 15 kadro istemi'
     foreach ($uye in $k.uyeler) {
         if ($uye.istem) { Dogrula (Test-Path -LiteralPath (Join-Path $kaynak $uye.istem)) "$($uye.anahtar) talimatı mevcut" }
     }
@@ -49,6 +51,12 @@ try {
         $ekipAst = [Management.Automation.Language.Parser]::ParseFile((Join-Path $kaynak 'ekip.ps1'), [ref]$null, [ref]$null)
         $kontrolAdimi = $ekipAst.Find({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Adim-Kontrol' }, $true)
         Invoke-Expression $kontrolAdimi.Extent.Text
+        # Gizli bilgi taraması ayrı işlevde (kontrol adımı ve QA Engineerʼın test dosyaları ortak kullanır); desen listesi betik düzeyinde
+        $gizliAdimi = $ekipAst.Find({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Gizli-Satir-Sayisi' }, $true)
+        Invoke-Expression $gizliAdimi.Extent.Text
+        $desenAtamasi = $ekipAst.Find({ param($n) $n -is [Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq '$script:GizliDesenler' }, $true)
+        Invoke-Expression $desenAtamasi.Extent.Text
+        function QA-Testi-Var($G) { return $false }
         $Ayar = [pscustomobject]@{ gorev = @{ max_degisen_dosya = 60 }; korunan_desenler = @() }
         function Tur-Klasoru($G) { return $calisma }
         function Git-Calistir($Klasor, $Argumanlar) { if ($Argumanlar -contains '--name-only') { return 'ornek.txt' } }
@@ -110,7 +118,7 @@ try {
         foreach ($z in $zincirler) {
             if ($z.Count -ne ($sira.Count * 2) -or @($z | Where-Object { $_.arac -notin $sira }).Count) { throw "Araç zinciri hatası: $secim" }
         }
-        Dogrula ($zincirler.Count -eq 20) "$secim seçimi: 6 rol ve 14 kadro zinciri"
+        Dogrula ($zincirler.Count -eq 30) "$secim seçimi: 11 rol ve 19 kadro zinciri"
         Dogrula (@($sira | Where-Object { @($aa.model_katalogu.$_ | Where-Object { $_.model -eq 'model-a' }).Count -eq 0 }).Count -eq 0) "$secim seçimi: kurulumda seçilen modeller panel kataloğunda"
     }
 
@@ -214,7 +222,7 @@ try {
     $arsiv = [IO.Compression.ZipFile]::OpenRead((Join-Path $paket 'dagitim\ai-ofis.zip'))
     try {
         $adlar = @($arsiv.Entries | ForEach-Object { $_.FullName })
-        Dogrula ($adlar.Count -eq 68) 'ZIP 68 dağıtım dosyası içeriyor'
+        Dogrula ($adlar.Count -eq 85) 'ZIP 85 dağıtım dosyası içeriyor'
         Dogrula (@($adlar | Where-Object { $_ -match '\.yerel\.|ozel-not|^durum/|^gorevler/|^raporlar/' }).Count -eq 0) 'ZIP kişisel ayarları ve ek kullanıcı dosyalarını dışlıyor'
     } finally { $arsiv.Dispose() }
     Write-Host "TAMAM: $script:kontrol kontrol geçti. Gerçek ağ/VM/masaüstü/zamanlanmış görev işlemi yapılmadı."

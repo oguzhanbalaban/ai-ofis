@@ -254,7 +254,8 @@ try {
     Yanit "KARAR: PLAN_HAZIR`nEK_INCELEME: tester`nYARDIM: sistem | Flutter SDK kur`nYARDIM: tester | test senaryolarını hazırla`nYARDIM: gelistirici | geçersiz satır`n`n## Özet`nplan"
     Gorev-Ilerlet $g
     $d = Gorev-Oku $g.id
-    Dogrula 'plan.md yazıldı, ek inceleme tester' ((Metin-Oku (Join-Path (Gorev-Klasoru $g.id) 'plan.md')) -match 'YARDIM: sistem' -and @($d.ek_inceleme) -contains 'tester')
+    # Planlama katmanı (planlama.ps1): QA testi açıkken EK_INCELEME: tester ayrı inceleme olmaz, QA Engineerʼın test aşamasına katılır
+    Dogrula 'plan.md yazıldı; tester QA test aşamasında (ek incelemede değil)' ((Metin-Oku (Join-Path (Gorev-Klasoru $g.id) 'plan.md')) -match 'YARDIM: sistem' -and $d.qa_testi -eq $true -and @($d.ek_inceleme) -notcontains 'tester')
     Dogrula 'iki ön iş açıldı (geçersiz satır atlandı), dönüş gelistirme' ($d.asama -eq 'yardim_bekliyor' -and @($d.yardim_bekleyen).Count -eq 2 -and (Gorev-Sayisi) -eq ($once + 2) -and $d.yardim_donus_asama -eq 'gelistirme')
     $tipler = @($d.yardim_bekleyen | ForEach-Object { (Gorev-Oku $_).tip }) -join ','
     Dogrula 'sistem -> altyapı, tester -> uzman' ($tipler -eq 'altyapi,uzman') $tipler

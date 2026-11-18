@@ -360,6 +360,13 @@ table.kul-tablo { width:100%; border-collapse:collapse; font-size:13px; font-var
 .kul-bos { color:var(--soluk); font-size:13px; padding:14px 0; text-align:center; }
 details.kul-son { margin-top:14px; }
 details.kul-son summary { cursor:pointer; font-weight:650; font-size:14px; }
+.yt-kart { display:flex; flex-direction:column; gap:10px; }
+.yt-ozet { margin:0; font-size:14px; line-height:1.5; }
+.yt-oneriler { display:flex; flex-direction:column; gap:8px; }
+.yt-oneriler:empty { display:none; }
+details.yt-detay > summary { cursor:pointer; font-weight:650; font-size:13px; }
+details.yt-detay[open] > summary { margin-bottom:6px; }
+#ytIste { margin-left:auto; }
 details.kul-son .tablo-sar { margin-top:8px; }
 @media (max-width: 900px) { .kul-izgara { grid-template-columns:minmax(0, 1fr); } }
 @media (max-width: 560px) {
@@ -397,6 +404,21 @@ details.kul-son .tablo-sar { margin-top:8px; }
 .ck-eylemler:empty { display:none; }
 .devam-form { display:flex; flex-direction:column; gap:6px; width:100%; }
 .devam-form textarea { width:100%; }
+/* çalışana doğrudan komut (karakter kartı, görev ayrıntısı) */
+.komut-ac { width:100%; border:1px solid var(--cizgi); border-radius:10px; background:var(--kart2); }
+.komut-ac > summary { cursor:pointer; padding:7px 10px; font-size:13px; font-weight:600; list-style-position:inside; }
+.komut-ac[open] > summary { border-bottom:1px solid var(--cizgi); }
+.komut-ac > .komut-form { padding:10px; }
+.komut-form { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.komut-satir { display:flex; flex-wrap:wrap; gap:8px; align-items:center; min-width:0; }
+.komut-satir select { flex:1 1 220px; min-width:0; max-width:100%; border:1px solid var(--cizgi); background:var(--kart); border-radius:8px; padding:6px 8px; font-size:13px; color:var(--yazi); }
+.komut-form textarea { width:100%; min-height:54px; resize:vertical; border:1px solid var(--cizgi); background:var(--kart); border-radius:8px; padding:6px 8px; font:inherit; font-size:13px; color:var(--yazi); box-sizing:border-box; white-space:pre-wrap; overflow-wrap:anywhere; overflow-x:hidden; overflow-y:auto; }
+.komut-bilgi { font-size:12.5px; color:var(--soluk); overflow-wrap:anywhere; }
+.komut-bilgi b { color:var(--yazi); font-weight:600; }
+.komut-hat { font-size:12px; color:var(--soluk); }
+.komut-hat.dolu { color:var(--sari); }
+.gk-rozet.paralel { background:var(--mavi-z); color:var(--mavi); }
+.gk-rozet.devral { background:var(--lider-z); color:var(--lider); }
 .sekmeler { display:flex; gap:2px; padding:0 12px; border-bottom:1px solid var(--cizgi); overflow-x:auto; }
 .sekme { border:0; background:none; padding:10px 10px 9px; font-weight:600; font-size:13px; color:var(--soluk); cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; }
 .sekme[aria-selected="true"] { color:var(--yazi); border-bottom-color:var(--vurgu); }
@@ -734,6 +756,16 @@ dialog.diyalog.karakter { width:min(880px, calc(100vw - 32px)); overflow:hidden;
       <div class="donem" role="group" aria-label="Görünüm"><button type="button" data-gorunum="pano" aria-pressed="true">▦ Pano</button><button type="button" data-gorunum="liste" aria-pressed="false">☰ Liste</button></div>
     </div>
     <div id="pano"></div>
+  </section>
+  <section aria-labelledby="ytBaslik" id="yonetimBolum">
+    <div class="bolum-baslik"><h2 id="ytBaslik">Yönetim · CTO değerlendirmesi</h2><span class="soluk" id="ytAlt"></span>
+      <button class="dugme kucuk" type="button" id="ytIste" title="Ofis boşalınca CTO ekibin son dönemini değerlendirir">Değerlendirme iste</button></div>
+    <div class="kart yt-kart">
+      <div id="ytOzet"></div>
+      <div class="yt-oneriler" id="ytOneriler"></div>
+      <details class="yt-detay" id="ytIlkeler"><summary>Ekip ilkeleri (her işe giden öğrenilmiş dersler)</summary><div id="ytIlkelerIc"></div></details>
+      <details class="yt-detay" id="ytRapor"><summary>Son raporun tamamı</summary><div id="ytRaporIc"></div></details>
+    </div>
   </section>
   <section aria-labelledby="kulBaslik">
     <div class="kul-ust"><h2 id="kulBaslik">Token ve bağlam kullanımı</h2><span class="soluk" id="kulAlt">Yükleniyor…</span>
@@ -1897,7 +1929,7 @@ function ciz(t) {
 function panoSayim() {
   const g = (veri && veri.gorevler) || [], bugun = new Date().toDateString();
   const say = a => g.filter(x => a.includes(x.asama)).length;
-  return [say(['yeni']), say(['plan']), say(['gelistirme']), say(['kontrol', 'denetim']), say(['kabul', 'tamamla']),
+  return [say(['yeni']), say(['analiz', 'kesif', 'plan']), say(['gelistirme']), say(['kontrol', 'test', 'denetim']), say(['kabul', 'tamamla']),
     g.filter(x => x.asama === 'tamam' && x.guncelleme && new Date(x.guncelleme).toDateString() === bugun).length, say(['takildi', 'bekliyor_kullanici'])];
 }
 
@@ -2110,19 +2142,20 @@ return {
 'use strict';
 const ANAHTAR = '__OFIS_ANAHTARI__';
 const ONIZLEME = '__ONIZLEME_ANAHTARI__';
-const FAALIYET_ADI = { plan: 'Plan', gelistirme: 'Geliştirme', kontrol: 'Kontrol', denetim: 'Denetim', kabul: 'Kabul', bosta: 'Boşta', bekliyor: 'Bekliyor', soru: 'Soru sordu',
-  kesif: 'Keşif', uygulama: 'Uygulama', dogrulama: 'Doğrulama', calisma: 'Çalışıyor', inceleme: 'İnceleme', ise_alim: 'İşe alım', cozum: 'Sorun inceleme' };
+const FAALIYET_ADI = { analiz: 'Analiz', plan: 'Plan', gelistirme: 'Geliştirme', kontrol: 'Kontrol', test: 'Test', denetim: 'Denetim', kabul: 'Kabul', bosta: 'Boşta', bekliyor: 'Bekliyor', soru: 'Soru sordu',
+  kesif: 'Keşif', yonetim: 'Yönetim', uygulama: 'Uygulama', dogrulama: 'Doğrulama', calisma: 'Çalışıyor', inceleme: 'İnceleme', ise_alim: 'İşe alım', cozum: 'Sorun inceleme' };
 const YETKI_ADI = { oku: 'salt okunur', yaz: 'korumalı alan', tam: 'tam yetki' };
 // kadro.json'dan (İK'nın da yazabildiği) gelen metni SVG şablonuna koymadan önce kaçışla
 const kac = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const renkGecerli = r => /^#[0-9a-fA-F]{6}$/.test(r || '') ? r : '';
 const koyuMu = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-const ASAMA_ADI = { yeni: 'Sırada', plan: 'Planlanıyor', gelistirme: 'Geliştiriliyor', kontrol: 'Kontrol ediliyor', denetim: 'Denetleniyor', kabul: 'Engineering Manager onayında',
+const ASAMA_ADI = { yeni: 'Sırada', analiz: 'Gereksinimler netleşiyor', kesif: 'Kod tabanı taranıyor', plan: 'Planlanıyor', gelistirme: 'Geliştiriliyor',
+  kontrol: 'Kontrol ediliyor', test: 'Test ediliyor', denetim: 'Denetleniyor', kabul: 'Engineering Manager onayında',
   tamamla: 'Commit ediliyor', tamam: 'Tamamlandı', takildi: 'Takıldı', bekliyor_kullanici: 'Senden yanıt bekliyor', iptal: 'İptal',
   yardim: 'Engineering Managerʼda (yardım isteği)', yardim_bekliyor: 'Ekipten yardım bekliyor' };
-const AKTIF_ASAMALAR = ['yeni', 'plan', 'gelistirme', 'kontrol', 'denetim', 'kabul', 'tamamla', 'yardim'];
+const AKTIF_ASAMALAR = ['yeni', 'analiz', 'kesif', 'plan', 'gelistirme', 'kontrol', 'test', 'denetim', 'kabul', 'tamamla', 'yardim'];
 const DOSYA_ADI = {
-  'gelistirici-ozet.md': 'Software Developer özeti', 'kontrol.md': 'Otomatik kontrol', 'denetim.md': 'Denetim raporu', 'kabul.md': 'Engineering Manager kararı',
+  'gelistirici-ozet.md': 'Geliştirici özeti', 'kontrol.md': 'Otomatik kontrol', 'test.md': 'QA test raporu', 'denetim.md': 'Code Reviewer raporu', 'kabul.md': 'Engineering Manager kararı',
   'geri-bildirim.md': 'Bu turun geri bildirimi', 'degisiklik.diff': 'Diff', 'degisiklik-u0.diff': 'Diff (bağlamsız)',
   'uygulama-ozet.md': 'Uygulama raporu', 'dogrulama.md': 'Doğrulama raporu', 'kesif.md': 'Keşif (VM / ağ durumu)', 'sonuc.md': 'Sonuç',
   'calisma-ozet.md': 'Çalışanın raporu', 'inceleme.md': 'İnceleme raporu',
@@ -2428,6 +2461,46 @@ function mesajEl(s, m) {
   el.append(E('div', { class: 'sb-meta', text: [saatMetni(m.zaman), m.arac ? aracMetni(m.arac) : '', m.sure_sn ? sureMetni(m.sure_sn) : ''].filter(Boolean).join(' · ') }));
   return el;
 }
+// ---------------------------------------------------------------- yönetim (CTO değerlendirmesi; yonetim.ps1)
+let ytImza = '';
+function yonetimCiz(v) {
+  const y = v.yonetim || {}, bol = $('#yonetimBolum');
+  if (!bol) return;
+  bol.hidden = !y.etkin && !y.zaman;
+  const imza = JSON.stringify([y.etkin, y.zaman, y.durum, y.calisiyor, y.istek, (y.oneriler || []).length]);
+  if (imza === ytImza) return;
+  ytImza = imza;
+  $('#ytAlt').textContent = y.calisiyor ? 'CTO şu an değerlendiriyor…'
+    : y.istek ? 'Değerlendirme istendi; ofis boşalınca yapılacak'
+    : y.zaman ? `Son değerlendirme: ${tarihSaat(y.zaman)}${y.durum === 'basarisiz' ? ' (başarısız; 2 saat sonra yeniden denenecek)' : ''}${y.ilke_sayisi ? ` · ${y.ilke_sayisi} ekip ilkesi` : ''}`
+    : `Henüz değerlendirme yok; ofis boştayken ${y.aralik_saat || 24} saatte bir yapılır`;
+  const dug = $('#ytIste');
+  dug.disabled = !!(y.istek || y.calisiyor || !y.etkin);
+  dug.onclick = async () => {
+    dug.disabled = true;
+    try { const r = await api('/api/yonetim-iste', {}); tost(ciktiOzeti(r) || 'CTO değerlendirmesi istendi.'); yenile(); }
+    catch (e) { tost('İstenemedi: ' + e.message, true); dug.disabled = false; }
+  };
+  const oz = [];
+  if (y.ozet) oz.push(E('p', { class: 'yt-ozet', text: y.ozet }));
+  else oz.push(E('p', { class: 'soluk', text: 'CTO, ofis boştayken ekibin son dönemini değerlendirir: iş sonuçları, yeni tura dönme, takılma ve iptal nedenleri, kaynak kullanımı, birleştirilmemiş dallar. Öğrenilen dersleri her işe giden ekip ilkelerine dönüştürür, başlamamış işleri önceliklendirir ve iş önerir (önerileri sen onaylarsın).' }));
+  if (y.durum === 'basarisiz' && y.hata) oz.push(E('div', { class: 'kutu uyari', text: 'Son deneme başarısız: ' + y.hata }));
+  if ((y.oncelik_degisiklikleri || []).length) oz.push(E('div', { class: 'soluk', text: 'Öncelik değişiklikleri: ' + y.oncelik_degisiklikleri.map(d => `#${noKisa(d.gorev)} ${d.onceki} → ${d.yeni}`).join(', ') }));
+  $('#ytOzet').replaceChildren(...oz);
+  $('#ytOneriler').replaceChildren(...(y.oneriler || []).map(o => oneriEl(o)));
+  $('#ytIlkeler').ontoggle = () => ytDetayYukle();
+  $('#ytRapor').ontoggle = () => ytDetayYukle();
+  ytDetayYukle();
+}
+async function ytDetayYukle() {
+  const ilk = $('#ytIlkeler'), rap = $('#ytRapor');
+  if (!ilk.open && !rap.open) return;
+  try {
+    const d = await api('/api/yonetim');
+    $('#ytIlkelerIc').replaceChildren(d.ilkeler_md ? md(d.ilkeler_md) : E('div', { class: 'soluk', text: 'Henüz ekip ilkesi yok; ilk değerlendirmede CTO yazacak.' }));
+    $('#ytRaporIc').replaceChildren(d.rapor_md ? md(d.rapor_md) : E('div', { class: 'soluk', text: 'Henüz rapor yok.' }));
+  } catch (e) { $('#ytRaporIc').replaceChildren(E('div', { class: 'kutu hata', text: 'Yüklenemedi: ' + e.message })); }
+}
 function oneriEl(o) {
   const tur = { uzman: 'Uzman işi', yazilim: 'Yazılım görevi', altyapi: 'Sunucu / kurulum talebi' }[o.tur] || 'İş';
   const kime = o.tur === 'uzman' ? (o.rol ? rolAdi(o.rol) : 'Engineering Manager seçer') : o.tur === 'yazilim' ? (o.proje || 'Engineering Manager seçer') : ((o.hedef || []).join(', ') || 'Engineering Manager seçer');
@@ -2529,6 +2602,7 @@ function karakterCiz() {
   else if (b && b.ise_alinma) rozetler.push(E('span', { class: 'kr-cip', text: `işe alındı ${tarihSaat(b.ise_alinma)}${b.ise_alan ? ' · ' + b.ise_alan : ''}` }));
   if (r.uzman_isi) rozetler.push(E('span', { class: 'kr-cip', text: 'uzman işi alır' }));
   if (r.gorev) rozetler.push(E('button', { class: 'kr-cip baglanti', type: 'button', text: `#${noKisa(r.gorev.id)} üzerinde`, onclick: () => { karakterKapat(); gorevAc(r.gorev.id); } }));
+  if (r.hat === 'paralel') rozetler.push(E('span', { class: 'kr-cip', text: '⚡ paralel hatta', title: 'Panelden verilen komutla ana sırayı beklemeden çalışıyor' }));
   const bas = E('header', { class: 'kr-bas' },
     E('div', { class: 'kr-portre' }, PikselOfis.portre(r, 5)),
     E('div', { class: 'kr-kim' },
@@ -2579,7 +2653,8 @@ function karakterCiz() {
     b.talimat ? md(b.talimat) : E('div', { class: 'kr-kucuk', text: 'Bu rolün ayrı bir talimat dosyası yok; adım istemleri aşağıda.' }),
     E('div', { class: 'kr-istemler' }, (b.istemler || []).map(x => E('button', { class: 'dugme kucuk', type: 'button', title: x.tur, text: '</> ' + x.ad.replace(/^istemler\//, ''),
       onclick: () => { karakterKapat(); kodAc(x.ad); } })))) : null;
-  const kap = E('div', { class: 'kr' }, bas, statlar, E('div', { class: 'kr-govde' }, yetenek, zincirBolum, modelBolum, isBolum, talimat));
+  const komutBolum = E('section', { class: 'kr-bolum genis' }, E('h3', { text: 'Komut ver' }), komutFormu({ rol: r.anahtar }));
+  const kap = E('div', { class: 'kr' }, bas, statlar, E('div', { class: 'kr-govde' }, komutBolum, yetenek, zincirBolum, modelBolum, isBolum, talimat));
   kap.style.setProperty('--rol', renk);
   $('#karakterIc').replaceChildren(kap);
   zincirCiz();
@@ -2741,8 +2816,106 @@ function kodGosterCiz() {
   $('#kodAra').addEventListener('input', e => { clearTimeout(zam); zam = setTimeout(() => { kod.ara = e.target.value; kodListeCiz(); }, 100); });
 })();
 
+// ---------------------------------------------------------------- çalışana doğrudan komut (karakter kartı, görev ayrıntısı)
+// Devam et: iş hemen, ana sırayı beklemeden ayrı bir hatta (paralel.ps1) ilerler. Devral: bu çalışan işin şu anki adımının
+// sahibinin rolünü bu işte üstlenir ve iş hemen ilerler. Sunucu: /api/komut -> durum.ps1 -Komut (komut.ps1)
+const KOMUT_ACIK = {
+  devam: 'iş hemen, ana sırayı beklemeden ayrı bir hatta ilerler; adımları her zamanki sahipleri yapar. Takılan ya da yanıt / yardım bekleyen iş önce sürdürülür.',
+  devral: 'bu çalışan, işin şu anki adımının sahibinin rolünü bu işte kendi model zinciriyle üstlenir; iş de hemen ilerler. Rolün asıl sahibi "Devral" derse rol ona döner.',
+};
+const komutTaslak = {};          // anahtar (iş / çalışan) -> { is, rol, not, acik }: panel yenilenince form sıfırlanmasın
+let komutGuncelleyiciler = [];   // açık formların bilgi satırı her durum yenilemesinde tazelenir
+function komutGorevleri() {
+  return ((veri && veri.gorevler) || []).filter(g => !['tamam', 'iptal'].includes(g.asama))
+    .sort((a, b) => (Number(!!a.aktif) - Number(!!b.aktif)) || String(a.id).localeCompare(String(b.id)));
+}
+function paralelDoluluk() {
+  const d = (veri && veri.dongu) || {};
+  if (d.paralel_etkin === false) return { metin: 'Paralel çalışma kapalı: komut işi ana sırada öne alır.', dolu: true };
+  const n = (d.paralel || []).length, m = d.paralel_en_fazla || 2;
+  return { metin: `Paralel hat ${n}/${m}` + (n >= m ? ' · dolu: komut işi ana sırada öne alır' : ''), dolu: n >= m };
+}
+function devralanMetni(g) {
+  const d = g && g.devralan;
+  if (!d) return '';
+  return Object.entries(d).filter(([, k]) => k).map(([r, k]) => `${kisaRolAdi(k)} (${kisaRolAdi(r)} yerine)`).join(', ');
+}
+async function komutGonder(id, kim, emir, not) {
+  try {
+    const r = await api('/api/komut', { id, kim, emir, not });
+    tost(ciktiOzeti(r) || 'Komut verildi.');
+    await yenile();
+    return true;
+  } catch (e) { tost('Komut verilemedi: ' + e.message, true); return false; }
+}
+// { gorevId } görev ayrıntısında (çalışan seçilir) ya da { rol } karakter kartında (iş seçilir)
+function komutFormu({ gorevId = '', rol = '' } = {}) {
+  const anahtar = gorevId ? 'g:' + gorevId : 'r:' + rol;
+  const t = komutTaslak[anahtar] || (komutTaslak[anahtar] = { is: gorevId, rol, not: '', acik: false });
+  const isler = komutGorevleri();
+  if (!gorevId) {
+    if (!isler.length) return E('div', { class: 'kr-kucuk', text: 'Komut verilecek açık iş yok.' });
+    // Varsayılan: bu çalışanın sırası gelmiş, şu an yürütülmeyen işi; yoksa bekleyen ilk iş
+    if (!isler.some(g => g.id === t.is)) t.is = (isler.find(g => !g.aktif && g.sahip === rol) || isler.find(g => !g.aktif) || isler[0]).id;
+  }
+  if (!rol && !t.rol) { const g0 = isler.find(g => g.id === t.is); t.rol = (g0 && g0.sahip) || 'lider'; }
+  const isSec = gorevId ? null : E('select', { 'aria-label': 'İş', onchange: e => { t.is = e.target.value; bilgiCiz(); } },
+    isler.map(g => E('option', { value: g.id, selected: g.id === t.is,
+      text: `#${noKisa(g.id)} · ${g.baslik.length > 58 ? g.baslik.slice(0, 58) + '…' : g.baslik} — ${g.asama_adi || ASAMA_ADI[g.asama] || g.asama}${g.aktif ? ' · çalışılıyor' : ''}` })));
+  const rolSec = rol ? null : E('select', { 'aria-label': 'Çalışan', onchange: e => { t.rol = e.target.value; bilgiCiz(); } },
+    ((veri && veri.roller) || []).map(r => E('option', { value: r.anahtar, selected: r.anahtar === t.rol, text: r.ad + (r.calisiyor ? ' · iş başında' : '') })));
+  const not = E('textarea', { rows: 2, maxlength: 4000, 'aria-label': 'Talimat (isteğe bağlı)',
+    placeholder: 'Talimat (isteğe bağlı): ne yapmasını, neye dikkat etmesini istiyorsun? Bu işteki her adımda okunur.', oninput: e => { t.not = e.target.value; } });
+  not.value = t.not || '';
+  const bilgi = E('div', { class: 'komut-bilgi', 'aria-live': 'polite' });
+  const hat = E('span', { class: 'komut-hat' });
+  const dDevam = E('button', { class: 'dugme birincil kucuk', type: 'button', text: '▶ Devam et' });
+  const dDevral = E('button', { class: 'dugme kucuk', type: 'button', text: '⇄ Devral' });
+  let gonderiliyor = false;
+  function bilgiCiz() {
+    const g = ((veri && veri.gorevler) || []).find(x => x.id === t.is);
+    const kim = rol || t.rol;
+    const ph = paralelDoluluk();
+    hat.textContent = ph.metin; hat.classList.toggle('dolu', ph.dolu);
+    if (!g || ['tamam', 'iptal'].includes(g.asama)) {
+      bilgi.textContent = g ? 'İş kapanmış; yeniden açmak için panoda başka aşamaya taşı.' : '';
+      dDevam.disabled = dDevral.disabled = true;
+      return;
+    }
+    const parca = [E('span', null, 'Şu anki adım: ', E('b', { text: g.asama_adi || ASAMA_ADI[g.asama] || g.asama }), ' · yapan: ', E('b', { text: rolAdi(g.sahip) || '—' }))];
+    if (g.paralel) parca.push(` · ⚡ paralel hatta (${rolAdi(g.paralel.kim)} başlattı, ${g.paralel.adim_sayisi || 0} adım)`);
+    else if (g.aktif) parca.push(' · şu an çalışılıyor: devralma sonraki adımdan geçerli');
+    else if (g.one_al) parca.push(' · ana sırada öne alındı');
+    const dv = devralanMetni(g); if (dv) parca.push(' · devralan: ' + dv);
+    bilgi.replaceChildren(...parca);
+    dDevam.disabled = gonderiliyor || !!g.paralel;
+    dDevam.title = g.paralel ? 'İş zaten paralel hatta ilerliyor' : 'Devam et: ' + KOMUT_ACIK.devam;
+    dDevral.disabled = gonderiliyor || g.sahip === kim;
+    dDevral.title = g.sahip === kim ? 'Bu adımı zaten bu çalışan yapıyor' : 'Devral: ' + KOMUT_ACIK.devral;
+  }
+  const gonder = async emir => {
+    if (gonderiliyor) return;
+    gonderiliyor = true; bilgiCiz();
+    const ok = await komutGonder(t.is, rol || t.rol, emir, (t.not || '').trim());
+    gonderiliyor = false;
+    if (ok) { t.not = ''; not.value = ''; }
+    bilgiCiz();
+  };
+  dDevam.addEventListener('click', () => gonder('devam'));
+  dDevral.addEventListener('click', () => gonder('devral'));
+  const form = E('div', { class: 'komut-form' },
+    isSec || rolSec ? E('div', { class: 'komut-satir' }, isSec, rolSec) : null,
+    bilgi, not,
+    E('div', { class: 'komut-satir' }, dDevam, dDevral, hat),
+    E('div', { class: 'kz-not', text: `Devam et: ${KOMUT_ACIK.devam} Devral: ${KOMUT_ACIK.devral}` }));
+  bilgiCiz();
+  komutGuncelleyiciler.push(() => { if (!form.isConnected) return false; if (!gonderiliyor) bilgiCiz(); return true; });
+  return form;
+}
+function komutFormlariniGuncelle() { komutGuncelleyiciler = komutGuncelleyiciler.filter(f => f()); }
+
 // ---------------------------------------------------------------- panoda taşıma (sürükle-bırak; çekmecede "Taşı" menüsü)
-const ASAMA_SIRA = { yeni: 0, plan: 1, gelistirme: 2, kontrol: 3, denetim: 4, kabul: 5, tamamla: 6, tamam: 7, iptal: 7 };
+const ASAMA_SIRA = { yeni: 0, analiz: 1, kesif: 1, plan: 1, gelistirme: 2, kontrol: 3, test: 3, denetim: 4, kabul: 5, tamamla: 6, tamam: 7, iptal: 7 };
 const TASIMA = {
   sira: { asama: 'yeni', ad: 'Sırada', aciklama: 'İş baştan başlar: Engineering Manager yeniden ele alır ve planlar. Çalışma dalı ve önceki tur raporları korunur; yeni tur açılır.' },
   plan: { asama: 'plan', ad: 'Planlama', aciklama: 'Engineering Manager planı yeniden yazar; ardından iş yeni bir turla yapılır.' },
@@ -2764,7 +2937,7 @@ function tasimaHedefleri(g) {
   return Object.keys(TASIMA).filter(k => {
     if (k === mevcut) return false;
     if ((k === 'yapiliyor' || k === 'inceleme') && i < 2) return false;
-    if (k === 'tamam' && !['kontrol', 'denetim', 'kabul', 'tamamla'].includes(e)) return false;
+    if (k === 'tamam' && !['kontrol', 'test', 'denetim', 'kabul', 'tamamla'].includes(e)) return false;
     if (k === 'iptal' && ['tamam', 'iptal'].includes(g.asama)) return false;
     return true;
   });
@@ -2829,16 +3002,16 @@ const puanSiralama = g => Number((g.puan_ajan && g.puan_ajan.puan) || (g.puan_yo
 // Şeritler soldan sağa işin yolculuğu; bir görev ilk uyan şeride düşer.
 const SERITLER = [
   { a: 'sira', ad: 'Sırada', renk: 'var(--soluk)', uygun: g => g.asama === 'yeni' || (g.tip === 'genel' && ['yeni', 'plan'].includes(g.asama)) },
-  { a: 'plan', ad: 'Planlama', renk: 'var(--lider)', uygun: g => g.asama === 'plan' },
+  { a: 'plan', ad: 'Planlama', alt: 'analiz · keşif · plan', renk: 'var(--lider)', uygun: g => ['analiz', 'kesif', 'plan'].includes(g.asama) },
   { a: 'yapiliyor', ad: 'Yapılıyor', renk: 'var(--mavi)', uygun: g => g.asama === 'gelistirme' },
-  { a: 'inceleme', ad: 'İnceleme', renk: 'var(--denetci)', uygun: g => ['kontrol', 'denetim', 'kabul', 'tamamla'].includes(g.asama) },
+  { a: 'inceleme', ad: 'Doğrulama', alt: 'test · inceleme · onay', renk: 'var(--denetci)', uygun: g => ['kontrol', 'test', 'denetim', 'kabul', 'tamamla'].includes(g.asama) },
   { a: 'bekliyor', ad: 'Bekliyor', alt: 'yardım / yanıt', renk: 'var(--sari)', uygun: g => ['yardim', 'yardim_bekliyor', 'bekliyor_kullanici'].includes(g.asama) },
   { a: 'takildi', ad: 'Takıldı', renk: 'var(--kirmizi)', uygun: g => g.asama === 'takildi' },
   { a: 'tamam', ad: 'Tamamlandı', renk: 'var(--yesil)', uygun: g => g.asama === 'tamam' },
   { a: 'iptal', ad: 'İptal', renk: 'var(--soluk)', uygun: g => g.asama === 'iptal', yalnizBiten: true },
 ];
-const ADIMLAR = ['yeni', 'plan', 'gelistirme', 'kontrol', 'denetim', 'kabul', 'tamam'];
-const ADIM_ADI = { yeni: 'Sırada', plan: 'Plan', gelistirme: 'Yapım', kontrol: 'Kontrol', denetim: 'İnceleme', kabul: 'Onay', tamam: 'Bitti' };
+const ADIMLAR = ['yeni', 'analiz', 'kesif', 'plan', 'gelistirme', 'kontrol', 'test', 'denetim', 'kabul', 'tamam'];
+const ADIM_ADI = { yeni: 'Sırada', analiz: 'Analiz', kesif: 'Keşif', plan: 'Plan', gelistirme: 'Yapım', kontrol: 'Kontrol', test: 'Test', denetim: 'İnceleme', kabul: 'Onay', tamam: 'Bitti' };
 const TUR_ADI = { yazilim: 'Yazılım', altyapi: 'Altyapı', uzman: 'Uzman', genel: 'Yeni iş' };
 const BITEN_SAAT = 72;            // "biten" kapalıyken Tamamlandı şeridi son 3 günü gösterir
 const SERIT_SINIR = 12;
@@ -2875,6 +3048,7 @@ function sahipMetni(g) {
   if (g.asama === 'yardim') return 'yardım isteğini dağıtıyor';
   if (g.asama === 'yardim_bekliyor') return 'ekipten yardım bekliyor';
   if (g.tip === 'genel') return g.aktif ? 'okuyup yönlendiriyor' : 'yönlendirecek';
+  if (g.paralel && g.aktif) return 'paralel hatta çalışıyor';
   return g.aktif ? 'şu an çalışıyor' : 'sırası bekliyor';
 }
 function sahipSatiri(g) {
@@ -2915,6 +3089,12 @@ function kisaGoreli(iso) {
 function gorevKarti(g) {
   const rozetler = [];
   if (g.aktif) rozetler.push(E('span', { class: 'gk-rozet calisiyor', text: 'çalışılıyor' }));
+  if (g.paralel) rozetler.push(E('span', { class: 'gk-rozet paralel', text: '⚡ paralel', title: `${rolAdi(g.paralel.kim)} komutuyla ana sırayı beklemeden ilerliyor (${g.paralel.adim_sayisi || 0} adım)` }));
+  if (g.devralan && Object.values(g.devralan).some(Boolean) && !['tamam', 'iptal'].includes(g.asama)) rozetler.push(E('span', { class: 'gk-rozet devral', text: '⇄ devralındı', title: 'Devralan: ' + devralanMetni(g) }));
+  if (g.one_al && !g.aktif) rozetler.push(E('span', { class: 'gk-rozet acil', text: '⇡ öne alındı', title: 'Komutla ana sırada öne alındı (paralel hat yoktu ya da doluydu)' }));
+  const parcalar = g.gelistirme_isleri || [];
+  if (parcalar.length > 1 && !['tamam', 'iptal'].includes(g.asama)) rozetler.push(E('span', { class: 'gk-rozet', text: `⑂ ${parcalar.filter(p => p.durum === 'tamam').length}/${parcalar.length} parça`,
+    title: 'İş dağılımı: ' + parcalar.map(p => `${rolAdi(p.rol)}${p.durum === 'tamam' ? ' ✓' : ''}`).join(' → ') }));
   if (g.cozuluyor) rozetler.push(E('span', { class: 'gk-rozet calisiyor', text: 'Incident Mgr bakıyor' }));
   if (Number(g.oncelik) === 1 && !['tamam', 'iptal'].includes(g.asama)) rozetler.push(E('span', { class: 'gk-rozet acil', text: 'acil' }));
   if (g.asama === 'bekliyor_kullanici' || (g.asama === 'takildi' && g.cozum_durumu === 'kullanici')) rozetler.push(E('span', { class: 'gk-rozet soru', text: 'seni bekliyor' }));
@@ -3200,6 +3380,8 @@ function ciz(v) {
   hudCiz(v);
   ciplerCiz(v);
   sohbetleriGuncelle(v);
+  komutFormlariniGuncelle();
+  yonetimCiz(v);
   const calisan = v.roller.find(r => r.calisiyor);
   $('#ofisAlt').textContent = calisan ? `${calisan.ad} çalışıyor: ${calisan.metin.toLocaleLowerCase('tr-TR')}` : (PikselOfis.ofisKapali(v.dongu) ? 'ofis kapalı, ekip evde' : v.dongu.duraklatildi ? 'ekip molada' : 'şu an kimse çalışmıyor');
   panoCiz(v.gorevler);
@@ -3578,7 +3760,7 @@ function cekmeceCiz() {
   // eylemler
   const ey = $('#ckEylemler'); ey.replaceChildren();
   if (g.asama === 'takildi' || g.asama === 'bekliyor_kullanici') {
-    const not = E('textarea', { rows: 2, placeholder: 'Software Developerʼa / Engineering Managerʼa notun (isteğe bağlı)', maxlength: 4000 });
+    const not = E('textarea', { rows: 2, placeholder: 'Full-Stack Developerʼa / Engineering Managerʼa notun (isteğe bağlı)', maxlength: 4000 });
     const dug = E('button', { class: 'dugme birincil kucuk', type: 'button', text: '▶ Devam ettir' });
     dug.onclick = async () => {
       dug.disabled = true;
@@ -3597,6 +3779,23 @@ function cekmeceCiz() {
     ey.append(E('label', { class: 'tasi-sec' }, 'Aşamaya taşı:', sec));
   }
   if (!['tamam', 'iptal'].includes(g.asama)) {
+    const t = komutTaslak['g:' + g.id] || (komutTaslak['g:' + g.id] = { is: g.id, rol: '', not: '', acik: false });
+    const ac = E('details', { class: 'komut-ac', open: t.acik || null, ontoggle: e => { t.acik = e.target.open; } },
+      E('summary', { text: kartV && kartV.paralel ? `👤 Çalışana komut ver · ⚡ ${rolAdi(kartV.paralel.kim)} paralel hatta ilerletiyor` : '👤 Çalışana komut ver (devam et / devral)' }),
+      komutFormu({ gorevId: g.id }));
+    ey.append(ac);
+    if (kartV && kartV.paralel) {
+      const dur = E('button', { class: 'dugme kucuk', type: 'button', text: '⏹ Paralel hattı durdur' });
+      dur.onclick = async () => {
+        if (!(await onayla('Paralel hat durdurulsun mu?', 'Süren ajan sonlandırılır; adım başarısız sayılmaz. İş bulunduğu aşamada ana sıraya döner.', 'Durdur'))) return;
+        dur.disabled = true;
+        try { const r = await api('/api/paralel-durdur', { id: g.id }); tost(ciktiOzeti(r) || 'Paralel hat durduruluyor.'); yenile(); }
+        catch (e) { tost('Durdurulamadı: ' + e.message, true); } finally { dur.disabled = false; }
+      };
+      ey.append(dur);
+    }
+  }
+  if (!['tamam', 'iptal'].includes(g.asama)) {
     const ip = E('button', { class: 'dugme tehlike kucuk', type: 'button', text: 'Görevi iptal et' });
     ip.onclick = async () => {
       if (!(await onayla('Görev iptal edilsin mi?', `#${g.id} iptal edilecek. Dal ve çalışma klasörü silinmez; istersen sonra elle temizlersin.`, 'İptal et'))) return;
@@ -3609,6 +3808,8 @@ function cekmeceCiz() {
   // sekmeler
   const altyapi = d.tip === 'altyapi', uzman = d.tip === 'uzman', genel = d.tip === 'genel';
   const sekmeler = [['ozet', 'Özet'], ['gorev', altyapi ? 'Talep' : (uzman || genel) ? 'İş' : 'Görev']];
+  if (d.gereksinimler_md) sekmeler.push(['gereksinim', 'Gereksinimler']);
+  if (!altyapi && d.kesif_md) sekmeler.push(['kesif', 'Keşif']);
   if (!genel) sekmeler.push(['plan', uzman ? 'Brif' : 'Plan']);
   if (d.yonlendirme_md) sekmeler.push(['yonlendirme', 'Engineering Manager kararı']);
   if (d.sorular_md) sekmeler.push(['soru', 'Soru']);
@@ -3632,7 +3833,8 @@ function cekmeceCiz() {
     cozum: () => d.cozumler.slice().reverse().flatMap((c, i) => [i ? E('hr', { class: 'ayrac' }) : null, md(c.md)].filter(Boolean)),
     yardimlar: () => [E('div', { class: 'soluk', text: 'Çalışanların iş sırasında Engineering Managerʼdan istediği yardımlar, Engineering Managerʼın kararları ve gelen sonuçlar (en yenisi üstte).' }),
       ...d.yardimlar.slice().reverse().flatMap((y, i) => [i ? E('hr', { class: 'ayrac' }) : null, E('div', { class: 'soluk mono', text: `${y.ad} · ${tarihSaat(y.zaman)}` }), md(y.md)].filter(Boolean))],
-    kesif: () => [E('div', { class: 'soluk', text: 'Talep başındaki durum; her turun güncel keşfi Turlar sekmesinde.' }), md(d.kesif_md || '(henüz keşif yapılmadı)')] }[cekmece.sekme])(d, g));
+    gereksinim: () => [E('div', { class: 'soluk', text: 'Product Manager talebi teknik ekibe gitmeden önce netleştirdi. Kabul ölçütleri (Definition of Done) her adımda ekibe gider; QA Engineer, Code Reviewer ve Engineering Manager bunlara göre onaylar.' }), md(d.gereksinimler_md)],
+    kesif: () => [E('div', { class: 'soluk', text: altyapi ? 'Talep başındaki durum; her turun güncel keşfi Turlar sekmesinde.' : 'Codebase Explorer plandan önce depoyu salt okunur taradı; rapor Engineering Managerʼa ve geliştiricilere gitti.' }), md(d.kesif_md || '(henüz keşif yapılmadı)')] }[cekmece.sekme])(d, g));
   ic.scrollTop = 0;
 }
 function ozetSekmesi(d, g) {
@@ -3674,7 +3876,11 @@ function ozetSekmesi(d, g) {
       ...satir('Sorumlu', g.sorumlu ? rolAdi(g.sorumlu) : null), ...satir('İnceleyen', g.inceleyen ? (g.inceleyen === 'yok' ? 'yalnızca Engineering Manager' : rolAdi(g.inceleyen)) : null),
       ...satir('İlgili klasör', g.kaynak_klasor ? E('code', { text: g.kaynak_klasor }) : null),
       ...satir('Çıktı klasörü', g.calisma_klasoru ? E('code', { text: g.calisma_klasoru + '\\cikti' }) : null)]
-    : satir('Proje', `${g.proje} (${g.klasor})`);
+    : [...satir('Proje', `${g.proje} (${g.klasor})`),
+      ...satir('Gereksinimler', g.gereksinim_durumu === 'hazir' ? `Product Manager netleştirdi${g.kapsam ? ' · kapsam: ' + ({ kucuk: 'küçük', orta: 'orta', buyuk: 'büyük' }[g.kapsam] || g.kapsam) : ''}` : null),
+      ...satir('Keşif', g.kesif_durumu === 'hazir' ? 'Codebase Explorer depoyu taradı' : g.kesif_durumu === 'atlandi' ? 'gerekmedi (yeni depo)' : null),
+      ...satir('İş dağılımı', (g.gelistirme_isleri || []).length ? g.gelistirme_isleri.map((p, i) => `${i + 1}. ${rolAdi(p.rol)}${p.durum === 'tamam' ? ' ✓' : ''}`).join(' → ') : (g.qa_testi !== undefined && g.qa_testi !== null ? 'Full-Stack Developer (tek parça)' : null)),
+      ...satir('QA testi', g.qa_testi === true ? 'var (QA Engineer test yazar ve koşturur)' : g.qa_testi === false ? 'yok (Engineering Manager gerekli görmedi)' : null)];
   if (g.ik_notu) parca.push(E('div', { class: 'kutu', text: g.ik_notu }));
   parca.push(E('dl', { class: 'kv' },
     ...turSatirlari,
@@ -3752,7 +3958,8 @@ function planSekmesi(d) {
   return [E('div', { class: 'soluk', text: 'Plan henüz yazılmadı.' })];
 }
 function soruSekmesi(d, g) {
-  const parca = [E('div', { class: 'soluk', text: `Engineering Managerʼın soruları${d.sorular_zaman ? ' · ' + tarihSaat(d.sorular_zaman) : ''}` }), md(d.sorular_md)];
+  const soran = g.soru_soran === 'urun' ? 'Product Managerʼın' : 'Engineering Managerʼın';
+  const parca = [E('div', { class: 'soluk', text: `${soran} soruları${d.sorular_zaman ? ' · ' + tarihSaat(d.sorular_zaman) : ''}` }), md(d.sorular_md)];
   if (g.asama === 'bekliyor_kullanici') {
     const ta = E('textarea', { rows: 6, placeholder: 'Yanıtların… (gorev.md dosyasının sonuna "Yanıt" başlığıyla eklenir)', maxlength: 8000 });
     const dug = E('button', { class: 'dugme birincil', type: 'button', text: 'Yanıtı gönder' });
@@ -3770,13 +3977,15 @@ function dosyaEtiketi(ad) {
   if (DOSYA_ADI[ad]) return DOSYA_ADI[ad];
   const ek = /^inceleme-([a-z0-9-]+)\.md$/.exec(ad);
   if (ek) return `Ek inceleme: ${rolAdi(ek[1])}`;
+  const pr = /^gelistirici-ozet-(\d+)-([a-z0-9-]+)\.md$/.exec(ad);
+  if (pr) return `${rolAdi(pr[2])} özeti (${pr[1]}. parça)`;
   let m;
   if ((m = /^dogrulama-(\d+)\.txt$/.exec(ad))) return `Doğrulama çıktısı ${m[1]}`;
   if ((m = /^(\w+)-(.+)\.(istem\.md|son\.md|out\.txt|err\.txt)$/.exec(ad))) return `${m[1]} · ${m[2]} · ${{ 'istem.md': 'istem', 'son.md': 'yanıt', 'out.txt': 'çıktı', 'err.txt': 'hata akışı' }[m[3]]}`;
   return ad;
 }
-const ANA_DOSYA = /^(gelistirici-ozet\.md|uygulama-ozet\.md|calisma-ozet\.md|kontrol\.md|denetim\.md|dogrulama\.md|inceleme\.md|inceleme-[a-z0-9-]+\.md|kabul\.md|geri-bildirim\.md|kesif\.md|degisiklik\.diff|dogrulama-\d+\.txt)$/;
-const SIRA = ['geri-bildirim.md', 'kesif.md', 'gelistirici-ozet.md', 'uygulama-ozet.md', 'calisma-ozet.md', 'kontrol.md', 'dogrulama-', 'denetim.md', 'inceleme-', 'dogrulama.md', 'inceleme.md', 'kabul.md', 'degisiklik.diff'];
+const ANA_DOSYA = /^(gelistirici-ozet\.md|gelistirici-ozet-\d+-[a-z0-9-]+\.md|test\.md|uygulama-ozet\.md|calisma-ozet\.md|kontrol\.md|denetim\.md|dogrulama\.md|inceleme\.md|inceleme-[a-z0-9-]+\.md|kabul\.md|geri-bildirim\.md|kesif\.md|degisiklik\.diff|dogrulama-\d+\.txt)$/;
+const SIRA = ['geri-bildirim.md', 'kesif.md', 'gelistirici-ozet.md', 'gelistirici-ozet-', 'uygulama-ozet.md', 'calisma-ozet.md', 'kontrol.md', 'dogrulama-', 'test.md', 'denetim.md', 'inceleme-', 'dogrulama.md', 'inceleme.md', 'kabul.md', 'degisiklik.diff'];
 const siraNo = ad => { const i = SIRA.findIndex(s => ad.startsWith(s)); return i < 0 ? 99 : i; };
 function turlarSekmesi(d, g) {
   const goruntuleyici = E('div', { class: 'goruntuleyici' });
