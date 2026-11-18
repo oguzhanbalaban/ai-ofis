@@ -880,6 +880,10 @@ const an = () => performance.now();
 
 // ---------------------------------------------------------------- yardımcılar
 const karma = s => { let h = 2166136261; for (const c of String(s)) { h ^= c.codePointAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
+// Ortak sahne saati (sunucunun /api/durum > zaman alanına göre düzeltilmiş): sahne kararları tarayıcıya değil saate bağlıdır
+let saatFarki = null;
+const ortakZaman = () => Date.now() + (saatFarki || 0);
+function saatAyarla(iso) { const f = Date.parse(iso) - Date.now(); if (!isFinite(f)) return; saatFarki = saatFarki === null ? f : saatFarki * 0.7 + f * 0.3; }
 function tohumlu(t) { let a = t >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let x = Math.imul(a ^ (a >>> 15), 1 | a); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; }; }
 const ara = (a, b) => a + Math.random() * (b - a);
 const birini = l => l[Math.floor(Math.random() * l.length)];
@@ -1326,7 +1330,7 @@ function yerlesimKur(roller, koru) {
       const kt = karoBul(k.x, k.y);
       if (k.gitti) { k.x = asansor.ic.x; k.y = asansor.ic.y; k.yer = null; }
       else if (koru && !k.yer && gecilir(kt.tx, kt.ty)) { k.poz = 'ayakta'; k.kalkNokta = null; }
-      else { k.yer = 'masa'; k.x = m.oturak.x; k.y = m.oturak.y; k.poz = 'otur'; k.yon = 'yukari'; k.kalkNokta = merkez(m.yaklas.tx, m.yaklas.ty); }
+      else { k.yer = 'masa'; k.x = m.oturak.x; k.y = m.oturak.y; k.poz = 'otur'; k.yon = 'yukari'; k.kalkNokta = merkez(m.yaklas.tx, m.yaklas.ty); k.ilk = true; }
     }
     m.sahip = k;
     statik.push({ masa: m, sy: m.row * T + 16 });
@@ -1430,7 +1434,7 @@ function kisiYap(r, m) {
   const k = { a: r.anahtar, r, masa: m, x: m.oturak.x, y: m.oturak.y, yon: 'yukari', poz: 'otur', yer: 'masa', kalkNokta: merkez(m.yaklas.tx, m.yaklas.ty),
     plan: [], adim: null, yol: [], adimSayaci: 0, kare: 0, durum: 'bos', balon: null, tasi: null, zipla: 0, faz: karma(r.anahtar) % 13, poi: null, olayda: false, geziyor: false };
   kisiGorunumYenile(k);
-  k.plan.push({ t: 'bekle', sure: ara(800, 9000) });
+  k.ilk = true;   // ilk kararda yürümeden ortak programdaki yerine geçer (ortakPlan)
   return k;
 }
 function planTemizle(k) {
@@ -1511,26 +1515,107 @@ function gelisPlan(k, d) {
   k.plan.push({ t: 'otur', x: m.oturak.x, y: m.oturak.y, poz: 'otur', yon: 'yukari', yer: 'masa', kalk: merkez(m.yaklas.tx, m.yaklas.ty) });
   k.plan.push({ t: 'bekle', sure: d === 'bos' ? ara(6000, 15000) : 0 });
 }
+// ---------------------------------------------------------------- ortak program (her oturumda aynı sahne)
+// Zaman DILIM'lere bölünür. Her dilimde her çalışan için seçim, anahtarından ve dilim numarasından tohumlanır: masada kal, bir mekâna
+// git (kahve, kanepe, kitaplık, pencere...) ya da masasında oturan bir arkadaşıyla sohbet et. Mekânlar türlerine göre eşleşir (dar
+// ekranda yerleşim farklı olsa da aynı tür seçilir); çakışmalar anahtar sırasıyla çözülür. Kalkış dilim başından birkaç saniye sonra.
+const DILIM = 90000, DILIM_MOLA = 600000;
+let dagilimOnbellek = { imza: '', tablo: null };
+function poiTuru(p) {
+  if (!p.tur) { let b = ''; try { b = (p.balon && p.balon({})[0]) || ''; } catch (e) {} p.tur = (p.efekt || p.otur || 'dur') + ':' + b; }
+  return p.tur;
+}
+function dagilim(n, mola) {
+  const anahtarlar = [...kisiler.keys()].sort();
+  const bostakiler = anahtarlar.filter(a => { const x = kisiler.get(a); return x && x.durum === 'bos' && !x.gitti; });
+  const imza = n + '|' + (mola ? 1 : 0) + '|' + yerlesimImza + '|' + poiler.length + '|' + bostakiler.join(',');
+  if (dagilimOnbellek.imza === imza) return dagilimOnbellek.tablo;
+  const turler = new Map();
+  for (const p of poiler) { if (mola && !p.mola) continue; const t = poiTuru(p); if (!turler.has(t)) turler.set(t, []); turler.get(t).push(p); }
+  const turListe = [...turler.keys()].sort();
+  const dolu = new Set(), tablo = new Map(), masada = [];
+  for (const a of anahtarlar) {
+    const r = tohumlu(karma(a + '|' + n + (mola ? '|mola' : '')));
+    const x = r();
+    if (!mola && x < 0.45) { tablo.set(a, { tur: 'masa' }); masada.push(a); continue; }
+    if (!mola && x < 0.57) { tablo.set(a, { tur: 'sohbet', r: r() }); continue; }
+    let secilen = null;
+    if (turListe.length) {
+      const t0 = Math.floor(r() * turListe.length), s0 = r();
+      for (let i = 0; i < turListe.length && !secilen; i++) {
+        const liste = turler.get(turListe[(t0 + i) % turListe.length]), b0 = Math.floor(s0 * liste.length);
+        for (let j = 0; j < liste.length; j++) { const p = liste[(b0 + j) % liste.length]; if (!dolu.has(p)) { secilen = p; break; } }
+      }
+    }
+    if (secilen) { dolu.add(secilen); tablo.set(a, { tur: 'poi', poi: secilen }); } else { tablo.set(a, { tur: 'masa' }); masada.push(a); }
+  }
+  // Sohbet: masasında kalan boştaki bir arkadaş (anahtar sırasıyla; her masaya tek ziyaretçi)
+  const ziyaret = new Set();
+  for (const a of anahtarlar) {
+    const s = tablo.get(a); if (s.tur !== 'sohbet') continue;
+    const adaylar = masada.filter(b => b !== a && !ziyaret.has(b) && bostakiler.includes(b));
+    if (!adaylar.length) { s.tur = 'masa'; continue; }
+    s.ortak = adaylar[Math.floor(s.r * adaylar.length)]; ziyaret.add(s.ortak);
+  }
+  dagilimOnbellek = { imza, tablo };
+  return tablo;
+}
+const sabitSec = (l, tohum) => l[karma(tohum) % l.length];
+function ortakPlan(k, mola) {
+  const ilk = k.ilk; k.ilk = false;
+  const t = ortakZaman(), L = mola ? DILIM_MOLA : DILIM;
+  const n = Math.floor(t / L), bas = n * L, bitis = bas + L;
+  const s = dagilim(n, mola).get(k.a) || { tur: 'masa' };
+  const kalkis = bas + (mola ? 0 : karma(k.a + ':' + n) % 9000);
+  const m = k.masa;
+  const masaya = son => {
+    k.geziyor = false;
+    if (k.yer !== 'masa') {
+      k.plan.push({ t: 'git', hedef: m.yaklas, son: m.oturak, hiz: 40, aninda: ilk });
+      k.plan.push({ t: 'otur', x: m.oturak.x, y: m.oturak.y, poz: 'otur', yon: 'yukari', yer: 'masa', kalk: merkez(m.yaklas.tx, m.yaklas.ty) });
+    }
+    k.plan.push({ t: 'bekle', bitisOrtak: son });
+  };
+  if (s.tur === 'masa') { masaya(bitis); return; }
+  if (t < kalkis && (ilk || k.yer === 'masa')) { masaya(kalkis); return; }   // kalkış saati gelmedi: masada bekle
+  if (s.tur === 'poi') {
+    const p = s.poi;
+    if (k.poi && k.poi !== p) { k.poi.kullanan = null; k.poi = null; }
+    p.kullanan = k; k.poi = p; k.geziyor = true;
+    if (!(k.yer === 'poi' && Math.abs(k.x - p.nokta.x) < 1 && Math.abs(k.y - p.nokta.y) < 1)) {
+      k.plan.push({ t: 'git', hedef: p.karo, son: p.otur ? null : p.nokta, aninda: ilk });
+      if (p.otur) k.plan.push({ t: 'otur', x: p.nokta.x, y: p.nokta.y, poz: p.otur, yon: p.yon, yer: 'poi', kalk: merkez(p.karo.tx, p.karo.ty) });
+      else k.plan.push({ t: 'dur', yon: p.yon });
+    }
+    const tohum = k.a + '#' + n;
+    k.plan.push({ t: 'bekle', bitisOrtak: bitis, efekt: p.efekt, balon: p.balon ? { metin: sabitSec(p.balon(k), tohum), gecikme: 400 + karma(tohum) % 2000, sure: 2600 } : null,
+      bitince: () => { if (p.kupa) { k.tasi = 'kupa'; k.kupaBitis = an() + 40000; } } });
+    k.plan.push({ t: 'fn', f: () => { if (k.poi === p) { p.kullanan = null; k.poi = null; } } });
+    return;
+  }
+  // sohbet: arkadaşın masasına git, birkaç saniye konuş, masaya dön (dilim sonuna kadar orada)
+  const o = kisiler.get(s.ortak);
+  const sohbetSon = kalkis + 7000 + karma(k.a + '~' + n) % 5000;
+  if (!o || o.gitti || o.durum !== 'bos' || t >= sohbetSon - 1500 || (o.ziyaretci && o.ziyaretci !== k)) { masaya(bitis); return; }
+  const z = o.masa.ziyaret.find(v => gecilir(v.tx, v.ty));
+  if (!z) { masaya(bitis); return; }
+  k.geziyor = true; o.ziyaretci = k; k.ziyaretEdilen = o;
+  const tohum = k.a + '~' + n;
+  k.plan.push({ t: 'git', hedef: z, aninda: ilk });
+  k.plan.push({ t: 'dur', yon: z.yon });
+  k.plan.push({ t: 'bekle', bitisOrtak: sohbetSon, balon: { metin: sabitSec(SOHBET, tohum), gecikme: 200, sure: 2200 },
+    basla: () => zamanla(1700, () => { if (o.ziyaretci === k) o.balon = { metin: sabitSec(YANIT, tohum + 'y'), bitis: an() + 2200 }; }) });
+  k.plan.push({ t: 'fn', f: () => { if (o.ziyaretci === k) o.ziyaretci = null; k.ziyaretEdilen = null; } });
+}
 function karar(k) {
   const d = k.durum;
+  if (d !== 'bos' && d !== 'mola') k.ilk = false;
   if (k.gitti) { if (d === 'evde') k.plan.push({ t: 'bekle', sure: 0 }); else gelisPlan(k, d); return; }
   if (d === 'evde') { gidisPlan(k); return; }
   if (d === 'calis' || d === 'sohbet' || d === 'soru' || d === 'bekliyor' || d === 'uyku') { masayaPlan(k, d === 'sohbet' ? 'calis' : d); return; }
-  if (azHareket()) { masayaPlan(k, 'bos'); return; }
-  if (d === 'mola') {
-    if (k.poi && k.poi.mola && k.yer === 'poi') { k.plan.push({ t: 'bekle', sure: 0 }); return; }
-    const p = poiSec(k, true);
-    if (p) gezPlan(k, p, true); else masayaPlan(k, 'bos');
-    return;
-  }
-  const hepsi = [...kisiler.values()];
-  const gezen = hepsi.filter(x => x.geziyor).length;
-  const bos = hepsi.filter(x => x.durum === 'bos').length;
-  if (k.yer !== 'masa') { if (Math.random() < 0.6) { masayaPlan(k, 'bos'); return; } }
-  else if (gezen >= Math.max(1, Math.ceil(bos * 0.45)) || Math.random() < 0.3) { k.plan.push({ t: 'bekle', sure: ara(7000, 18000) }); return; }
-  if (Math.random() < 0.18 && sohbetPlan(k)) return;
-  const p = poiSec(k, false);
-  if (p) gezPlan(k, p, false); else masayaPlan(k, 'bos');
+  if (azHareket()) { k.ilk = false; masayaPlan(k, 'bos'); return; }
+  // Boştaki ve moladaki çalışanlar ortak programa göre: her oturumda (telefon, bilgisayar, yenileme) aynı yerde, aynı işle
+  ortakPlan(k, d === 'mola');
 }
 function yolBul(sx, sy, hx, hy) {
   if (!gecilir(hx, hy)) return null;
@@ -1576,13 +1661,13 @@ function adimBasla(k, a) {
     if (p) yol.push(...p); else yol.push(merkez(a.hedef.tx, a.hedef.ty));
     if (a.son) yol.push(a.son);
     k.yol = yol; k.yer = null; k.poz = 'yuru';
-    if (azHareket()) { const s = yol[yol.length - 1]; if (s) { k.x = s.x; k.y = s.y; } k.yol = []; }
+    if (azHareket() || a.aninda) { const s = yol[yol.length - 1]; if (s) { k.x = s.x; k.y = s.y; } k.yol = []; }
   } else if (a.t === 'otur') {
     k.x = a.x; k.y = a.y; k.poz = a.poz; k.yon = a.yon; k.yer = a.yer; k.kalkNokta = a.kalk;
   } else if (a.t === 'dur') {
     k.poz = 'ayakta'; if (a.yon) k.yon = a.yon;
   } else if (a.t === 'bekle') {
-    a.bitis = a.sure ? an() + a.sure : 0;
+    a.bitis = a.bitisOrtak ? an() + Math.max(1, a.bitisOrtak - ortakZaman()) : (a.sure ? an() + a.sure : 0);
     if (a.balon) zamanla(a.balon.gecikme || 0, () => { if (k.adim === a) k.balon = { metin: a.balon.metin, bitis: an() + (a.balon.sure || 2500) }; });
     if (a.efekt === 'kahve' && kahveYeri) kahveYeri.kullaniliyor = true;
     if (a.efekt === 'su') k.su = true;
@@ -1744,6 +1829,7 @@ function konfeti(x, y, n) {
 // ---------------------------------------------------------------- veri
 function guncelle(v) {
   if (!tuvalEl) return;
+  if (v && v.zaman) saatAyarla(v.zaman);
   onceki = veri; veri = v;
   const roller = v.roller || [];
   const imza = roller.map(r => `${r.anahtar}:${r.departman || ''}:${rolRengi(r)}`).join(',');
@@ -2038,9 +2124,16 @@ function yazilariCiz(t) {
 }
 
 // ---------------------------------------------------------------- döngü
+// Sahne bir süre çizilmediyse (gizli sekme / görünmeyen tuval) boştakileri ortak programdaki yerlerine anında taşı
+let gizliyken = 0;
+function esitle() {
+  for (const k of kisiler.values()) if (!k.gitti && !k.olayda && (k.durum === 'bos' || k.durum === 'mola')) { planTemizle(k); k.ilk = true; }
+}
 function tik(t) {
   requestAnimationFrame(tik);
-  if (!gorunur || !dunya || !veri) { sonCizim = t; return; }
+  if (!gorunur || !dunya || !veri) { if (!gizliyken) gizliyken = t; sonCizim = t; return; }
+  if ((gizliyken && t - gizliyken > 4000) || (sonCizim && t - sonCizim > 4000)) esitle();
+  gizliyken = 0;
   const aralik = azHareket() ? 250 : 33;
   if (t - sonCizim < aralik) return;
   const dt = Math.min(0.5, (t - sonCizim) / 1000); sonCizim = t;   // arka planda kare hızı düşse de yürüyüş gerçek zamanda kalsın
@@ -2128,6 +2221,9 @@ function guncelleYerlesim() {
 return {
   baglan, guncelle, durumu, kisaAd, rolRengi, ofisKapali: ofisKapaliMi,
   sec(a) { secili = a || null; },
+  // Salt okunur: her çalışanın sahnedeki yeri (oturumlar arası aynılığı denemek için)
+  programOzeti() { const n = Math.floor(ortakZaman() / DILIM); return [...dagilim(n, false)].map(([a, s]) => `${a}|${s.tur}|${s.poi ? poiTuru(s.poi) : (s.ortak || '')}`); },
+  sahneOzeti() { return [...kisiler.values()].map(k => ({ a: k.a, durum: k.durum, yer: k.yer || '', poi: k.poi ? poiTuru(k.poi) : '', x: Math.round(k.x), y: Math.round(k.y) })); },
   vurgula(a) { vurgu = a || null; },
   balon(a, metin, ms) { const k = kisiler.get(a); if (k && !k.gitti) k.balon = { metin, bitis: an() + (ms || 2500) }; },
   // Karakter kartı için büyütülmüş portre (sahnedeki sprite'ın aynısı)
