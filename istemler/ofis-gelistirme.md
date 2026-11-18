@@ -5,7 +5,7 @@ Bu depo **AI Ekip Ofisi'nin kendi kodunun aynasıdır** (ayna: `{AYNA}`, canlı 
 aynanın main'ine birleştirir, canlıya kopyalar, doğrular; doğrulama geçmezse geri alır. Senin işin: küçük, geriye uyumlu, testli değişiklik.
 
 ## Yapı
-- Şirket binası: `katlar.json` (ana kat = AI Ekip Ofisi; diğer katlar `katlar\<id>`: Data and Analytics, Creativity; Masal Shorts
+- Şirket binası: `katlar.json` (ana kat = AI Ekip Ofisi; diğer katlar `katlar\<id>`: Data and Analytics, Creativity; Creative Studio
   ayrı bir uygulama, kendi deposu). Kod tek; her kat kendi verisiyle (kadro, ayarlar, görevler) kendi döngüsünde çalışır.
 - Motor (Windows PowerShell 5.1): `ortak.ps1` (dosya / JSON, kat çözümü `AIEKIP_KAT` → `$Kok` veri, `$KodKok` kod; Ajan-Cagir, bildirim),
   `ekip.ps1` (aşamalar, ana döngü), `planlama.ps1` (Product Manager, Explorer, QA), `yonlendirme.ps1` (İş ver), `uzman.ps1`,

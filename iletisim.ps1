@@ -184,7 +184,7 @@ function Kat-Gorevi-Iptal($K, [string]$Id, [string]$Neden) {
     return $true
 }
 
-# ---------------------------------------------------------------- uygulama katları (kendi API'si olan uygulamalar, ör. Masal Shorts)
+# ---------------------------------------------------------------- uygulama katları (kendi API'si olan uygulamalar, ör. Creative Studio)
 function Uygulama-Api($K) { return ([string]$K.uygulama.api).TrimEnd('/') }
 function Uygulama-Isi-Ac($K, [string]$Konu) {
     $govde = [ordered]@{ topic = (Kisalt $Konu 118) } | ConvertTo-Json -Compress

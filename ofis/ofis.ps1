@@ -105,7 +105,7 @@ function Gizli-Baslat([string]$Betik, [string]$ArgMetni, [string]$KatId) {
     finally { if ($null -ne $eski) { $env:AIEKIP_KAT = $eski } else { Remove-Item -LiteralPath env:AIEKIP_KAT -ErrorAction SilentlyContinue } }
 }
 function Kat-Dongusu-Baslat-P([string]$Id) { Gizli-Baslat (Join-Path $KodKok 'baslat.ps1') '' $Id; Ofis-Kayit "Kat döngüsü başlatıldı: $Id" }
-# Uygulama katı (kendi sunucusu olan uygulama, ör. Masal Shorts): API adresinin portu açık mı (kısa TCP denemesi)
+# Uygulama katı (kendi sunucusu olan uygulama, ör. Creative Studio): API adresinin portu açık mı (kısa TCP denemesi)
 function Uygulama-Calisiyor($K) {
     try {
         $u = [Uri]([string]$K.uygulama.api)

@@ -78,7 +78,7 @@ ayarları, görev panosu ve döngüsüyle çalışır, kod ortaktır:
 | 3 | **AI Ekip Ofisi** (ana kat, genel merkez) | Yazılım, altyapı, tasarım, test; verisi kök klasörde |
 | 2 | **Data and Analytics Office** (`katlar\data-analytics`) | SAP Data Services ETL, BusinessObjects UNX universe ve Web Intelligence raporları; SAP ortamınızı `bilgi\sap-ortami.md` ve `altyapi.makineler` içine yazın |
 | 1 | **Creativity Office** (`katlar\creativity`) | Fikir hattı: fikir → eleştiri → POC planı → maliyet → karar; onaylanan POC ana kata gider, sonuç puanlanır (stüdyo paneli) |
-| Z | **Masal Shorts Stüdyosu** (`katlar\masal`) | Uygulama katı: çocuk masalı YouTube Shorts üretim hattı (kendi sunucusu ve paneli). Kurulumu `katlar\masal\README.md`; yayın / yükleme yalnızca sizin onayınızla |
+| Z | **Creative Studio** (`katlar\creative-studio`) | Uygulama katı: çocuk masalı YouTube Shorts üretim hattı (kendi sunucusu ve paneli). Kurulumu `katlar\creative-studio\README.md`; yayın / yükleme yalnızca sizin onayınızla |
 
 - **Katlar arası iletişimi Communications Coordinator'lar (Comms) yürütür.** Bir iş başka bir katın uzmanlığındaysa katın yöneticisi
   `KARAR: KAT` verir (ya da bir çalışan başka kattan yardım ister); Comms isteği o katın ekibinin tek başına anlayacağı bir brife çevirir,

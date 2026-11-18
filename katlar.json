@@ -1,7 +1,7 @@
 {
     "surum": 1,
     "sirket": "AI Ekip Şirketi",
-    "aciklama": "Şirket binası: her kat bir ofis. Ana kat AI Ekip Ofisi (verisi bu klasörde); diğer ekip katları katlar\\<id> klasöründe kendi kadrosu, ayarları ve görevleriyle, kendi döngüsünde çalışır (kod ortak). Uygulama katları kendi sunucusu olan uygulamalardır. Katlar arası iletişimi her katın Communications Coordinator'ı (Comms) yürütür (iletisim.ps1). kat_no: binadaki yer (büyük olan üstte); alan: Engineering Manager'ların iş yönlendirirken gördüğü uzmanlık alanı. Uygulama katı Masal Shorts kendi kurulumunu ister (katlar\\masal\\README.md): Python, Node.js ve FFmpeg; kurulmadıysa bina panelinde kapalı görünür.",
+    "aciklama": "Şirket binası: her kat bir ofis. Ana kat AI Ekip Ofisi (verisi bu klasörde); diğer ekip katları katlar\\<id> klasöründe kendi kadrosu, ayarları ve görevleriyle, kendi döngüsünde çalışır (kod ortak). Uygulama katları kendi sunucusu olan uygulamalardır. Katlar arası iletişimi her katın Communications Coordinator'ı (Comms) yürütür (iletisim.ps1). kat_no: binadaki yer (büyük olan üstte); alan: Engineering Manager'ların iş yönlendirirken gördüğü uzmanlık alanı. Uygulama katı Creative Studio kendi kurulumunu ister (katlar\\creative-studio\\README.md): Python, Node.js ve FFmpeg; kurulmadıysa bina panelinde kapalı görünür.",
     "katlar": [
         {
             "id": "ana",
@@ -38,12 +38,12 @@
             "alan": "Fikir üretme, ürün / oyun konsepti, eleştiri, POC planı ve maliyet (onaylanan POC ana kata yaptırılır, sonuç puanlanır); logo, görsel, arayüz ve ses tasarımı"
         },
         {
-            "id": "masal",
-            "ad": "Masal Shorts Stüdyosu",
-            "kisa_ad": "Masal",
+            "id": "creative-studio",
+            "ad": "Creative Studio",
+            "kisa_ad": "Studio",
             "kat_no": 0,
             "tur": "uygulama",
-            "kok": "katlar\\masal",
+            "kok": "katlar\\creative-studio",
             "renk": "#d97706",
             "simge": "📚",
             "alan": "Çocuklar için masal / hikâye YouTube Shorts videosu üretimi (hikâye, çizim, seslendirme, kurgu; tek konu cümlesiyle). Yayın / yükleme yalnızca kullanıcı onayıyla",

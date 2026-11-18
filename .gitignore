@@ -26,17 +26,17 @@ DURDUR
 danisman/notlar/
 # Şirket binası: katlar arası yazışmalar çalışma kaydıdır (katların görev / durum klasörleri yukarıdaki kurallarla dışarıda)
 sirket/
-# Masal Shorts katının örnek ortam dosyası pakette gelir (.env.* kuralının istisnası)
-!katlar/masal/.env.example
-# Masal Shorts katının bağımlılık, model ve çıktı klasörleri (katlar/masal/.gitignore'da da var)
+# Creative Studio katının örnek ortam dosyası pakette gelir (.env.* kuralının istisnası)
+!katlar/creative-studio/.env.example
+# Creative Studio katının bağımlılık, model ve çıktı klasörleri (katlar/creative-studio/.gitignore'da da var)
 .venv/
 .venv-*/
 node_modules/
-katlar/masal/backend/models/
-katlar/masal/backend/data/
-katlar/masal/backend/data-test/
-katlar/masal/frontend/dist/
-katlar/masal/logs/
+katlar/creative-studio/backend/models/
+katlar/creative-studio/backend/data/
+katlar/creative-studio/backend/data-test/
+katlar/creative-studio/frontend/dist/
+katlar/creative-studio/logs/
 .test-calisma/
 dagitim/
 __pycache__/
