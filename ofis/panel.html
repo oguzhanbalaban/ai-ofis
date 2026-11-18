@@ -2275,8 +2275,8 @@ const ASAMA_ADI = { yeni: 'Sırada', analiz: 'Gereksinimler netleşiyor', kesif:
   tamamla: 'Commit ediliyor', tamam: 'Tamamlandı', takildi: 'Takıldı', bekliyor_kullanici: 'Senden yanıt bekliyor', iptal: 'İptal',
   yardim: 'Engineering Managerʼda (yardım isteği)', yardim_bekliyor: 'Ekipten yardım bekliyor', kat_bekliyor: 'Başka katta yapılıyor (Comms)',
   fikir: 'Fikir üretiliyor', elestiri: 'Eleştiriliyor', poc_plan: 'POC planlanıyor', maliyet: 'Maliyet hesaplanıyor', karar: 'Karar bekliyor', teslim: 'Teslim hazırlanıyor',
-  bekleme: 'Ana ofiste uygulanıyor', puanlama: 'Puanlanıyor', reddedildi: 'Reddedildi' };
-const AKTIF_ASAMALAR = ['yeni', 'analiz', 'kesif', 'plan', 'gelistirme', 'kontrol', 'test', 'denetim', 'kabul', 'tamamla', 'yardim'];
+  bekleme: 'Ana ofiste uygulanıyor', puanlama: 'Puanlanıyor', reddedildi: 'Reddedildi', canliya_al: 'Canlıya alınıyor' };
+const AKTIF_ASAMALAR = ['yeni', 'analiz', 'kesif', 'plan', 'gelistirme', 'kontrol', 'test', 'denetim', 'kabul', 'tamamla', 'yardim', 'canliya_al'];
 const DOSYA_ADI = {
   'gelistirici-ozet.md': 'Geliştirici özeti', 'danisman-rapor.md': 'Danışman raporu', 'kontrol.md': 'Otomatik kontrol', 'test.md': 'QA test raporu', 'denetim.md': 'Code Reviewer raporu', 'kabul.md': 'Engineering Manager kararı',
   'geri-bildirim.md': 'Bu turun geri bildirimi', 'degisiklik.diff': 'Diff', 'degisiklik-u0.diff': 'Diff (bağlamsız)',
@@ -3128,7 +3128,7 @@ const SERITLER = [
   { a: 'sira', ad: 'Sırada', renk: 'var(--soluk)', uygun: g => g.asama === 'yeni' || (g.tip === 'genel' && ['yeni', 'plan'].includes(g.asama)) },
   { a: 'plan', ad: 'Planlama', alt: 'analiz · keşif · plan', renk: 'var(--lider)', uygun: g => ['analiz', 'kesif', 'plan'].includes(g.asama) },
   { a: 'yapiliyor', ad: 'Yapılıyor', renk: 'var(--mavi)', uygun: g => g.asama === 'gelistirme' },
-  { a: 'inceleme', ad: 'Doğrulama', alt: 'test · inceleme · onay', renk: 'var(--denetci)', uygun: g => ['kontrol', 'test', 'denetim', 'kabul', 'tamamla'].includes(g.asama) },
+  { a: 'inceleme', ad: 'Doğrulama', alt: 'test · inceleme · onay', renk: 'var(--denetci)', uygun: g => ['kontrol', 'test', 'denetim', 'kabul', 'tamamla', 'canliya_al'].includes(g.asama) },
   { a: 'bekliyor', ad: 'Bekliyor', alt: 'yardım / yanıt', renk: 'var(--sari)', uygun: g => ['yardim', 'yardim_bekliyor', 'bekliyor_kullanici'].includes(g.asama) },
   { a: 'takildi', ad: 'Takıldı', renk: 'var(--kirmizi)', uygun: g => g.asama === 'takildi' },
   { a: 'tamam', ad: 'Tamamlandı', renk: 'var(--yesil)', uygun: g => g.asama === 'tamam' },
@@ -3952,6 +3952,7 @@ function cekmeceCiz() {
     const teslim = (d.ciktilar || []).filter(f => f.yol.startsWith('cikti/')).length;
     sekmeler.push(['ciktilar', `Çıktılar (${(uzman || danismanKlasor) ? teslim : (d.ciktilar || []).length})`]);
     if (d.sonuc_md) sekmeler.push(['sonuc', 'Sonuç']);
+    if (d.canliya_alim_md || (g.canliya_alim && g.canliya_alim.durum)) sekmeler.push(['canli', 'Canlıya alma']);
     if (altyapi) sekmeler.push(['kesif', 'Keşif']);
   } else if (!genel) sekmeler.push(['diff', 'Diff']);
   if (!sekmeler.some(s => s[0] === cekmece.sekme)) cekmece.sekme = 'ozet';
@@ -3959,7 +3960,7 @@ function cekmeceCiz() {
     onclick: () => { cekmece.sekme = k; cekmeceCiz(); } }, ad, k === 'soru' && g.asama === 'bekliyor_kullanici' ? E('span', { class: 'sekme-isaret' }) : null)));
   const ic = $('#ckIcerik');
   ic.replaceChildren(...({ ozet: ozetSekmesi, gorev: () => [md(d.gorev_md || '(gorev.md boş)')], plan: planSekmesi, soru: soruSekmesi, turlar: turlarSekmesi, diff: diffSekmesi,
-    ciktilar: ciktilarSekmesi, sonuc: () => [md(d.sonuc_md)], kat: () => katYazismaSekmesi(d),
+    ciktilar: ciktilarSekmesi, sonuc: () => [md(d.sonuc_md)], canli: () => canliSekmesi(d, g), kat: () => katYazismaSekmesi(d),
     yonlendirme: () => [E('div', { class: 'soluk', text: '"İş ver" ile gelen işi Engineering Manager okudu ve kime vereceğine karar verdi. Ham çıktı:' }), md(d.yonlendirme_md)],
     cozum: () => d.cozumler.slice().reverse().flatMap((c, i) => [i ? E('hr', { class: 'ayrac' }) : null, md(c.md)].filter(Boolean)),
     yardimlar: () => [E('div', { class: 'soluk', text: 'Çalışanların iş sırasında Engineering Managerʼdan istediği yardımlar, Engineering Managerʼın kararları ve gelen sonuçlar (en yenisi üstte).' }),
@@ -3985,6 +3986,20 @@ function katYazismaSekmesi(d) {
     parca.push(E('h4', { text: 'Akış' }), E('ul', null, (y.gecmis || []).map(o => E('li', { text: `${tarihSaat(o.zaman)} · ${o.olay}${o.kim ? ' (' + o.kim + ')' : ''}` }))));
     return parca.filter(Boolean);
   });
+}
+// ---------------------------------------------------------------- ofisin kendi kodu: canlıya alma (kendini.ps1)
+const CANLI_DURUM = { canlida: '✅ Canlıda', geri_alindi: '↩️ Geri alındı', bekliyor: '⏸️ Onayını bekliyor (otomatik canlıya alma kapalı)', degisiklik_yok: 'Canlıya alınacak kod değişikliği yoktu' };
+function canliSekmesi(d, g) {
+  const c = g.canliya_alim || {};
+  const p = [E('div', { class: 'kutu' }, `${CANLI_DURUM[c.durum] || c.durum || ''}${c.zaman ? ' · ' + tarihSaat(c.zaman) : ''}${c.dosya_sayisi ? ` · ${c.dosya_sayisi} dosya` : ''}${c.neden ? ' · ' + c.neden : ''}`)];
+  const dugme = (metin, yol, soru) => E('button', { class: 'dugme kucuk', type: 'button', text: metin, onclick: async () => {
+    if (!await onayla(metin, soru, metin)) return;
+    try { const r = await api(yol, { id: g.id }); tost(r.cikti || 'Tamam'); setTimeout(yenile, 1500); } catch (e) { tost(e.message, true); }
+  } });
+  if (c.durum === 'canlida') p.push(E('div', null, dugme('Geri al', '/api/geri-al', 'Bu değişiklik ofisten geri alınsın mı? Dosyalar canlıya almadan önceki yedekten geri yüklenir (yalnızca en son canlıya alma geri alınabilir).')));
+  if (c.durum === 'bekliyor') p.push(E('div', null, dugme('Canlıya al', '/api/canliya-al', 'Bu değişiklik ofise uygulansın mı? Yedek alınır, doğrulanır; geçmezse geri alınır.')));
+  if (d.canliya_alim_md) p.push(md(d.canliya_alim_md));
+  return p;
 }
 function ozetSekmesi(d, g) {
   const parca = [];

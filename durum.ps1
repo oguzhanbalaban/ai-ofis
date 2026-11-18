@@ -16,7 +16,7 @@ durum.ps1 - AI Ekip'in anlık durumu ve görev yönetimi.
   .\durum.ps1 -Duraklat / -Surdur   tüm ekibi duraklat / sürdür (DURDUR dosyası)
   .\durum.ps1 -KilitleriSifirla     araç kilitlerini kaldır (ör. "claude auth login" yaptıktan sonra)
 #>
-param([string]$Id, [string]$Devam, [string]$Not, [string]$Iptal, [string]$Tasi, [string]$Asama, [string]$Komut, [string]$Kim, [string]$Emir = 'devam',
+param([string]$GeriAl, [string]$CanliyaAl, [string]$Id, [string]$Devam, [string]$Not, [string]$Iptal, [string]$Tasi, [string]$Asama, [string]$Komut, [string]$Kim, [string]$Emir = 'devam',
     [switch]$Baslatma, [string]$ParalelDurdur, [switch]$Ac, [switch]$Duraklat, [switch]$Surdur, [switch]$KilitleriSifirla, [switch]$Degerlendir)
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'ortak.ps1')
@@ -70,6 +70,18 @@ if ($ParalelDurdur) {
     Write-Host (Paralel-Durdur $g)
 }
 if ($Id) { Gorev-Bul $Id; return }
+# Ofisin kendi kodu: son canlıya almayı geri al / onay bekleyen değişikliği canlıya al (kendini.ps1)
+if ($GeriAl) { $h = Canliya-Alimi-Geri-Al $GeriAl 'kullanıcı geri aldı'; if ($h) { throw $h }; Write-Host "Geri alındı: $GeriAl"; return }
+if ($CanliyaAl) {
+    $g = Gorev-Bul $CanliyaAl
+    if (-not $g.canliya_alim -or [string]$g.canliya_alim.durum -ne 'bekliyor') { throw 'Bu görevde canlıya alınmayı bekleyen değişiklik yok.' }
+    Ayarla $g 'canliya_al_onaylandi' $true
+    Gecmis-Ekle $g 'kullanıcı canlıya almayı onayladı'
+    $g.asama = 'canliya_al'
+    Gorev-Kaydet $g
+    Write-Host "Canlıya alınacak: $($g.id)"
+    return
+}
 if ($Iptal) {
     $g = Gorev-Bul $Iptal
     if ([string]$g.tip -eq 'yaratici' -and @('tamam', 'reddedildi') -contains [string]$g.asama) { throw 'Kapanmış fikir hattı işi iptal edilemez.' }

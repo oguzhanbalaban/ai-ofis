@@ -17,7 +17,7 @@ Görev yaşam döngüsü (gorevler\<id>\durum.json -> asama). Engineering Manage
 
 # 'yardim': ekip içi yardım isteğini Engineering Manager değerlendiriyor (yardim.ps1). 'yardim_bekliyor' etkin değildir (yardım işleri sürüyor).
 # Fikir hattı (tip yaratici, yaratici.ps1) aşamaları da etkindir; yalnızca fikir hattı olan katta bu aşamada iş bulunur
-$script:AktifAsamalar = @('fikir', 'elestiri', 'poc_plan', 'maliyet', 'karar', 'teslim', 'bekleme', 'puanlama') + @('yeni', 'analiz', 'kesif', 'plan', 'gelistirme', 'kontrol', 'test', 'denetim', 'kabul', 'tamamla', 'yardim')
+$script:AktifAsamalar = @('canliya_al', 'fikir', 'elestiri', 'poc_plan', 'maliyet', 'karar', 'teslim', 'bekleme', 'puanlama') + @('yeni', 'analiz', 'kesif', 'plan', 'gelistirme', 'kontrol', 'test', 'denetim', 'kabul', 'tamamla', 'yardim')
 # Sunucu / kurulum talepleri (tip = altyapi): System Administrator + Network Engineer rolleri
 . (Join-Path $PSScriptRoot 'altyapi.ps1')
 # Kadro, uzman işleri (tip = uzman), İK işe alımı, e-posta: uzman.ps1 (+ posta.ps1)
@@ -40,6 +40,8 @@ $script:AktifAsamalar = @('fikir', 'elestiri', 'poc_plan', 'maliyet', 'karar', '
 . (Join-Path $PSScriptRoot 'iletisim.ps1')
 # Fikir hattı (tip = yaratici; Creativity Office katı) ve ana kata POC köprüsü (kopru.ps1)
 . (Join-Path $PSScriptRoot 'yaratici.ps1')
+# Ofisin kendi kendini geliştirmesi: ayna depo, canlıya alma, geri alma (kendini.ps1)
+. (Join-Path $PSScriptRoot 'kendini.ps1')
 
 # ---------------------------------------------------------------- yardımcılar
 function Tur-Klasoru($G) {
@@ -141,6 +143,8 @@ function Calisma-Agaci-Kur($G) {
     if (-not $G.klasor -or -not (Test-Path -LiteralPath $G.klasor)) { return "Proje klasörü bulunamadı: $($G.klasor)" }
     Git-Calistir $G.klasor @('rev-parse', '--show-toplevel') -Sessiz | Out-Null
     if ($script:GitKod -ne 0) { return "Proje bir git deposu değil: $($G.klasor)" }
+    # Ofisin kendi kodu: iş başlamadan ayna canlıyla eşitlenir (canlıda dışarıdan yapılmış değişiklikler önce aynaya)
+    if (Kendi-Projesi-mi $G) { $h = Ofis-Kaynagi-Esitle "#$($G.id) başlangıcı"; if ($h) { return $h } }
     $dal = "ekip/$($G.id)"
     $wt = Join-Path $YolCalisma $G.id
     $gecerli = $false
@@ -462,6 +466,8 @@ function Adim-Tamamla($G) {
     Ayarla $G 'commit' $commit
     Git-Calistir $G.klasor @('worktree', 'remove', $wt) -Sessiz | Out-Null
     Ayarla $G 'calisma_klasoru_kaldirildi' ($script:GitKod -eq 0)
+    # Ofisin kendi kodu: commit'ten sonra canlıya alma aşaması (kendini.ps1 > Adim-CanliyaAl)
+    if (Kendi-Projesi-mi $G) { Asama-Gec $G 'canliya_al' 'commit edildi; canlıya alınacak' "$($G.dal) @ $commit"; return }
     Asama-Gec $G 'tamam' 'commit edildi' "$($G.dal) @ $commit"
     Sayac-Artir 'tamamlanan'
     $ozet = [string]$G.ozet
@@ -527,6 +533,7 @@ function Gorev-Ilerlet-Adim($G) {
             'denetim'    { Adim-Denetim $G }
             'kabul'      { Adim-Kabul $G }
             'tamamla'    { Adim-Tamamla $G }
+            'canliya_al' { Adim-CanliyaAl $G }
         } }
     } catch {
         $h = $_.Exception.Message
@@ -634,6 +641,8 @@ function Ekip-Dongusu {
     param([int]$AdimSiniri = 0, [switch]$BosBitir)
     $damga = Betik-Damgasi
     Ayarlari-Yukle
+    # Ofisin kendi kodu için ayna depo ve proje kaydı (yalnızca ana kat; yoksa oluşturur)
+    try { Kendi-Projesi-Hazirla } catch { Gunluk "Ofisin kaynak deposu hazırlanamadı: $($_.Exception.Message)" 'UYARI' }
     Gunluk "=== $(Ofis-Adi) döngüsü başladı (PID $PID, kat: $KatKimligi) ==="
     $sirada = @(Gorevleri-Listele | Where-Object { $AktifAsamalar -contains $_.asama }).Count
     Bildir -Baslik "$(Ofis-Adi) mesaiye başladı" -Metin ('Sırada {0} görev var. Ekip: {1}' -f $sirada, (Ekip-Durumu-Kisa)) -Anahtar 'mesai' -AralikDk 240
@@ -699,6 +708,8 @@ function Ekip-Dongusu {
         } catch {
             $hataSayisi++
             $mesaj = $_.Exception.Message
+            # Güvenlik ağı: son canlıya almadan sonra döngü üst üste hata veriyorsa geri al ve eski kodla yeniden yükle
+            try { if (Canliya-Alim-Guvenlik-Agi $hataSayisi) { Gunluk 'Son canlıya alma geri alındı (döngü hata veriyordu); yeniden yükleniyor' 'UYARI'; return 'yeniden' } } catch {}
             Gunluk ('Döngü hatası ({0}. ardışık): {1} @ {2}' -f $hataSayisi, $mesaj, ($_.InvocationInfo.PositionMessage -replace '\s+', ' ')) 'HATA'
             if ($hataSayisi -ge 5) {
                 try { Bildir -Baslik "$(Ofis-Adi) hata veriyor" -Metin ("Döngü üst üste {0} kez hata verdi: {1}" -f $hataSayisi, (Kisalt $mesaj 150)) -Anahtar 'dongu-hata' -Onem 'yuksek' -AralikDk 120 } catch {}

@@ -90,6 +90,22 @@ ayarları, görev panosu ve döngüsüyle çalışır, kod ortaktır:
 - Katlar kapalı başlar: panelde katı seçip **Katı aç** deyin; döngüsü başlar (ana katın bekçisi açık katları ayakta tutar). Kapatınca
   çalışan adım bitince döngü çıkar. Yeni kat eklemek için `katlar.json`'a kat ve `katlar\<id>\` altına `kadro.json` / `ayarlar.json` koyun.
 
+## Kendi kendini geliştirme: ofis kendi kodu üzerinde çalışır
+
+Ekip ofisin kendisini (panel, ajanlar, akış, istemler, katlar, testler) geliştirebilir. Yol **ayna + denetimli canlıya alma**:
+
+- Ofisin kodu, ofis klasörünün yanında bir **ayna git deposunda** tutulur (`<ofis klasörü>-kaynak`; ilk çalışmada kendiliğinden oluşur ve
+  `projeler.json`'a `ai-ekip-ofis` adıyla kaydolur). Ofisle ilgili işleri Engineering Manager bu projeye verir; ekip olağan yazılım akışıyla
+  çalışır (görev dalı, çalışma ağacı, testler, QA, Code Reviewer, onay kapısı). **Canlı ofise ajan dokunmaz.** Ajanların rehberi aynadaki
+  `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` (kaynağı `istemler\ofis-gelistirme.md`).
+- İş başlamadan ayna canlıyla eşitlenir; commit'ten sonra aşama **Canlıya alınıyor**: dal aynaya birleşir, değişen dosyalar yedeklenip
+  canlıya kopyalanır (ayar JSON'ları hariç: onlar çalışırken değişir), bütün betikler ayrıştırılır, her kat ayrı süreçte yüklenir, panel
+  değiştiyse yeniden başlatılıp sayfası ve API'si denetlenir. **Geçmezse canlı yedekten geri yüklenir**, görev takılır.
+- Canlıya almadan sonraki bir saatte döngü üst üste hata verirse son canlıya alma **kendiliğinden geri alınır**. Görev ayrıntısındaki
+  "Canlıya alma" sekmesinden ya da `.\durum.ps1 -GeriAl <no>` ile son canlıya almayı geri alabilirsiniz.
+- `ayarlar.json > kendini_gelistirme`: `etkin`, `otomatik` (false: değişiklik onayınızı bekler, panelden "Canlıya al"), `kaynak_deposu`,
+  `dogrulama` (kontrol aşamasında koşan testler; varsayılan duman + katlar + planlama + yardımlaşma testleri).
+
 ## Outsource Consultant: tek parça işler kendi yapay zekanıza
 
 Paralel ekip çalışması gerektirmeyen, tek bağlam penceresinde baştan sona çözülebilecek işler iç ekibe dağıtılmaz (`danisman.ps1`, ayarlar `ayarlar.json > danisman`). "İş ver" ile gelen işi Product Manager analiz eder ve `ATAMA: danisman | ekip` kararı verir; danışmansa işi `## Danışman brifi` bölümünde tek, net bir isteme çevirir (panelde **Brif** sekmesi). İşi doğrudan danışmana verirseniz (karakter kartında **Bu çalışana iş ver**, sohbetteki iş önerisi ya da `is-ver.ps1 -Rol danisman`) yönlendirme zorunludur.
@@ -181,6 +197,7 @@ Bu sürümden önceki bir kurulumdan yükseltiyorsanız: `ayarlar.json` içindek
 | `planlama.ps1` | Product Manager, Codebase Explorer, iş dağılımı (Frontend / Backend), QA test aşaması, onay kapısı |
 | `yonetim.ps1` | CTO: yönetim değerlendirmesi, ekip ilkeleri, önceliklendirme, iş önerisi |
 | `komut.ps1`, `paralel.ps1` | Çalışana doğrudan komut (Devam et / Devral) ve paralel çalışma hatları |
+| `kendini.ps1`, `istemler/ofis-gelistirme.md` | Kendi kendini geliştirme: ayna depo, canlıdan eşitleme, canlıya alma, doğrulama, geri alma |
 | `katlar.json`, `katlar/`, `iletisim.ps1` | Şirket binası: katlar (her biri kendi verisiyle) ve katlar arası iletişim (Comms, yazışmalar) |
 | `yaratici.ps1`, `kopru.ps1`, `proje-ekle.ps1`, `sonuc-ekle.ps1` | Fikir hattı (Creativity Office katı) ve onaylı POC'un ana kata köprüsü |
 | `ofis/bina.html`, `ofis/panel-creativity.html` | Bina paneli (solda Kat seçici) ve Creativity katının stüdyo paneli |

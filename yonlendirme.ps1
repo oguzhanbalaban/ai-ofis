@@ -27,10 +27,12 @@ function Deger-Temizle([string]$Metin) { return ([string]$Metin).Trim().Trim('`'
 function Projeler-Metni {
     $p = Projeleri-Yukle
     $sb = New-Object Text.StringBuilder
-    [void]$sb.AppendLine('| Ad | Klasör |')
-    [void]$sb.AppendLine('|---|---|')
+    [void]$sb.AppendLine('| Ad | Klasör | Açıklama |')
+    [void]$sb.AppendLine('|---|---|---|')
     $n = 0
-    foreach ($x in @($p.projeler)) { if ($x -and $x.ad) { $n++; [void]$sb.AppendLine(('| {0} | {1} |' -f $x.ad, $x.klasor)) } }
+    foreach ($x in @($p.projeler)) { if ($x -and $x.ad) { $n++; [void]$sb.AppendLine(('| {0} | {1} | {2} |' -f $x.ad, $x.klasor, [string]$x.aciklama)) } }
+    $kendi = @($p.projeler | Where-Object { $_ -and $_.kendi }) | Select-Object -First 1
+    if ($kendi) { [void]$sb.AppendLine(''); [void]$sb.AppendLine("Ofisin kendisiyle (panel, ajanlar, akış, istemler, katlar, testler) ilgili geliştirme işleri: YAZILIM, PROJE: $($kendi.ad). Ekip ofisin aynasında çalışır; onaylanan değişikliği motor canlıya alır.") }
     if ($n -eq 0) { [void]$sb.AppendLine('| (kayıtlı proje yok) | |') }
     if (Yaratici-Katta-mi) {
         # Fikir hattı: onaylı POC'ların varsayılan hedefi ve ana kata köprü (yaratici.ps1)

@@ -1148,7 +1148,7 @@ $script:AsamaAdlari = @{
     kontrol = 'Kontrol ediliyor'; test = 'Test ediliyor'; denetim = 'Denetleniyor'; kabul = 'Engineering Manager onayında'; tamamla = 'Commit ediliyor'; tamam = 'Tamamlandı'
     takildi = 'Takıldı'; bekliyor_kullanici = 'Senden yanıt bekliyor'; iptal = 'İptal'
     yardim = 'Engineering Managerʼda (yardım isteği)'; yardim_bekliyor = 'Ekipten yardım bekliyor'
-    kat_bekliyor = 'Başka katta yapılıyor (Comms)'
+    kat_bekliyor = 'Başka katta yapılıyor (Comms)'; canliya_al = 'Canlıya alınıyor'
     # Fikir hattı (tip = yaratici; yaratici.ps1)
     fikir = 'Fikir üretiliyor'; elestiri = 'Eleştiriliyor'; poc_plan = 'POC planlanıyor'; maliyet = 'Maliyet hesaplanıyor'
     karar = 'Karar bekliyor'; teslim = 'Teslim hazırlanıyor'; bekleme = 'Ana ofiste uygulanıyor'; puanlama = 'Puanlanıyor'; reddedildi = 'Reddedildi'

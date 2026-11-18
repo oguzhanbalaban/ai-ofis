@@ -42,7 +42,7 @@ try {
     $yardimIstemi = [IO.File]::ReadAllText((Join-Path $kaynak 'istemler\yonetici-yardim.md'))
     Dogrula ($a.puanlama.etkin -and $yardimIstemi -match 'KARAR: BIRLIKTE' -and (Test-Path -LiteralPath (Join-Path $kaynak 'istemler\yardim-birlikte.md'))) 'Fibonacci puanlama açık; Engineering Manager birlikte çalışma kararı ve istemi var'
     $istemler = @(Get-ChildItem -LiteralPath (Join-Path $kaynak 'istemler') -Filter '*.md' -File -Recurse)
-    Dogrula ($istemler.Count -eq 51) '35 akış (Comms ve fikir hattı dahil) ve 16 kadro istemi'
+    Dogrula ($istemler.Count -eq 52) '36 akış (Comms, fikir hattı ve ofis geliştirme rehberi dahil) ve 16 kadro istemi'
     $katlarJ = Json (Join-Path $kaynak 'katlar.json')
     Dogrula ((@($katlarJ.katlar | ForEach-Object { $_.id }) -join ',') -eq 'ana,data-analytics,creativity,masal' -and @($katlarJ.katlar | Where-Object { [string]$_.kok -match ':' }).Count -eq 0) 'Şirket binası: dört kat, göreli kat klasörleri'
     $katMetni = (@(Get-ChildItem -LiteralPath (Join-Path $kaynak 'katlar') -Recurse -File | Where-Object { $_.Extension -in @('.json', '.md', '.ps1', '.py', '.java', '.unxspec') } | ForEach-Object { [IO.File]::ReadAllText($_.FullName) }) -join "`n")
@@ -247,7 +247,8 @@ try {
     $arsiv = [IO.Compression.ZipFile]::OpenRead((Join-Path $paket 'dagitim\ai-ofis.zip'))
     try {
         $adlar = @($arsiv.Entries | ForEach-Object { $_.FullName })
-        Dogrula ($adlar.Count -eq 229) 'ZIP 229 dağıtım dosyası içeriyor (danışman masası ve şirket binasının katları dahil)'
+        Dogrula ($adlar.Count -eq 233) 'ZIP 233 dağıtım dosyası içeriyor (danışman masası, şirket binasının katları ve kendi kendini geliştirme dahil)'
+        Dogrula (@($adlar | Where-Object { $_ -in @('kendini.ps1', 'istemler/ofis-gelistirme.md', 'testler/ofis-duman.test.ps1', 'testler/kendini-gelistirme.test.ps1') }).Count -eq 4) 'ZIP kendi kendini geliştirmeyi içeriyor (ayna, canlıya alma, rehber, testler)'
         Dogrula (@($adlar | Where-Object { $_ -in @('katlar.json', 'katlar/data-analytics/kadro.json', 'katlar/creativity/kadro.json', 'katlar/masal/backend/app/main.py', 'katlar/masal/.env.example', 'ofis/bina.html', 'iletisim.ps1') }).Count -eq 7) 'ZIP şirket binasını içeriyor (katlar, bina paneli, Comms, Masal kaynağı)'
         Dogrula (@($adlar | Where-Object { $_ -match '^katlar/.*(\.yerel\.|/DURDUR$|/\.env$|/durum/|/gorevler/|node_modules|\.venv)' }).Count -eq 0) 'ZIP katların kişisel / çalışma dosyalarını dışlıyor'
         Dogrula (@($adlar | Where-Object { $_ -in @('danisman/CLAUDE.md', 'danisman/AGENTS.md', 'danisman/GEMINI.md') }).Count -eq 3) 'ZIP danışman masasını (CLAUDE.md, AGENTS.md, GEMINI.md) içeriyor'

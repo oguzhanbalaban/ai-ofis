@@ -7,7 +7,7 @@ $dosyalar = @(
     'kur-ofis.ps1','yapilandirma.ps1','paketle.ps1',
     'ortak.ps1','ekip.ps1','altyapi.ps1','uzman.ps1','yonlendirme.ps1','cozucu.ps1','yardim.ps1','posta.ps1','baslat.ps1',
     'komut.ps1','paralel.ps1','planlama.ps1','yonetim.ps1','danisman.ps1',
-    'katlar.json','iletisim.ps1','yaratici.ps1','kopru.ps1','proje-ekle.ps1','sonuc-ekle.ps1','ofis/bina.html','ofis/panel-creativity.html','testler/katlar.test.ps1',
+    'katlar.json','kendini.ps1','testler/ofis-duman.test.ps1','testler/kendini-gelistirme.test.ps1','iletisim.ps1','yaratici.ps1','kopru.ps1','proje-ekle.ps1','sonuc-ekle.ps1','ofis/bina.html','ofis/panel-creativity.html','testler/katlar.test.ps1',
     'danisman/CLAUDE.md','danisman/AGENTS.md','danisman/GEMINI.md',
     'kur.ps1','kaldir.ps1','durum.ps1','rapor.ps1','is-ver.ps1','gorev-ekle.ps1','talep-ekle.ps1','uzman-ekle.ps1','eposta-kur.ps1',
     'ofis/ofis.ps1','ofis/kisayol-olustur.ps1','ofis/sohbet.ps1','ofis/telefon-kur.ps1','ofis/panel.html',
@@ -16,7 +16,7 @@ $dosyalar = @(
     'testler/komut-paralel.test.ps1','testler/planlama-katmani.test.ps1','testler/yonetim-cto.test.ps1','testler/danisman.test.ps1'
 )
 foreach ($ad in @('lider-plan','gelistirici','denetci','lider-kabul','altyapi-uygulama','altyapi-dogrulama','lider-altyapi-plan','lider-altyapi-kabul','lider-uzman-plan','uzman-calisma','uzman-inceleme','lider-uzman-kabul','ek-inceleme','ik-ise-alim','yonetici-yonlendirme','sorun-giderici','yonetici-yardim','tester-inceleme','sorun-kategori','yardim-birlikte','urun-analiz','kasif-kesif','qa-test','cto-degerlendirme','danisman-gorev','danisman-claude',
-        'iletisim-gonder','iletisim-rapor','fikirci','elestirmen','planlamaci','maliyet','karar-verici','teslim','puanlayici')) {
+        'ofis-gelistirme','iletisim-gonder','iletisim-rapor','fikirci','elestirmen','planlamaci','maliyet','karar-verici','teslim','puanlayici')) {
     $dosyalar += "istemler/$ad.md"
 }
 foreach ($ad in @('mimar','guvenlik','tasarimci-ui','tasarimci-grafik','ik','iletisim','ses-tasarimci','sorun-giderici','tester','urun','kasif','frontend','backend','gelistirici','cto','danisman')) { $dosyalar += "istemler/kadro/$ad.md" }

@@ -337,13 +337,13 @@ foreach ($a in $adlar) { Remove-Item -LiteralPath "env:$a" -ErrorAction Silently
 $env:GIT_OPTIONAL_LOCKS = '0'
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}
 
-$script:AktifAsamalar = @('yeni', 'analiz', 'kesif', 'plan', 'gelistirme', 'kontrol', 'test', 'denetim', 'kabul', 'tamamla', 'yardim')
+$script:AktifAsamalar = @('yeni', 'analiz', 'kesif', 'plan', 'gelistirme', 'kontrol', 'test', 'denetim', 'kabul', 'tamamla', 'yardim', 'canliya_al')
 $script:AsamaAdlari = @{
     yeni = 'Sırada'; analiz = 'Gereksinimler netleşiyor'; kesif = 'Kod tabanı taranıyor'; plan = 'Planlanıyor'; gelistirme = 'Geliştiriliyor'
     kontrol = 'Kontrol ediliyor'; test = 'Test ediliyor'; denetim = 'Denetleniyor'; kabul = 'Engineering Manager onayında'; tamamla = 'Commit ediliyor'; tamam = 'Tamamlandı'
     takildi = 'Takıldı'; bekliyor_kullanici = 'Senden yanıt bekliyor'; iptal = 'İptal'
     yardim = 'Engineering Managerʼda (yardım isteği)'; yardim_bekliyor = 'Ekipten yardım bekliyor'
-    kat_bekliyor = 'Başka katta yapılıyor (Comms)'; reddedildi = 'Reddedildi'
+    kat_bekliyor = 'Başka katta yapılıyor (Comms)'; reddedildi = 'Reddedildi'; canliya_al = 'Canlıya alınıyor'
 }
 # "İş ver" ile gelen, Engineering Managerʼın henüz yönlendirmediği işler (tip = genel; bkz. yonlendirme.ps1)
 $script:GenelAsamaAdlari = @{ yeni = 'Engineering Managerʼda'; plan = 'Engineering Managerʼda' }
@@ -364,13 +364,13 @@ function Kadro-Listesi {
 }
 function Kadro-Bul($Liste, [string]$Anahtar) { foreach ($u in $Liste) { if ([string]$u.anahtar -eq $Anahtar) { return $u } }; return $null }
 # Yazılım akışı (planlama.ps1): analiz = Product Manager, kesif = Codebase Explorer, test = QA Engineer
-$script:AsamaRol = @{ yeni = 'lider'; analiz = 'urun'; kesif = 'kasif'; plan = 'lider'; gelistirme = 'gelistirici'; kontrol = 'denetci'; test = 'tester'; denetim = 'denetci'; kabul = 'lider'; tamamla = 'lider' }
-$script:AsamaFaaliyet = @{ yeni = 'plan'; analiz = 'analiz'; kesif = 'kesif'; plan = 'plan'; gelistirme = 'gelistirme'; kontrol = 'kontrol'; test = 'test'; denetim = 'denetim'; kabul = 'kabul'; tamamla = 'kabul' }
+$script:AsamaRol = @{ canliya_al = 'lider'; yeni = 'lider'; analiz = 'urun'; kesif = 'kasif'; plan = 'lider'; gelistirme = 'gelistirici'; kontrol = 'denetci'; test = 'tester'; denetim = 'denetci'; kabul = 'lider'; tamamla = 'lider' }
+$script:AsamaFaaliyet = @{ canliya_al = 'kabul'; yeni = 'plan'; analiz = 'analiz'; kesif = 'kesif'; plan = 'plan'; gelistirme = 'gelistirme'; kontrol = 'kontrol'; test = 'test'; denetim = 'denetim'; kabul = 'kabul'; tamamla = 'kabul' }
 $script:AsamaMetni = @{
     yeni = 'Çalışma dalını hazırlıyor'; analiz = 'Talebi netleştiriyor, kabul ölçütlerini yazıyor'; kesif = 'Kod tabanını tarıyor'
     plan = 'Plan yazıyor, işi dağıtıyor'; gelistirme = 'Kodu yazıyor'
     kontrol = 'Testleri ve taramaları çalıştırıyor'; test = 'Birim / entegrasyon testi yazıp koşturuyor'; denetim = 'Kodu inceliyor'
-    kabul = 'Son kararı veriyor'; tamamla = 'Onayları denetleyip commit ediyor'
+    kabul = 'Son kararı veriyor'; tamamla = 'Onayları denetleyip commit ediyor'; canliya_al = 'Değişikliği ofise uygulayıp doğruluyor'
 }
 # Sunucu / kurulum talepleri (tip = altyapi): aynı aşama adları, farklı roller ve metinler (bkz. altyapi.ps1)
 $script:AltyapiFaaliyet = @{ yeni = 'kesif'; plan = 'plan'; gelistirme = 'uygulama'; kontrol = 'kontrol'; denetim = 'dogrulama'; kabul = 'kabul'; tamamla = 'kabul' }
@@ -1194,6 +1194,7 @@ function Durum-Uret {
             tur = $g.tur; max_tur = $g.max_tur; dal = (Ozellik $g 'dal'); oncelik = $g.oncelik
             son_olay = (Ozellik $son 'olay'); son_zaman = (Ozellik $son 'zaman')
             son_hata = (Ozellik $g 'son_hata'); ozet = (Ozellik $g 'ozet'); commit = (Ozellik $g 'commit')
+            canliya_alim = (Ozellik $g 'canliya_alim')
             kaynak_kat = (Ozellik $g 'kaynak_kat'); kaynak_gorev = (Ozellik $g 'kaynak_gorev'); yazisma = (Ozellik $g 'yazisma'); kat_yazismalari = @(Ozellik $g 'kat_yazismalari' | Where-Object { $_ })
             alan = (Ozellik $g 'alan'); revizyon = (Ozellik $g 'revizyon'); karar = (Ozellik $g 'karar'); puan = (Ozellik $g 'puan')
             ana_gorev_id = (Ozellik $g 'ana_gorev_id'); ana_asama = $(if ((Gorev-Tipi $g) -eq 'yaratici') { Yaratici-Ana-Asama $g } else { '' }); teslim_turu = (Ozellik $g 'teslim_turu')
@@ -1361,6 +1362,7 @@ function Gorev-Ayrinti([string]$Id) {
     }
     return [ordered]@{
         kat_yazismalari = $katYazismalari
+        canliya_alim_md = (Metin-Oku (Join-Path $gk 'canliya-alim.md') 60000)
         yaratici = $yaratici
         yardimlar = $yardimlar
         yonlendirme_md = (Metin-Oku (Join-Path $gk 'yonlendirme.md') 60000)
@@ -2165,6 +2167,8 @@ function Istek-Isle($Akis, $I) {
                 '/api/kat-ac' { $r = Eylem-KatAc $v }
                 '/api/kat-kapat' { $r = Eylem-KatKapat $v }
                 '/api/konu-ekle' { $r = Eylem-KonuEkle $v }
+                '/api/geri-al' { $gid = Metin-Alani $v 'id' 80 -Zorunlu; if ($gid -notmatch '^\d{4}(-[A-Za-z0-9-]{1,60})?$') { throw 'HTTP:400:Geçersiz görev' }; $r = Betik-Calistir 'durum.ps1' "-GeriAl $gid" }
+                '/api/canliya-al' { $gid = Metin-Alani $v 'id' 80 -Zorunlu; if ($gid -notmatch '^\d{4}(-[A-Za-z0-9-]{1,60})?$') { throw 'HTTP:400:Geçersiz görev' }; $r = Betik-Calistir 'durum.ps1' "-CanliyaAl $gid" }
                 '/api/sohbet' { $r = Eylem-Sohbet $v }
                 '/api/sohbet-temizle' { $r = Eylem-SohbetTemizle $v }
                 '/api/devam' { $r = Eylem-Devam $v }
