@@ -11,9 +11,12 @@ from . import db
 from .agents.registry import AGENT_BY_ID, PIPELINE_STEPS, REVISION_TARGETS
 from .config import settings
 from .events import bus
+from .ofis import ofis
 from .services import youtube
 
 ACTIVE = {"queued", "running", "uploading"}
+# Panodan "Sırada" şeridine (baştan / bir adımdan yeniden) alınabilen durumlar
+RESTARTABLE = {"awaiting_approval", "failed", "interrupted", "cancelled"}
 
 
 def _media_url(job_id: str, path: str | None, version: float | None = None) -> str | None:
@@ -95,6 +98,8 @@ class JobRunner:
         self.queue: asyncio.Queue[str] = asyncio.Queue()
         self.current: str | None = None
         self._task: asyncio.Task | None = None
+        self._run_task: asyncio.Task | None = None
+        self._iptal: set[str] = set()
 
     def start(self) -> None:
         if not self._task:
@@ -111,19 +116,42 @@ class JobRunner:
     async def _worker(self) -> None:
         while True:
             job_id = await self.queue.get()
+            if not ofis.acik:
+                await bus.log(f"Sıradaki iş ({job_id}) bekliyor: ofis {ofis.ozet()['ad']}.", agent="director", job_id=job_id)
+            # Ofis kapalı ya da ekip duraklatılmışsa sıradaki iş beklemede kalır (süren iş zaten bitmiştir)
+            await ofis.acik_bekle()
+            job = db.get_job(job_id)
+            if job_id in self._iptal or not job or job["status"] != "queued":
+                self._iptal.discard(job_id)
+                continue
             self.current = job_id
+            self._run_task = asyncio.create_task(self._run(job_id), name=f"studio-job-{job_id}")
             try:
-                await self._run(job_id)
+                await self._run_task
+            except asyncio.CancelledError:
+                task = asyncio.current_task()
+                if job_id not in self._iptal or (task and task.cancelling()):
+                    raise  # sunucu kapanıyor: iş yarıda kalır (açılışta "interrupted")
+                await self._iptal_tamamla(job_id)
             except Exception as exc:  # noqa: BLE001
                 db.update_job(job_id, status="failed", error=str(exc))
                 await bus.log(f"İş beklenmedik biçimde durdu: {exc}", level="error", job_id=job_id)
             finally:
+                self._run_task = None
                 self.current = None
+                self._iptal.discard(job_id)
                 await bus.agent("director", "IDLE", None, None)
                 await bus.stats(db.stats())
                 job = db.get_job(job_id)
                 if job:
-                    await bus.job(summarize(job_id, job["state"], row=job))
+                    ozet = summarize(job_id, job["state"], row=job)
+                    await bus.job(ozet)
+                    try:
+                        from .bildirim import is_durumu_bildir
+
+                        await is_durumu_bildir(ozet)
+                    except Exception:  # noqa: BLE001 — bildirim hatası işi etkilemesin
+                        pass
 
     async def _run(self, job_id: str) -> None:
         from .graph import graph
@@ -152,7 +180,52 @@ class JobRunner:
             job_id=job_id,
         )
 
+    async def _iptal_tamamla(self, job_id: str) -> None:
+        """Süren iş durduruldu: adımları kapat, ajanları boşa al, durumu 'cancelled' yap."""
+        job = db.get_job(job_id)
+        state = (job or {}).get("state") or {}
+        steps = dict(state.get("step_status") or {})
+        for k, v in steps.items():
+            if v == "working":
+                steps[k] = "pending"
+        state.update(step_status=steps, error="Kullanıcı işi iptal etti.")
+        db.cancel_open_steps(job_id)
+        await persist_state(job_id, state, status="cancelled")
+        db.update_job(job_id, error="Kullanıcı işi iptal etti.")
+        for a in list(bus.agents.values()):
+            if a.get("job_id") == job_id and a.get("status") in {"WORKING", "ERROR"}:
+                await bus.agent(a["id"], "IDLE", None, None)
+        await bus.log("İş iptal edildi; süren adım durduruldu, çıktısı kullanılmayacak.", agent="director",
+                      level="warning", job_id=job_id)
+
     # ---------------------------------------------------------------- API eylemleri
+    async def cancel(self, job_id: str) -> dict:
+        """Sıradaki ya da süren işi iptal et (AI Ekip panosundaki "İptal et")."""
+        job = db.get_job(job_id)
+        if not job:
+            raise LookupError("İş bulunamadı.")
+        status = job["status"]
+        if status == "queued":
+            self._iptal.add(job_id)
+            state = job["state"]
+            state["error"] = "Kullanıcı işi iptal etti (sıradayken)."
+            await persist_state(job_id, state, status="cancelled")
+            db.update_job(job_id, error=state["error"])
+            await bus.log("Sıradaki iş iptal edildi.", agent="director", job_id=job_id)
+            await bus.stats(db.stats())
+            return summarize(job_id, state, "cancelled")
+        if status == "running" and self.current == job_id and self._run_task and not self._run_task.done():
+            self._iptal.add(job_id)
+            self._run_task.cancel()
+            await bus.log("İptal istendi; süren adım durduruluyor…", agent="director", job_id=job_id)
+            for _ in range(100):  # en çok ~10 sn: iptal tamamlanınca durum 'cancelled' olur
+                await asyncio.sleep(0.1)
+                if (db.get_job(job_id) or {}).get("status") == "cancelled":
+                    break
+            job = db.get_job(job_id) or job
+            return summarize(job_id, job["state"], row=job)
+        raise ValueError(f"Yalnızca sıradaki ya da üretilen işler iptal edilebilir (şu an: {status}).")
+
     async def create(self, topic: str | None, options: dict) -> dict:
         job_id = time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:4]
         job_dir = settings.outputs_dir / job_id
@@ -184,7 +257,7 @@ class JobRunner:
         job = db.get_job(job_id)
         if not job:
             raise LookupError("İş bulunamadı.")
-        if job["status"] not in {"awaiting_approval", "failed", "interrupted"}:
+        if job["status"] not in RESTARTABLE:
             raise ValueError(f"Bu durumda revizyon istenemez: {job['status']}")
         target = REVISION_TARGETS.get(target_key, target_key)
         if target not in PIPELINE_STEPS or target in {"qa_safety", "publisher"}:

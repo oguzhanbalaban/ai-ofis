@@ -906,6 +906,12 @@ function onayOlayi(metin) {
   const y = kisiler.get('publisher');
   if (y && !y.gitti) y.balon = { metin: '🎞 Önizleme hazır!', bitis: an() + 3500 };
 }
+// Kullanıcı işi iptal etti: alarm çalmaz, Yönetmen kısa bir balonla duyurur
+function iptalOlayi(metin) {
+  olayBildir(metin);
+  const yon = kisiler.get('director');
+  if (yon && !yon.gitti) yon.balon = { metin: '✕ İş iptal edildi', bitis: an() + 3200 };
+}
 function revizyonOlayi(metin) {
   olayBildir(metin);
   const yon = kisiler.get('director');
@@ -1416,7 +1422,7 @@ return {
     if (!a || a === b) { b.balon = { metin: '🔁 Yeniden deniyorum', bitis: an() + 2600 }; olayBildir(`${b.ad} adımı yeniden deniyor 🔁`); return; }
     zamanla(250, () => teslimOlayi(a, b, etiket || 'iş'));
   },
-  yeniIs: yeniIsOlayi, onayBekliyor: onayOlayi, kutlama: kutlamaOlayi, takildi: takildiOlayi, revizyon: revizyonOlayi, kahveMolasi,
+  yeniIs: yeniIsOlayi, onayBekliyor: onayOlayi, kutlama: kutlamaOlayi, takildi: takildiOlayi, iptal: iptalOlayi, revizyon: revizyonOlayi, kahveMolasi,
   // Karakter kartı için büyütülmüş portre (sahnedeki sprite'ın aynısı)
   portre(r, olcek = 6) {
     const gor = gorunumu(r), k = { gor, imza: 'portre|' + r.anahtar + '|' + gor.gomlek };

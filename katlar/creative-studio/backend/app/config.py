@@ -51,7 +51,7 @@ def _path(name: str, default: Path) -> Path:
     raw = _str(name)
     if not raw:
         return default
-    p = Path(raw)
+    p = Path(os.path.expandvars(os.path.expanduser(raw)))  # %USERPROFILE%, ~ desteklenir
     return p if p.is_absolute() else (PROJECT_DIR / p).resolve()
 
 
@@ -130,6 +130,36 @@ class Settings:
     # Mock modda animasyonların izlenebilmesi için adım içi bekleme çarpanı (0 = beklemesiz)
     mock_step_delay: float = field(default_factory=lambda: _float("MOCK_STEP_DELAY", 1.5))
 
+    # Ajanlarla sohbet (AI Ekip ofisindeki sohbet penceresi): auto | claude | llm | yerel
+    #   claude : bilgisayardaki Claude Code (abonelik; API anahtarı kullanılmaz), araçsız ve salt okunur
+    #   llm    : .env'deki LLM API'si (ücretli; yalnızca MOCK_MODE=false iken)
+    #   yerel  : yapay zekâsız, paneldeki verilerden kısa yanıt (hiçbir dış çağrı yok)
+    #   auto   : claude varsa o, yoksa (gerçek modda) llm, yoksa yerel
+    sohbet_motoru: str = field(default_factory=lambda: _str("SOHBET_MOTORU", "auto").lower())
+    sohbet_model: str = field(default_factory=lambda: _str("SOHBET_MODEL", "sonnet"))
+    sohbet_gunluk_sinir: int = field(default_factory=lambda: _int("SOHBET_GUNLUK_SINIR", 60))
+    sohbet_zaman_asimi_sn: int = field(default_factory=lambda: _int("SOHBET_ZAMAN_ASIMI_SN", 180))
+    claude_exe: str = field(default_factory=lambda: _str("CLAUDE_EXE"))
+    # Etkileşimli Claude oturumlarının yazdığı kullanım kartı: kalan hak %SOHBET_MIN_KALAN_YUZDE altındaysa Claude çağrılmaz
+    claude_kullanim_dosyasi: Path = field(
+        default_factory=lambda: _path("CLAUDE_KULLANIM_DOSYASI", Path.home() / "ai-devir" / "claude_kullanim.json")
+    )
+    sohbet_min_kalan_yuzde: int = field(default_factory=lambda: _int("SOHBET_MIN_KALAN_YUZDE", 30))
+
+    # Bildirimler: panel her zaman; masaüstü (Windows) varsayılan açık; telefon varsayılan KAPALI
+    bildirim_masaustu: bool = field(default_factory=lambda: _bool("BILDIRIM_MASAUSTU", True))
+    bildirim_telefon: str = field(default_factory=lambda: _str("BILDIRIM_TELEFON", "kapali").lower())  # kapali | ntfy | ai-ekip
+    bildirim_ntfy_sunucu: str = field(default_factory=lambda: _str("BILDIRIM_NTFY_SUNUCU", "https://ntfy.sh"))
+    bildirim_ntfy_konu: str = field(default_factory=lambda: _str("BILDIRIM_NTFY_KONU"))
+    bildirim_aralik_dk: float = field(default_factory=lambda: _float("BILDIRIM_ARALIK_DK", 60))
+    bildirim_on_ek: str = field(default_factory=lambda: _str("BILDIRIM_ON_EK", "Studio · "))
+    bildirim_panel_adresi: str = field(default_factory=lambda: _str("BILDIRIM_PANEL_ADRESI", "http://127.0.0.1:5173/"))
+    ai_ekip_ayarlar: Path = field(
+        default_factory=lambda: _path("AI_EKIP_AYARLAR", Path.home() / "ai-ekip" / "ayarlar.json")
+    )
+    # Günlük özet (data/raporlar/ozet-<tarih>.md + bildirim); "kapali" = kapalı
+    ozet_saatleri: str = field(default_factory=lambda: _str("OZET_SAATLERI", "12:30,18:30"))
+
     @property
     def outputs_dir(self) -> Path:
         return self.data_dir / "outputs"
@@ -188,6 +218,7 @@ class Settings:
             "youtube_upload_enabled": self.youtube_upload_enabled,
             "youtube_privacy_status": self.youtube_privacy_status,
             "upload_possible": self.upload_possible,
+            "ozet_saatleri": self.ozet_saatleri,
             "keys_present": {
                 "anthropic": bool(self.anthropic_api_key),
                 "openai": bool(self.openai_api_key),

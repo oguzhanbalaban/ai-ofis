@@ -149,7 +149,20 @@ cd <ofis klasörü>\katlar\creative-studio\backend
 Panel, AI Ekip ofis panelinin düzenini izler (açık/koyu tema bilgisayarın ayarını izler):
 
 - **Üst çubuk:** mod (MOCK / GERÇEK), yükleme durumu + `privacyStatus`, WebSocket bağlantısı ve çalışan ajan
-  sayısı; **+ Yeni hikâye** ve onay bekleyen iş varsa yanıp sönen **🎞 Önizle & Onayla** düğmesi.
+  sayısı; **⏸ Duraklat / ▶ Sürdür**, **🌙 Ofisi kapat / ☀ Ofisi aç**, **+ Yeni hikâye** ve onay bekleyen iş varsa yanıp
+  sönen **🎞 Önizle & Onayla** düğmesi.
+- **Ofisi kapat / aç ve Duraklat / Sürdür** (AI Ekip ofisindeki gibi): kapatınca mesai biter; süren iş tamamlanır, sıradaki
+  işler bekler, boştakiler vedalaşıp asansörle çıkar, son kişi çıkınca ışıklar söner. Açınca ekip asansörden gelir ve sıradaki
+  işler başlar. **Duraklat** kısa moladır: süren iş biter, sıradakiler bekler, boştakiler salona geçer. Durum
+  `backend\data\ofis.json`'da saklanır (sunucu yeniden başlasa da korunur). Binadaki “Katı kapat” ise sunucuları durdurur.
+- **Ajanlarla sohbet:** bir ajana (sahnede ya da alttaki çipine) tıklayınca sağ altta penceresi açılır; **💬 Sohbet**
+  sekmesinde soru sorabilir, fikir alabilir, yeni bir masal isteyebilirsin. Ajan kendi rolüyle, stüdyonun o anki durumunu
+  (işler, son çıktısı, logları) bilerek yanıt verir; yanıt yazarken sahnede masasına geçip yazar. Sohbette dosya değişmez,
+  iş kendiliğinden başlamaz, yükleme yapılmaz. Yeni bir video istersen yanıta bir **konu önerisi** eklenir:
+  **Gözden geçir ve ekibe ver** Yeni hikâye formunu o konuyla doldurur, sen onaylayınca iş başlar. **📜 Loglar** sekmesi
+  ajanın canlı loglarıdır. Yanıtlayan motor `SOHBET_MOTORU` ile seçilir (bkz. [6](#6-env-alanları)): varsayılan olarak
+  bilgisayardaki **Claude Code** (abonelik; API anahtarı kullanılmaz, günlük sınırlı, kalan hak %30'un altındaysa çağrılmaz),
+  yoksa yapay zekâsız **yerel** yanıt. Yazışmalar `backend\data\sohbet\<ajan>.jsonl`.
 - **Ofis (piksel sahne):** Ekip üç departmanda oturur (*Yönetim & Yayın*, *Hikâye & Tasarım*, *Stüdyo*);
   ofiste dinlenme salonu, mutfak (kahve makinesi, otomat, sebil), **Üretim panosu** (aktif işin 7 adımı),
   sayaç televizyonu, saat, asansör ve seslendirme sürerken yanan **ON AIR** levhası vardır. Pencerelerdeki
@@ -169,8 +182,21 @@ Panel, AI Ekip ofis panelinin düzenini izler (açık/koyu tema bilgisayarın ay
   deneme ve QA reddi akışlarını mock modda deneyebilirsiniz. İş sürerken basarsanız kuyruğa eklenir.
 - **Canlı log terminali:** Ajanların logları ve her adımın JSON çıktısı (▸ JSON); ajana göre süzme
   çipleri, ⤓ takip ve temizle.
-- **Üretim panosu:** İşler *Sırada / Üretiliyor / Onay bekliyor / Tamamlandı / Sorunlu* şeritlerinde
-  (ya da ☰ Liste görünümünde) adım çubuğu, motorlar, süre ve maliyetle görünür; arama yapılabilir.
+- **Üretim panosu:** İşler *Sırada / Üretiliyor / Onay bekliyor / Tamamlandı / Sorunlu* (ve “İptalleri göster” ile
+  *İptal*) şeritlerinde (ya da ☰ Liste görünümünde) adım çubuğu, motorlar, süre ve maliyetle görünür; arama yapılabilir.
+  **Sürükle-bırak:** bir kartı başka şeride bırakınca iş o aşamaya taşınır (önce onay sorar): *Sırada* = baştan başlat
+  (onay bekleyen, takılan, yarıda kalan, iptal edilen iş), *Tamamlandı* = onay bekleyen videoyu taslak olarak onayla
+  (yükleme yok), *İptal* = sıradaki ya da üretilen işi iptal et (süren adım durdurulur, çıktısı kullanılmaz).
+  Aynı eylemler önizleme çekmecesinde de var (**✕ İşi iptal et**, revizyon / yeniden başlat).
+- **Uyarılar:** süren bir iş 10 dakika hiç ilerlemezse “takılmış olabilir” şeridi çıkar (işi aç → iptal / yeniden başlat).
+- **Bildirimler:** video onaya düşünce ve bir iş takılınca Windows masaüstü bildirimi (tıklayınca panel açılır) ve panelde
+  kısa bilgi. Telefona bildirim isteğe bağlıdır ve varsayılan olarak kapalıdır (`BILDIRIM_TELEFON`). Kayıt:
+  `backend\data\bildirimler.jsonl`.
+- **Günlük özet:** her gün 12:30 ve 18:30'da günün özeti `backend\data\raporlar\ozet-<tarih>.md` dosyasına yazılır ve
+  bildirilir; **Maliyet ve istatistik** bölümündeki **📄 Günlük özet** düğmesiyle her an (geçmiş günler dahil) görülür.
+- **Arka plan (`</> kod`):** sayfanın sağ kenarındaki küçük sekme stüdyonun kaynak dosyalarını salt okunur bir çekmecede
+  açar (ajanlar, akış, servisler, panel, testler, README). Satır numaralı görüntüleyici, dosya adı ve kod içi arama.
+  Yalnızca izinli listedeki dosyalar okunur; `.env`, `secrets`, veri ve model klasörleri hiç gösterilmez.
 - **Önizleme ve onay çekmecesi:** QA'dan geçen video otomatik açılır (bir karta tıklayınca da açılır).
   Video + ölçüm bilgisi, *SEO & Taslak / QA / Hikaye / Görseller / Maliyet* sekmeleri ve seçenekler:
   - **✅ Onayla — taslak olarak sakla:** yalnızca yerel taslak; yükleme yok.
@@ -306,6 +332,13 @@ Tüm alanlar `.env.example` içinde açıklamalıdır. Özet:
 | `YOUTUBE_CATEGORY_ID` | `1` | 1 Film & Animation, 24 Entertainment, 27 Education. |
 | `YOUTUBE_CLIENT_SECRETS` / `YOUTUBE_TOKEN_FILE` | `secrets/...` | OAuth dosyaları (git'e eklenmez). |
 | `MAX_STEP_RETRIES` / `MAX_QA_ROUNDS` | `2` / `2` | Yönetmenin yeniden deneme sınırları. |
+| `SOHBET_MOTORU` | `auto` | Ajan sohbeti: `claude` (bilgisayardaki Claude Code, abonelik) / `llm` (yukarıdaki LLM API'si, yalnızca gerçek modda, ücretli) / `yerel` (yapay zekâsız, dış çağrı yok) / `auto` (claude → llm → yerel). |
+| `SOHBET_MODEL` / `SOHBET_GUNLUK_SINIR` / `SOHBET_ZAMAN_ASIMI_SN` | `sonnet` / `60` / `180` | Claude sohbet modeli, günlük çağrı sınırı, yanıt süresi sınırı. |
+| `CLAUDE_EXE` / `CLAUDE_KULLANIM_DOSYASI` / `SOHBET_MIN_KALAN_YUZDE` | boş / `~\ai-devir\claude_kullanim.json` / `30` | Claude yolu (boşsa bulunur) ve kullanım kartı: kart 3 saatten yeniyse ve kalan hak bu yüzdenin altındaysa Claude çağrılmaz. |
+| `BILDIRIM_MASAUSTU` | `true` | Windows masaüstü bildirimi (yerel). |
+| `BILDIRIM_TELEFON` | `kapali` | `kapali` / `ntfy` (`BILDIRIM_NTFY_KONU`, `BILDIRIM_NTFY_SUNUCU`) / `ai-ekip` (AI Ekip ofisinin telefon kanalını paylaşır, başlık “Studio · ”). Açılırsa başlık ve kısa metin ntfy sunucusuna gider. |
+| `BILDIRIM_ARALIK_DK` / `BILDIRIM_PANEL_ADRESI` | `60` / `http://127.0.0.1:5173/` | Aynı konunun tekrar bildirilme aralığı; bildirime tıklayınca açılan adres. |
+| `OZET_SAATLERI` | `12:30,18:30` | Günlük özet saatleri (`kapali` = otomatik özet yok). |
 | `PRICE_*` | — | Tahmini maliyet tablosu. |
 
 ---
@@ -370,7 +403,12 @@ creative-studio/
 │  ├─ app/
 │  │  ├─ main.py           # FastAPI: REST + /ws WebSocket + /media + derlenmiş panel
 │  │  ├─ graph.py          # LangGraph durum makinesi (8 düğüm)
-│  │  ├─ jobs.py           # iş kuyruğu, onay / revizyon / yükleme akışı
+│  │  ├─ jobs.py           # iş kuyruğu, onay / revizyon / iptal / yükleme akışı
+│  │  ├─ ofis.py           # ofis aç / kapat / duraklat / sürdür (data/ofis.json)
+│  │  ├─ sohbet.py         # ajanlarla sohbet (Claude Code / LLM / yerel), konu önerisi
+│  │  ├─ bildirim.py       # masaüstü / panel / (isteğe bağlı) telefon bildirimleri
+│  │  ├─ ozet.py           # günlük özet (data/raporlar/ozet-<tarih>.md)
+│  │  ├─ kaynak.py         # </> kod çekmecesi: izinli kaynak dosyaları salt okunur
 │  │  ├─ events.py         # WebSocket olay yolu (ajan durumu, log, iş, istatistik)
 │  │  ├─ db.py             # SQLite (işler, adım çalıştırmaları, maliyetler)
 │  │  ├─ config.py, state.py, pricing.py, mock_data.py, cli.py
@@ -383,13 +421,14 @@ creative-studio/
 │  ├─ models/hf/           # FLUX / Chatterbox / Whisper modelleri (git'e eklenmez)
 │  ├─ scripts/youtube_yetkilendir.py   # yalnızca elle çalıştırılır
 │  ├─ scripts/piper_ses_indir.py       # Piper Türkçe ses modelini indirir
-│  └─ tests/test_pipeline.py
+│  └─ tests/test_pipeline.py, tests/test_ozellikler.py
 └─ frontend/
    ├─ package.json, vite.config.js, index.html
    └─ src/
       ├─ App.jsx, useStudio.js, sabitler.js, styles.css
-      ├─ components/       # OfisSahnesi, LogTerminal, UretimPanosu, OnizlemeCekmecesi,
-      │                    # YeniHikaye, Karakter (karakter kartı + ajan penceresi), Istatistik
+      ├─ components/       # OfisSahnesi, LogTerminal, UretimPanosu, OnizlemeCekmecesi, YeniHikaye,
+      │                    # Karakter (karakter kartı), AjanPenceresi (sohbet + loglar), Istatistik,
+      │                    # KodCekmecesi (</> kod), OzetDiyalogu (günlük özet)
       └─ office/           # pikselOfis.js — AI Ekip PikselOfis motorundan uyarlanan Canvas sahnesi
 ```
 
@@ -406,7 +445,9 @@ cd backend
 ```
 
 Test, mock hattı uçtan uca çalıştırır ve çıktının 1080x1920, 60 fps, sesli ve 40-60 sn olduğunu doğrular;
-Piper modeli varsa kelime hizalamasının gerçek olduğunu da sınar.
+Piper modeli varsa kelime hizalamasının gerçek olduğunu da sınar. `test_ozellikler.py` ofis aç/kapat/duraklat, iş iptali,
+sohbet (yerel motor, konu önerisi, Claude kullanım kartı), bildirim bastırma, günlük özet ve kod çekmecesinin yalnızca izinli
+dosyaları okuduğunu sınar. Testler bildirim göndermez, Claude'u çağırmaz.
 
 | Belirti | Çözüm |
 |---|---|
@@ -417,3 +458,5 @@ Piper modeli varsa kelime hizalamasının gerçek olduğunu da sınar.
 | Panel “Bağlantı bekleniyor” | Backend 8000'de çalışıyor mu? `http://127.0.0.1:8000/api/health` |
 | 8000/5173 dolu | `.env` → `BACKEND_PORT`, Vite için `STUDIO_BACKEND` ortam değişkeni ve `vite.config.js` portu. |
 | Yarıda kalan işler | Sunucu yeniden başlarsa “Yarıda kaldı” olarak işaretlenir; önizleme çekmecesinden revizyon ile yeniden başlatabilirsiniz. |
+| İş başlamıyor, “sırada” bekliyor | Ofis kapalı ya da duraklatılmış olabilir: üst çubukta **Ofisi aç** / **Sürdür**. |
+| Sohbet “yerel yanıt” veriyor | Claude Code bulunamadı, günlük sınır doldu ya da kalan hak az (yanıttaki ⓘ notu nedeni söyler). `SOHBET_MOTORU` ile seçilebilir. |

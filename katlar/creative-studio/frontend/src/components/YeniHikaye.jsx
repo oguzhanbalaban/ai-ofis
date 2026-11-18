@@ -3,7 +3,7 @@ import { api } from '../useStudio.js'
 import { IMAGE_OPTIONS, MISSING, TTS_OPTIONS, pick } from '../sabitler.js'
 
 // "+ Yeni hikâye" diyaloğu (AI Ekip'teki "İş ver" diyaloğunun karşılığı)
-export default function YeniHikaye({ acik, onKapat, busy, config, tost }) {
+export default function YeniHikaye({ acik, onKapat, busy, config, tost, baslangicKonusu, ofis }) {
   const ref = useRef(null)
   const konuRef = useRef(null)
   const [topic, setTopic] = useState('')
@@ -22,10 +22,12 @@ export default function YeniHikaye({ acik, onKapat, busy, config, tost }) {
     if (!d) return
     if (acik && !d.open) {
       setErr(null)
+      // Sohbetteki konu önerisinden geldiyse form o konuyla dolar (kullanıcı yine gözden geçirip onaylar)
+      if (baslangicKonusu) setTopic(baslangicKonusu.slice(0, 120))
       d.showModal()
       setTimeout(() => konuRef.current?.focus(), 0)
     } else if (!acik && d.open) d.close()
-  }, [acik])
+  }, [acik]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const submit = async (e) => {
     e.preventDefault()
@@ -52,6 +54,11 @@ export default function YeniHikaye({ acik, onKapat, busy, config, tost }) {
           İsteği <b>Yönetmen Yıldız</b> alır; konu boşsa günün konusunu kendisi seçer. Ekip hikâyeyi yazar, çizer, seslendirir ve kurgular.
           Hiçbir şey kendiliğinden yüklenmez: video <b>taslak</b> olarak onayına gelir.
         </div>
+        {ofis && ofis !== 'acik' && (
+          <div className="kutu uyari ekle-bilgi">
+            Ofis şu an <b>{ofis === 'kapali' ? 'kapalı' : 'duraklatılmış'}</b>: iş sıraya alınır, ofisi açınca (ya da sürdürünce) başlar.
+          </div>
+        )}
         <label className="alan">
           Konu <span className="ipucu">boş bırakılırsa Yönetmen günün konusunu seçer</span>
           <input ref={konuRef} value={topic} maxLength={120} onChange={(e) => setTopic(e.target.value)} placeholder="ör. paylaşmak, cesaret, sabır…" autoComplete="off" />

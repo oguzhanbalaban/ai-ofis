@@ -1,13 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useStudio } from './useStudio.js'
+import { api, useStudio } from './useStudio.js'
 import { ADIMLAR, MOTOR_KISA, ajanDurumu, iki, rolNesnesi } from './sabitler.js'
 import OfisSahnesi from './components/OfisSahnesi.jsx'
 import LogTerminal from './components/LogTerminal.jsx'
-import UretimPanosu, { HatSeridi } from './components/UretimPanosu.jsx'
+import UretimPanosu, { HatSeridi, TASIMA } from './components/UretimPanosu.jsx'
 import Istatistik from './components/Istatistik.jsx'
 import YeniHikaye from './components/YeniHikaye.jsx'
 import OnizlemeCekmecesi from './components/OnizlemeCekmecesi.jsx'
-import { AjanPenceresi, KarakterKarti } from './components/Karakter.jsx'
+import { KarakterKarti } from './components/Karakter.jsx'
+import AjanPenceresi from './components/AjanPenceresi.jsx'
+import KodCekmecesi, { KodSekmesi } from './components/KodCekmecesi.jsx'
+import OzetDiyalogu from './components/OzetDiyalogu.jsx'
+
+// Süren bir iş bu kadar süre hiç ilerlemezse "takılmış olabilir" uyarısı (AI Ekip'teki "donmuş" uyarısının karşılığı)
+const DONMA_SN = 10 * 60
 
 function Logo() {
   return (
@@ -35,9 +41,15 @@ function Saat() {
 }
 
 export default function App() {
-  const { state, subscribe, clearLogs } = useStudio()
-  const { connected, agentsMeta, agents, logs, jobs, stats, config } = state
+  const { state, subscribe, clearLogs, sohbetYukle } = useStudio()
+  const { connected, agentsMeta, agents, logs, jobs, stats, config, office, chat, sohbetler, yaziyor } = state
+  const ofisDurumu = office?.durum || 'acik'
   const [selected, setSelected] = useState(null)
+  const [kodAcik, setKodAcik] = useState(false)
+  const [ozetAcik, setOzetAcik] = useState(false)
+  const [onerilenKonu, setOnerilenKonu] = useState('')
+  const [ofisMesgul, setOfisMesgul] = useState(false)
+  const [simdi, setSimdi] = useState(() => Date.now() / 1000)
   const [kartId, setKartId] = useState(null)
   const [modalJob, setModalJob] = useState(null)
   const [yeniAcik, setYeniAcik] = useState(false)
@@ -48,13 +60,63 @@ export default function App() {
 
   useEffect(() => {
     const t = setTimeout(() => setIlkBekleme(false), 2500)
-    return () => clearTimeout(t)
+    const s = setInterval(() => setSimdi(Date.now() / 1000), 30000)
+    return () => {
+      clearTimeout(t)
+      clearInterval(s)
+    }
   }, [])
 
   const tost = useCallback((metin, hata = false) => {
     const id = Math.random().toString(36).slice(2)
     setTostlar((l) => [...l, { id, metin, hata }].slice(-4))
     setTimeout(() => setTostlar((l) => l.filter((x) => x.id !== id)), hata ? 7000 : 4500)
+  }, [])
+
+  // Sunucudan gelen bildirimler (onay bekliyor, takıldı, günlük özet) panelde de kısa bilgi olarak görünür
+  useEffect(
+    () =>
+      subscribe((msg) => {
+        if (msg.type === 'notify' && msg.notify) tost(`🔔 ${msg.notify.baslik}: ${msg.notify.metin}`, msg.notify.onem === 'yuksek' && /takıldı/i.test(msg.notify.baslik))
+      }),
+    [subscribe, tost],
+  )
+
+  const ofisEylemi = useCallback(
+    async (eylem) => {
+      if (eylem === 'kapat' && !confirm('Ofis kapatılsın mı? Mesai biter: süren iş tamamlanır, sıradaki işler ofis açılana kadar bekler.')) return
+      setOfisMesgul(true)
+      try {
+        await api('/api/office', { eylem })
+      } catch (e) {
+        tost(e.message, true)
+      } finally {
+        setOfisMesgul(false)
+      }
+    },
+    [tost],
+  )
+
+  // Panoda sürükle-bırak: işi başka aşamaya taşı (onay sorulur)
+  const tasi = useCallback(
+    async (j, hedef) => {
+      const ad = j.title || j.topic || j.id
+      if (!TASIMA[hedef] || !confirm(TASIMA[hedef].soru(ad))) return
+      try {
+        if (hedef === 'sira') await api(`/api/jobs/${j.id}/revise`, { target: 'story', note: 'Panodan baştan başlatıldı' })
+        else if (hedef === 'bitti') await api(`/api/jobs/${j.id}/approve`, { upload: false })
+        else if (hedef === 'iptal') await api(`/api/jobs/${j.id}/cancel`, {})
+        tost(hedef === 'sira' ? `“${ad}” baştan başlatıldı.` : hedef === 'bitti' ? `“${ad}” taslak olarak onaylandı (yükleme yok).` : `“${ad}” iptal edildi.`)
+      } catch (e) {
+        tost(e.message, true)
+      }
+    },
+    [tost],
+  )
+
+  const konuyuVer = useCallback((konu) => {
+    setOnerilenKonu(konu)
+    setYeniAcik(true)
   }, [])
 
   // Aktif iş: çalışan/sıradaki varsa o, yoksa en yenisi
@@ -87,8 +149,10 @@ export default function App() {
     () =>
       [...agentsMeta]
         .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-        .map((m) => rolNesnesi(m, agents[m.id], ajanDurumu(agents[m.id] || { id: m.id }, { bagli: connected, onayVar: !!onayIsi }))),
-    [agentsMeta, agents, connected, onayIsi],
+        .map((m) =>
+          rolNesnesi(m, agents[m.id], ajanDurumu(agents[m.id] || { id: m.id }, { bagli: connected, onayVar: !!onayIsi, ofis: ofisDurumu })),
+        ),
+    [agentsMeta, agents, connected, onayIsi, ofisDurumu],
   )
   const adimlar = useMemo(() => (activeJob ? ADIMLAR.map(([id]) => (activeJob.step_status || {})[id] || 'pending') : []), [activeJob])
   const sayaclar = useMemo(
@@ -115,16 +179,36 @@ export default function App() {
     document.getElementById(hedef)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
 
+  // Donma uyarısı: süren iş DONMA_SN boyunca hiç kayıt / güncelleme üretmediyse
+  const suren = jobs.find((j) => j.status === 'running')
+  const surenSon = useMemo(() => {
+    if (!suren) return 0
+    let son = suren.updated_at || 0
+    for (let i = logs.length - 1; i >= 0; i--) {
+      if (logs[i].job_id === suren.id) {
+        son = Math.max(son, logs[i].ts || 0)
+        break
+      }
+    }
+    return son
+  }, [suren, logs])
+  const donmus = connected && suren && surenSon && simdi - surenSon > DONMA_SN
+  const bekleyenIs = jobs.filter((j) => j.status === 'queued').length
+
   const calisanlar = roller.filter((r) => r.durum === 'calis' && r.anahtar !== 'director')
   const ofisAlt = !connected
     ? 'Sunucu bağlantısı bekleniyor'
-    : calisanlar.length
+    : ofisDurumu === 'kapali' && !say.calis
+      ? 'Ofis kapalı — ekip evde. “Ofisi aç” ile mesai başlar.'
+      : calisanlar.length
       ? calisanlar.map((r) => `${r.kisa} çalışıyor: ${r.metin}`).join(' · ')
       : say.calis
         ? `Yönetmen: ${roller.find((r) => r.anahtar === 'director')?.metin || 'hazırlanıyor'}`
         : onayIsi
           ? `Yayıncı onayını bekliyor: “${onayIsi.title || onayIsi.topic}”`
-          : 'Ekip boşta — yeni hikâye bekleniyor'
+          : ofisDurumu === 'duraklatildi'
+            ? 'Ekip molada — “Sürdür” ile sıradaki işlere döner'
+            : 'Ekip boşta — yeni hikâye bekleniyor'
 
   return (
     <>
@@ -151,6 +235,25 @@ export default function App() {
           <span>{connected ? `WebSocket bağlı · ${say.calis} ajan çalışıyor` : 'Bağlantı bekleniyor'}</span>
         </div>
         <div className="eylemler">
+          {ofisDurumu === 'acik' && (
+            <button type="button" className="dugme" disabled={ofisMesgul || !connected} onClick={() => ofisEylemi('duraklat')} title="Kısa mola: süren iş biter, sıradakiler bekler, boştakiler salona geçer">
+              ⏸ Duraklat
+            </button>
+          )}
+          {ofisDurumu === 'duraklatildi' && (
+            <button type="button" className="dugme" disabled={ofisMesgul || !connected} onClick={() => ofisEylemi('surdur')} title="Ekip moladan döner, sıradaki işler başlar">
+              ▶ Sürdür
+            </button>
+          )}
+          {ofisDurumu === 'kapali' ? (
+            <button type="button" className="dugme" disabled={ofisMesgul || !connected} onClick={() => ofisEylemi('ac')} title="Mesai başlar: ekip asansörden gelir, sıradaki işler başlar">
+              ☀ Ofisi aç
+            </button>
+          ) : (
+            <button type="button" className="dugme" disabled={ofisMesgul || !connected} onClick={() => ofisEylemi('kapat')} title="Mesai biter: süren iş tamamlanır, ekip vedalaşıp çıkar, yeni iş alınmaz">
+              🌙 Ofisi kapat
+            </button>
+          )}
           {onayIsi && (
             <button type="button" className="dugme uyari nabiz" onClick={() => setModalJob(onayIsi.id)}>
               🎞 Önizle & Onayla
@@ -173,6 +276,31 @@ export default function App() {
             🎞 <b>“{onayIsi.title || onayIsi.topic}”</b> önizlemesi onayını bekliyor. Hiçbir şey sen onaylamadan yüklenmez.
             <button type="button" className="baglanti bosluk" onClick={() => setModalJob(onayIsi.id)}>
               Önizle & Onayla
+            </button>
+          </div>
+        )}
+        {connected && ofisDurumu === 'kapali' && (
+          <div className="serit bilgi">
+            🌙 <b>Ofis kapalı</b> — mesai bitti{say.calis ? '; süren iş tamamlanınca ekip çıkar' : ', ekip evde'}. Yeni iş alınmaz
+            {bekleyenIs ? `; ${bekleyenIs} iş sırada bekliyor` : ''}.
+            <button type="button" className="baglanti bosluk" onClick={() => ofisEylemi('ac')}>
+              Ofisi aç
+            </button>
+          </div>
+        )}
+        {connected && ofisDurumu === 'duraklatildi' && (
+          <div className="serit uyari">
+            ☕ <b>Ekip duraklatıldı</b> (mola). Süren iş biter; sıradaki işler bekler{bekleyenIs ? ` (${bekleyenIs} iş)` : ''}.
+            <button type="button" className="baglanti bosluk" onClick={() => ofisEylemi('surdur')}>
+              Sürdür
+            </button>
+          </div>
+        )}
+        {donmus && (
+          <div className="serit hata">
+            ⚠ <b>“{suren.title || suren.topic || suren.id}”</b> {Math.round((simdi - surenSon) / 60)} dakikadır ilerlemiyor; takılmış olabilir.
+            <button type="button" className="baglanti bosluk" onClick={() => setModalJob(suren.id)}>
+              İşi aç (iptal / yeniden başlat)
             </button>
           </div>
         )}
@@ -217,6 +345,12 @@ export default function App() {
                 <span className="hud-cip tamam" title="Bugün üretilen video sayısı">
                   ✓ bugün {bugunVideo} video
                 </span>
+                {ofisDurumu !== 'acik' && (
+                  <span className={`hud-cip ${ofisDurumu === 'kapali' ? 'bos' : 'soru'}`} title="Ofis durumu">
+                    <i />
+                    {ofisDurumu === 'kapali' ? 'ofis kapalı' : 'molada'}
+                  </span>
+                )}
               </div>
               <div className="hud-sag">
                 {config && (
@@ -237,6 +371,7 @@ export default function App() {
               adimlar={adimlar}
               sayaclar={sayaclar}
               bagli={connected}
+              kapali={ofisDurumu === 'kapali'}
               mock={config?.mock_mode}
               secili={selected}
               onSec={setSelected}
@@ -248,12 +383,26 @@ export default function App() {
 
         <LogTerminal logs={logs} filter={selected} onFilter={setSelected} onClear={clearLogs} />
 
-        <UretimPanosu jobs={jobs} onAc={setModalJob} />
+        <UretimPanosu jobs={jobs} onAc={setModalJob} onTasi={tasi} />
 
-        <Istatistik stats={stats} config={config} onKart={setKartId} />
+        <Istatistik stats={stats} config={config} onKart={setKartId} onOzet={() => setOzetAcik(true)} />
       </main>
 
-      <AjanPenceresi rol={seciliRol} stats={stats} jobs={jobs} logs={logs} onKapat={() => setSelected(null)} onKart={setKartId} onIsAc={setModalJob} />
+      <AjanPenceresi
+        rol={seciliRol}
+        stats={stats}
+        jobs={jobs}
+        logs={logs}
+        sohbetler={sohbetler}
+        yaziyor={yaziyor}
+        motor={chat}
+        sohbetYukle={sohbetYukle}
+        onKapat={() => setSelected(null)}
+        onKart={setKartId}
+        onIsAc={setModalJob}
+        onKonu={konuyuVer}
+        tost={tost}
+      />
       <KarakterKarti
         rol={kartRol}
         stats={stats}
@@ -270,9 +419,27 @@ export default function App() {
           setKartId(null)
           git('terminal')
         }}
+        onSohbet={(id) => {
+          setSelected(id)
+          setKartId(null)
+        }}
       />
-      <YeniHikaye acik={yeniAcik} onKapat={() => setYeniAcik(false)} busy={busy} config={config} tost={tost} />
-      {modal && <OnizlemeCekmecesi job={modal} config={config} onClose={closeModal} tost={tost} />}
+      <YeniHikaye
+        acik={yeniAcik}
+        onKapat={() => {
+          setYeniAcik(false)
+          setOnerilenKonu('')
+        }}
+        busy={busy}
+        config={config}
+        tost={tost}
+        baslangicKonusu={onerilenKonu}
+        ofis={ofisDurumu}
+      />
+      {modal && <OnizlemeCekmecesi job={modal} config={config} logs={logs} onClose={closeModal} tost={tost} />}
+      <KodSekmesi onAc={() => setKodAcik(true)} />
+      <KodCekmecesi acik={kodAcik} onKapat={() => setKodAcik(false)} tost={tost} />
+      <OzetDiyalogu acik={ozetAcik} onKapat={() => setOzetAcik(false)} config={config} />
       <div id="tostlar" aria-live="polite">
         {tostlar.map((t) => (
           <div key={t.id} className={`tost${t.hata ? ' hata' : ''}`}>

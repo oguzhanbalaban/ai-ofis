@@ -4,7 +4,7 @@ import { AJANLAR, DURUM_ADI, iki } from '../sabitler.js'
 
 // Piksel ofis sahnesi + olay akışı + ekip çipleri (AI Ekip ofisinin düzeni).
 // roller: sabitler.rolNesnesi çıktıları; jobs: iş listesi (olaylar buradan çıkarılır).
-export default function OfisSahnesi({ roller, jobs, hazir, adimlar, sayaclar, bagli, mock, secili, onSec, onPano, subscribe }) {
+export default function OfisSahnesi({ roller, jobs, hazir, adimlar, sayaclar, bagli, kapali, mock, secili, onSec, onPano, subscribe }) {
   const tuvalRef = useRef(null)
   const sariciRef = useRef(null)
   const ipucuRef = useRef(null)
@@ -37,8 +37,9 @@ export default function OfisSahnesi({ roller, jobs, hazir, adimlar, sayaclar, ba
   useEffect(() => {
     // Kadro gelmeden boş ofis kurulursa ilk gelişte herkes "yeni çalışan" sayılırdı
     if (!roller.length) return
-    motorRef.current?.guncelle({ roller, dongu: { bagli }, adimlar, sayaclar })
-  }, [roller, bagli, adimlar, sayaclar])
+    // dongu.kapali: ofis kapalıyken ışıklar söner (içeride işini bitiren varsa yarı açık kalır)
+    motorRef.current?.guncelle({ roller, dongu: { bagli, kapali: !!kapali }, adimlar, sayaclar })
+  }, [roller, bagli, kapali, adimlar, sayaclar])
 
   useEffect(() => motorRef.current?.sec(secili), [secili])
 
@@ -73,6 +74,7 @@ export default function OfisSahnesi({ roller, jobs, hazir, adimlar, sayaclar, ba
       if (j.status === 'awaiting_approval') m.onayBekliyor(`🎞 "${ad}" hazır — onayını bekliyor`)
       else if (j.status === 'approved') m.kutlama(`✓ "${ad}" onaylandı`)
       else if (j.status === 'uploaded') m.kutlama(`⬆ "${ad}" yüklendi${mock ? ' (simülasyon)' : ''}`)
+      else if (j.status === 'cancelled') m.iptal(`✕ "${ad}" iptal edildi`)
       else if (j.status === 'failed') {
         const kim = Object.entries(j.step_status || {}).find(([, s]) => s === 'failed')?.[0]
         m.takildi(`❗ "${ad}" takıldı${j.error ? `: ${j.error}` : ''}`, kim)

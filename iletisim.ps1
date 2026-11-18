@@ -202,7 +202,7 @@ function Uygulama-Isi-Oku($K, [string]$Id) {
 function Uygulama-Durumu([string]$S) {
     switch ($S) {
         { @('awaiting_approval', 'approved', 'uploaded', 'uploading') -contains $_ } { return 'tamamlandi' }
-        { @('failed', 'interrupted') -contains $_ } { return 'basarisiz' }
+        { @('failed', 'interrupted', 'cancelled') -contains $_ } { return 'basarisiz' }   # cancelled: kullanıcı uygulamada iptal etti
         'running' { return 'calisiyor' }
         default { return 'gonderildi' }
     }

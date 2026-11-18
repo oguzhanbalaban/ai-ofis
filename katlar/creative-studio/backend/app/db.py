@@ -69,7 +69,19 @@ def init_db() -> None:
             "WHERE status IN ('queued','running','uploading')",
             (time.time(),),
         )
+        # Yarıda kalan adım kayıtları açık kalmasın (başarı oranlarına girmez)
+        c.execute("UPDATE step_runs SET status='interrupted', ended_at=? WHERE status='running'", (time.time(),))
         c.commit()
+
+
+def cancel_open_steps(job_id: str) -> None:
+    """İptal edilen işin süren adım kaydını kapat (başarı / hata sayılmaz)."""
+    with _lock:
+        conn().execute(
+            "UPDATE step_runs SET status='cancelled', ended_at=?, note='iptal' WHERE job_id=? AND status='running'",
+            (time.time(), job_id),
+        )
+        conn().commit()
 
 
 def _dumps(obj: Any) -> str:
@@ -167,6 +179,7 @@ def stats() -> dict:
         "approved": by_status.get("approved", 0) + by_status.get("uploaded", 0),
         "uploaded": by_status.get("uploaded", 0),
         "failed": by_status.get("failed", 0),
+        "cancelled": by_status.get("cancelled", 0),
         "awaiting_approval": by_status.get("awaiting_approval", 0),
         "by_status": by_status,
         "cost_total_usd": round(float(cost_total or 0), 4),

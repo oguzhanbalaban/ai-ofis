@@ -247,9 +247,9 @@ try {
     $arsiv = [IO.Compression.ZipFile]::OpenRead((Join-Path $paket 'dagitim\ai-ofis.zip'))
     try {
         $adlar = @($arsiv.Entries | ForEach-Object { $_.FullName })
-        Dogrula ($adlar.Count -eq 233) 'ZIP 233 dağıtım dosyası içeriyor (danışman masası, şirket binasının katları ve kendi kendini geliştirme dahil)'
+        Dogrula ($adlar.Count -eq 242) 'ZIP 242 dağıtım dosyası içeriyor (danışman masası, şirket binasının katları, Creative Studio sohbeti ve kendi kendini geliştirme dahil)'
         Dogrula (@($adlar | Where-Object { $_ -in @('kendini.ps1', 'istemler/ofis-gelistirme.md', 'testler/ofis-duman.test.ps1', 'testler/kendini-gelistirme.test.ps1') }).Count -eq 4) 'ZIP kendi kendini geliştirmeyi içeriyor (ayna, canlıya alma, rehber, testler)'
-        Dogrula (@($adlar | Where-Object { $_ -in @('katlar.json', 'katlar/data-analytics/kadro.json', 'katlar/innovation-lab/kadro.json', 'katlar/creative-studio/backend/app/main.py', 'katlar/creative-studio/.env.example', 'ofis/bina.html', 'iletisim.ps1') }).Count -eq 7) 'ZIP şirket binasını içeriyor (katlar, bina paneli, Comms, Creative Studio kaynağı)'
+        Dogrula (@($adlar | Where-Object { $_ -in @('katlar.json', 'katlar/data-analytics/kadro.json', 'katlar/innovation-lab/kadro.json', 'katlar/creative-studio/backend/app/main.py', 'katlar/creative-studio/.env.example', 'katlar/creative-studio/backend/app/sohbet.py', 'katlar/creative-studio/frontend/src/components/AjanPenceresi.jsx', 'ofis/bina.html', 'iletisim.ps1') }).Count -eq 9) 'ZIP şirket binasını içeriyor (katlar, bina paneli, Comms, Creative Studio kaynağı ve ajan sohbeti)'
         Dogrula (@($adlar | Where-Object { $_ -match '^katlar/.*(\.yerel\.|/DURDUR$|/\.env$|/durum/|/gorevler/|node_modules|\.venv)' }).Count -eq 0) 'ZIP katların kişisel / çalışma dosyalarını dışlıyor'
         Dogrula (@($adlar | Where-Object { $_ -in @('danisman/CLAUDE.md', 'danisman/AGENTS.md', 'danisman/GEMINI.md') }).Count -eq 3) 'ZIP danışman masasını (CLAUDE.md, AGENTS.md, GEMINI.md) içeriyor'
         Dogrula (@($adlar | Where-Object { $_ -match '\.yerel\.|ozel-not|^durum/|^gorevler/|^raporlar/' }).Count -eq 0) 'ZIP kişisel ayarları ve ek kullanıcı dosyalarını dışlıyor'

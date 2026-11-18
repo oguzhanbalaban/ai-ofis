@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react'
 
 const MAX_LOGS = 600
+const MAX_SOHBET = 120
 
 const initial = {
   connected: false,
@@ -11,6 +12,12 @@ const initial = {
   stats: null,
   config: null,
   currentJob: null,
+  office: { durum: 'acik', ad: 'açık' },
+  chat: { isleniyor: [], motor: 'yerel', ad: '' },
+  // ajan -> mesaj listesi (pencere açılınca /api/chat/<ajan>'dan yüklenir, sonra WebSocket ile güncellenir)
+  sohbetler: {},
+  yaziyor: {},
+  bildirimler: [],
 }
 
 function upsertJob(jobs, job) {
@@ -29,6 +36,8 @@ function reducer(state, action) {
       const m = action.msg
       const agents = {}
       for (const a of m.agents || []) agents[a.id] = a
+      const yaziyor = {}
+      for (const a of m.chat?.isleniyor || []) yaziyor[a] = true
       return {
         ...state,
         agentsMeta: m.agents_meta || [],
@@ -38,6 +47,9 @@ function reducer(state, action) {
         stats: m.stats,
         config: m.config,
         currentJob: m.current_job,
+        office: m.office || state.office,
+        chat: m.chat || state.chat,
+        yaziyor,
       }
     }
     case 'agent':
@@ -53,6 +65,31 @@ function reducer(state, action) {
       return { ...state, stats: action.stats }
     case 'clearLogs':
       return { ...state, logs: [] }
+    case 'office':
+      return { ...state, office: action.office }
+    case 'sohbetYuklendi':
+      return {
+        ...state,
+        sohbetler: { ...state.sohbetler, [action.ajan]: action.mesajlar.slice(-MAX_SOHBET) },
+        yaziyor: { ...state.yaziyor, [action.ajan]: !!action.yaziyor },
+        chat: action.motor ? { ...state.chat, ...action.motor } : state.chat,
+      }
+    case 'sohbetMesaji': {
+      const eski = state.sohbetler[action.ajan]
+      if (!eski) return state // pencere hiç açılmadıysa yüklenince gelir
+      if (eski.some((m) => m.id === action.mesaj.id)) return state
+      return { ...state, sohbetler: { ...state.sohbetler, [action.ajan]: [...eski, action.mesaj].slice(-MAX_SOHBET) } }
+    }
+    case 'sohbetTemiz':
+      return { ...state, sohbetler: { ...state.sohbetler, [action.ajan]: [] } }
+    case 'yaziyor': {
+      const isleniyor = new Set(state.chat.isleniyor || [])
+      if (action.value) isleniyor.add(action.ajan)
+      else isleniyor.delete(action.ajan)
+      return { ...state, yaziyor: { ...state.yaziyor, [action.ajan]: action.value }, chat: { ...state.chat, isleniyor: [...isleniyor] } }
+    }
+    case 'bildirim':
+      return { ...state, bildirimler: [action.bildirim, ...state.bildirimler].slice(0, 30) }
     default:
       return state
   }
@@ -87,6 +124,11 @@ export function useStudio() {
         else if (msg.type === 'log') dispatch({ type: 'log', log: msg.log })
         else if (msg.type === 'job') dispatch({ type: 'job', job: msg.job })
         else if (msg.type === 'stats') dispatch({ type: 'stats', stats: msg.stats })
+        else if (msg.type === 'office') dispatch({ type: 'office', office: msg.office })
+        else if (msg.type === 'chat') dispatch({ type: 'sohbetMesaji', ajan: msg.ajan, mesaj: msg.mesaj })
+        else if (msg.type === 'chat_typing') dispatch({ type: 'yaziyor', ajan: msg.ajan, value: msg.yaziyor })
+        else if (msg.type === 'chat_clear') dispatch({ type: 'sohbetTemiz', ajan: msg.ajan })
+        else if (msg.type === 'notify') dispatch({ type: 'bildirim', bildirim: msg.notify })
         for (const fn of listeners.current) fn(msg)
       }
       ws.onclose = () => {
@@ -116,7 +158,12 @@ export function useStudio() {
 
   const clearLogs = useCallback(() => dispatch({ type: 'clearLogs' }), [])
 
-  return { state, subscribe, clearLogs }
+  const sohbetYukle = useCallback(async (ajan) => {
+    const d = await api(`/api/chat/${ajan}`)
+    dispatch({ type: 'sohbetYuklendi', ajan, mesajlar: d.mesajlar || [], yaziyor: d.yaziyor, motor: { motor: d.motor, ad: d.ad, not: d.not } })
+  }, [])
+
+  return { state, subscribe, clearLogs, sohbetYukle }
 }
 
 export async function api(path, body) {
@@ -126,6 +173,9 @@ export async function api(path, body) {
     body: body ? JSON.stringify(body) : undefined,
   })
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`)
+  if (!res.ok) {
+    const d = data.detail
+    throw new Error(typeof d === 'string' ? d : Array.isArray(d) ? d.map((x) => x.msg).join('; ') : `HTTP ${res.status}`)
+  }
   return data
 }

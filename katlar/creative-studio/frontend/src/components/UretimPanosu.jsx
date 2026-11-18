@@ -54,7 +54,19 @@ const SERITLER = [
   { a: 'onay', ad: 'Onay bekliyor', renk: 'var(--sari)', durumlar: ['awaiting_approval'] },
   { a: 'bitti', ad: 'Tamamlandı', renk: 'var(--yesil)', durumlar: ['approved', 'uploaded'] },
   { a: 'sorun', ad: 'Sorunlu', renk: 'var(--kirmizi)', durumlar: ['failed', 'interrupted'] },
+  { a: 'iptal', ad: 'İptal', renk: 'var(--soluk)', durumlar: ['cancelled'], gizli: true },
 ]
+
+// Sürükle-bırak (AI Ekip panosundaki gibi): bir kartı başka şeride bırakmak işi o aşamaya taşır, önce onay sorar.
+//   Sırada     = baştan başlat (onay bekleyen, takılan, yarıda kalan ya da iptal edilen iş)
+//   Tamamlandı = onay bekleyen videoyu taslak olarak onayla (yükleme YOK; yükleme yalnızca önizleme çekmecesinden)
+//   İptal      = sıradaki ya da üretilen işi iptal et
+export const TASIMA = {
+  sira: { durumlar: ['awaiting_approval', 'failed', 'interrupted', 'cancelled'], soru: (ad) => `“${ad}” baştan başlatılsın mı? Senarist hikâyeyi yeniden yazar, hat baştan çalışır.` },
+  bitti: { durumlar: ['awaiting_approval'], soru: (ad) => `“${ad}” taslak olarak onaylansın mı? (YouTube'a yükleme yapılmaz.)` },
+  iptal: { durumlar: ['queued', 'running'], soru: (ad) => `“${ad}” iptal edilsin mi? Süren adım durdurulur, çıktısı kullanılmaz.` },
+}
+export const tasinabilir = (hedef, status) => !!TASIMA[hedef]?.durumlar.includes(status)
 
 function okuAyar() {
   try {
@@ -85,11 +97,24 @@ function motorlar(j) {
   return [j.image && `🎨 ${MOTOR_KISA[j.image] || j.image}`, j.tts && `🎙 ${MOTOR_KISA[j.tts] || j.tts}`].filter(Boolean).join(' · ')
 }
 
-function IsKarti({ j, onAc }) {
+function IsKarti({ j, onAc, onSurukle }) {
   const sahip = sahipMetni(j)
   const a = sahip && AJANLAR[sahip[0]]
+  const suruklenir = Object.keys(TASIMA).some((h) => tasinabilir(h, j.status))
   return (
-    <button type="button" className={`gkart s-${j.status}`} onClick={() => onAc(j.id)} title={`${j.id} · ayrıntılar`}>
+    <button
+      type="button"
+      className={`gkart s-${j.status}`}
+      onClick={() => onAc(j.id)}
+      title={`${j.id} · ayrıntılar${suruklenir ? ' · başka şeride sürükleyerek taşıyabilirsin' : ''}`}
+      draggable={suruklenir}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', j.id)
+        e.dataTransfer.effectAllowed = 'move'
+        onSurukle(j)
+      }}
+      onDragEnd={() => onSurukle(null)}
+    >
       <div className="gk-ust">
         <span className="gk-no">#{kisaNo(j.id)}</span>
         {j.mock && <span className="gk-rozet mock">mock</span>}
@@ -124,10 +149,13 @@ function IsKarti({ j, onAc }) {
 }
 
 // İşler panosu: şeritler (pano) ya da tablo (liste); arama ve görünüm tarayıcıda hatırlanır
-export default function UretimPanosu({ jobs, onAc }) {
+export default function UretimPanosu({ jobs, onAc, onTasi }) {
   const [ayar, setAyar] = useState(() => ({ gorunum: 'pano', ...okuAyar() }))
   const [ara, setAra] = useState('')
   const [acikSerit, setAcikSerit] = useState({})
+  const [surukle, setSurukle] = useState(null)
+  const [uzerinde, setUzerinde] = useState(null)
+  const iptalSayisi = jobs.filter((j) => j.status === 'cancelled').length
   const kaydet = (y) => {
     const n = { ...ayar, ...y }
     setAyar(n)
@@ -158,6 +186,10 @@ export default function UretimPanosu({ jobs, onAc }) {
       </div>
       <div className="pano-arac">
         <input type="search" value={ara} onChange={(e) => setAra(e.target.value)} placeholder="Ara: başlık, konu, no, motor…" aria-label="İşlerde ara" autoComplete="off" />
+        <label className="tik pano-tik">
+          <input type="checkbox" checked={!!ayar.iptaller} onChange={(e) => kaydet({ iptaller: e.target.checked })} />
+          <span>İptalleri göster{iptalSayisi ? ` (${iptalSayisi})` : ''}</span>
+        </label>
         <div className="donem" role="group" aria-label="Görünüm">
           <button type="button" aria-pressed={ayar.gorunum === 'pano'} onClick={() => kaydet({ gorunum: 'pano' })}>
             ▦ Pano
@@ -169,11 +201,32 @@ export default function UretimPanosu({ jobs, onAc }) {
       </div>
       {ayar.gorunum === 'pano' ? (
         <div className="pano2">
-          {SERITLER.map((s) => {
+          {SERITLER.filter((s) => !s.gizli || ayar.iptaller || surukle).map((s) => {
             const liste = suzulmus.filter((j) => s.durumlar.includes(j.status))
-            const sinir = acikSerit[s.a] ? liste.length : s.a === 'bitti' || s.a === 'sorun' ? 6 : 12
+            const sinir = acikSerit[s.a] ? liste.length : s.a === 'bitti' || s.a === 'sorun' || s.a === 'iptal' ? 6 : 12
+            const birakilir = !!surukle && tasinabilir(s.a, surukle.status)
             return (
-              <div key={s.a} className={`serit2${liste.length ? '' : ' bos'}`} style={{ '--s-renk': s.renk }}>
+              <div
+                key={s.a}
+                className={`serit2${liste.length ? '' : ' bos'}${birakilir ? ' birakilir' : ''}${birakilir && uzerinde === s.a ? ' uzerinde' : ''}`}
+                style={{ '--s-renk': s.renk }}
+                onDragOver={(e) => {
+                  if (!birakilir) return
+                  e.preventDefault()
+                  e.dataTransfer.dropEffect = 'move'
+                  if (uzerinde !== s.a) setUzerinde(s.a)
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget)) setUzerinde((u) => (u === s.a ? null : u))
+                }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  const j = surukle
+                  setSurukle(null)
+                  setUzerinde(null)
+                  if (j && tasinabilir(s.a, j.status)) onTasi(j, s.a)
+                }}
+              >
                 <div className="serit2-bas">
                   <span className="nokta" />
                   {s.ad}
@@ -181,8 +234,9 @@ export default function UretimPanosu({ jobs, onAc }) {
                 </div>
                 <div className="serit2-govde">
                   {!liste.length && <div className="serit2-bos">Boş</div>}
+                  {birakilir && <div className="serit2-birak">Buraya bırak: {s.a === 'sira' ? 'baştan başlat' : s.a === 'bitti' ? 'taslak olarak onayla' : 'iptal et'}</div>}
                   {liste.slice(0, sinir).map((j) => (
-                    <IsKarti key={j.id} j={j} onAc={onAc} />
+                    <IsKarti key={j.id} j={j} onAc={onAc} onSurukle={(x) => { setSurukle(x); if (!x) setUzerinde(null) }} />
                   ))}
                   {liste.length > sinir && (
                     <button type="button" className="serit2-daha" onClick={() => setAcikSerit((x) => ({ ...x, [s.a]: true }))}>
@@ -216,7 +270,7 @@ export default function UretimPanosu({ jobs, onAc }) {
                   </td>
                 </tr>
               )}
-              {suzulmus.map((j) => (
+              {suzulmus.filter((j) => j.status !== 'cancelled' || ayar.iptaller).map((j) => (
                 <tr key={j.id} tabIndex={0} onClick={() => onAc(j.id)} onKeyDown={(e) => e.key === 'Enter' && onAc(j.id)}>
                   <td>
                     <div className="liste-baslik">{j.title || j.topic || j.id}</div>

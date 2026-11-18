@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { api } from '../useStudio.js'
 import { AJANLAR, MOTOR_KISA, STATUS_ROZET, STATUS_TR, TARGETS, kisaNo } from '../sabitler.js'
 import { AdimCubugu } from './UretimPanosu.jsx'
+import { LogSatiri } from './LogTerminal.jsx'
 
 // Önizleme ve onay çekmecesi (AI Ekip'teki görev ayrıntısı çekmecesinin düzeninde).
 // Yükleme yalnızca buradaki onay kutusu işaretlenip düğmeye basılınca yapılır.
-export default function OnizlemeCekmecesi({ job, config, onClose, tost }) {
+export default function OnizlemeCekmecesi({ job, config, logs = [], onClose, tost }) {
   const [tab, setTab] = useState('seo')
   const [ack, setAck] = useState(false)
   const [target, setTarget] = useState('story')
@@ -21,7 +22,9 @@ export default function OnizlemeCekmecesi({ job, config, onClose, tost }) {
 
   if (!job) return null
   const awaiting = job.status === 'awaiting_approval'
-  const retryable = job.status === 'failed' || job.status === 'interrupted'
+  const retryable = job.status === 'failed' || job.status === 'interrupted' || job.status === 'cancelled'
+  const iptalEdilebilir = job.status === 'queued' || job.status === 'running'
+  const isLoglari = logs.filter((l) => l.job_id === job.id)
   const pub = job.publish || {}
   const qa = job.qa || {}
   const mock = config?.mock_mode
@@ -49,6 +52,7 @@ export default function OnizlemeCekmecesi({ job, config, onClose, tost }) {
     ['story', 'Hikaye'],
     ['visuals', 'Görseller'],
     ['cost', 'Maliyet'],
+    ['kayit', `Kayıtlar${isLoglari.length ? ` (${isLoglari.length})` : ''}`],
   ]
 
   return (
@@ -86,9 +90,23 @@ export default function OnizlemeCekmecesi({ job, config, onClose, tost }) {
                 : 'Bu iş için onay adımı tamamlandı.'}
             </div>
           )}
+          {iptalEdilebilir && (
+            <button
+              className="dugme tehlike"
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                confirm(`“${job.title || job.topic || job.id}” iptal edilsin mi?${job.status === 'running' ? ' Süren adım durdurulur, çıktısı kullanılmaz.' : ''}`) &&
+                act('cancel', {}, 'İş iptal edildi.')
+              }
+            >
+              ✕ İşi iptal et
+            </button>
+          )}
           {retryable && (
             <div className="kutu hata tam">
-              Bu iş tamamlanamadı{job.error ? `: ${job.error}` : ''}. Aşağıdan bir adımı yeniden başlatabilirsiniz.
+              {job.status === 'cancelled' ? 'Bu iş iptal edildi' : 'Bu iş tamamlanamadı'}
+              {job.error && job.status !== 'cancelled' ? `: ${job.error}` : ''}. Aşağıdan bir adımı yeniden başlatabilirsiniz.
             </div>
           )}
           {awaiting && (
@@ -261,6 +279,15 @@ export default function OnizlemeCekmecesi({ job, config, onClose, tost }) {
                   ) : (
                     <p className="soluk">Görseller henüz çizilmedi.</p>
                   ))}
+                {tab === 'kayit' && (
+                  <div className="ck-kayit">
+                    {isLoglari.length ? (
+                      isLoglari.map((l) => <LogSatiri key={l.id} log={l} />)
+                    ) : (
+                      <p className="soluk">Bu iş için bu oturumda kayıt yok (panel son 600 kaydı tutar).</p>
+                    )}
+                  </div>
+                )}
                 {tab === 'cost' && (
                   <ul className="kontroller">
                     {Object.entries(job.cost_by_agent || {}).map(([k, v]) => (

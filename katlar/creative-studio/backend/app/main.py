@@ -7,18 +7,23 @@ from pathlib import Path
 from typing import Literal
 
 import asyncio
+import re
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import db
+from . import db, kaynak, ozet
 from .agents.registry import AGENTS
+from .bildirim import gorunur_ayarlar, son_bildirimler
 from .config import PROJECT_DIR, settings
 from .events import bus
 from .jobs import runner, summarize
+from .ofis import ofis
 from .services.ffmpeg import tool_info
+from .sohbet import sohbet
+from . import sohbet as sohbet_modulu
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("studio")
@@ -28,8 +33,10 @@ log = logging.getLogger("studio")
 async def lifespan(_app: FastAPI):
     settings.ensure_dirs()
     db.init_db()
+    ofis.yukle()
     bus.loop = asyncio.get_running_loop()
     runner.start()
+    ozet_gorevi = asyncio.create_task(ozet.zamanlayici(), name="studio-gunluk-ozet")
     info = tool_info()
     log.info("Creative Studio başladı | MOCK_MODE=%s | ffmpeg=%s | ffprobe=%s",
              settings.mock_mode, info["ffmpeg"], info["ffprobe"])
@@ -38,7 +45,10 @@ async def lifespan(_app: FastAPI):
         f"Yükleme: {'açık (yalnızca onayla)' if settings.upload_possible else 'kapalı'}",
         data={"ffmpeg": info["ffmpeg_version"], "ffprobe": info["ffprobe"] or "yok (ffmpeg -i yedeği)"},
     )
+    if not ofis.acik:
+        await bus.log(f"Ofis {ofis.ozet()['ad']}: sıradaki işler panelden “Ofisi aç / Sürdür” denince başlar.", agent="director")
     yield
+    ozet_gorevi.cancel()
     await runner.stop()
 
 
@@ -71,6 +81,14 @@ class Approve(BaseModel):
     confirm: bool = False
 
 
+class OfisEylemi(BaseModel):
+    eylem: Literal["ac", "kapat", "duraklat", "surdur"]
+
+
+class SohbetMesaji(BaseModel):
+    metin: str = Field(min_length=1, max_length=2000)
+
+
 def _snapshot() -> dict:
     return {
         "agents_meta": AGENTS,
@@ -80,6 +98,9 @@ def _snapshot() -> dict:
         "stats": db.stats(),
         "config": settings.public_dict(),
         "current_job": runner.current,
+        "office": ofis.ozet(),
+        "chat": sohbet.durum(),
+        "notify": gorunur_ayarlar(),
     }
 
 
@@ -157,6 +178,96 @@ async def approve_job(job_id: str, body: Approve) -> dict:
         raise HTTPException(403, str(exc)) from exc
     except Exception as exc:  # yükleme hatası
         raise HTTPException(502, f"Yükleme başarısız: {exc}") from exc
+
+
+@app.post("/api/jobs/{job_id}/cancel")
+async def cancel_job(job_id: str) -> dict:
+    try:
+        return await runner.cancel(job_id)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+# --- ofis: aç / kapat / duraklat / sürdür (AI Ekip ofisindeki üst çubuk düğmeleri)
+@app.get("/api/office")
+async def get_office() -> dict:
+    return ofis.ozet()
+
+
+@app.post("/api/office")
+async def set_office(body: OfisEylemi) -> dict:
+    return await ofis.ayarla(body.eylem)
+
+
+# --- ajanlarla sohbet
+@app.get("/api/chat")
+async def chat_status() -> dict:
+    return sohbet.durum()
+
+
+@app.get("/api/chat/{agent_id}")
+async def chat_history(agent_id: str) -> dict:
+    try:
+        mesajlar = sohbet_modulu.gecmis(agent_id)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    return {"mesajlar": mesajlar, "yaziyor": agent_id in sohbet.isleniyor, **sohbet_modulu.motor_bilgisi()}
+
+
+@app.post("/api/chat/{agent_id}")
+async def chat_send(agent_id: str, body: SohbetMesaji) -> dict:
+    try:
+        return await sohbet.gonder(agent_id, body.metin)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@app.post("/api/chat/{agent_id}/clear")
+async def chat_clear(agent_id: str) -> dict:
+    try:
+        sohbet_modulu.temizle(agent_id)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    await bus.broadcast({"type": "chat_clear", "ajan": agent_id})
+    return {"ok": True}
+
+
+# --- günlük özet ve bildirimler
+@app.get("/api/ozet")
+async def get_ozet(tarih: str | None = None) -> dict:
+    if tarih and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", tarih):
+        raise HTTPException(400, "Tarih YYYY-AA-GG biçiminde olmalı.")
+    return await asyncio.to_thread(ozet.ozet_metni, tarih)
+
+
+@app.get("/api/bildirimler")
+async def get_bildirimler() -> dict:
+    return {"ayarlar": gorunur_ayarlar(), "son": son_bildirimler(30)}
+
+
+# --- arka plan (</> kod) çekmecesi: salt okunur
+@app.get("/api/kaynak")
+async def kaynak_liste() -> list[dict]:
+    return kaynak.liste()
+
+
+@app.get("/api/kaynak/dosya")
+async def kaynak_dosya(yol: str) -> dict:
+    try:
+        return kaynak.oku(yol)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(413, str(exc)) from exc
+
+
+@app.get("/api/kaynak/ara")
+async def kaynak_ara(q: str) -> list[dict]:
+    return await asyncio.to_thread(kaynak.ara, q)
 
 
 @app.get("/api/stats")

@@ -1,7 +1,7 @@
 import { AJANLAR, AJAN_SIRASI, para } from '../sabitler.js'
 
 // Maliyet ve istatistik: sayaçlar + ajan başarı oranları (satıra tıkla → karakter kartı)
-export default function Istatistik({ stats, config, onKart }) {
+export default function Istatistik({ stats, config, onKart, onOzet }) {
   if (!stats) return null
   const steps = stats.steps || {}
   return (
@@ -12,6 +12,9 @@ export default function Istatistik({ stats, config, onKart }) {
           video başına ≈ {para(stats.cost_per_video_usd)}
           {config?.mock_mode ? ' · mock modda gerçek harcama $0 (gerçek modda tutacak tahmin)' : ''}
         </span>
+        <button type="button" className="dugme kucuk bolum-dugme" onClick={onOzet}>
+          📄 Günlük özet
+        </button>
       </div>
       <div className="kul-kpi">
         <div className="sayac">
@@ -32,7 +35,9 @@ export default function Istatistik({ stats, config, onKart }) {
         <div className="sayac">
           <div className="s-etiket">Tahmini maliyet</div>
           <div className="s-deger">{para(stats.cost_total_usd)}</div>
-          <div className="s-alt">{stats.failed || 0} başarısız iş</div>
+          <div className="s-alt">
+            {stats.failed || 0} başarısız{stats.cancelled ? ` · ${stats.cancelled} iptal` : ''} iş
+          </div>
         </div>
       </div>
       <div className="kart">

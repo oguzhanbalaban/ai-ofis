@@ -58,11 +58,12 @@ export const STATUS_TR = {
   uploaded: 'Yüklendi',
   failed: 'Başarısız',
   interrupted: 'Yarıda kaldı',
+  cancelled: 'İptal edildi',
 }
 // rozet rengi sınıfı
 export const STATUS_ROZET = {
   queued: '', running: 'r-surer', uploading: 'r-surer', awaiting_approval: 'r-uyari',
-  approved: 'r-tamam', uploaded: 'r-tamam', failed: 'r-hata', interrupted: 'r-hata',
+  approved: 'r-tamam', uploaded: 'r-tamam', failed: 'r-hata', interrupted: 'r-hata', cancelled: 'r-iptal',
 }
 
 export const TTS_OPTIONS = [
@@ -104,16 +105,26 @@ export const TARGETS = [
   ['edit', 'Kurgu & altyazı'],
 ]
 
-// Sahnedeki durum adları (motorla aynı): calis | hata | soru | uyku | bos
-export function ajanDurumu(a, { bagli, onayVar }) {
+// Sahnedeki durum adları (motorla aynı): calis | hata | soru | sohbet | mola | evde | uyku | bos
+// Ofis kapalıyken boştakiler evdedir (asansörle çıkar), duraklatılmışken moladadır; işi süren işini bitirir.
+export function ajanDurumu(a, { bagli, onayVar, ofis }) {
   if (!bagli) return 'uyku'
   if (a?.status === 'WORKING') return 'calis'
   if (a?.status === 'ERROR') return 'hata'
+  if (a?.status === 'CHATTING') return 'sohbet'
   if (onayVar && a?.id === 'publisher') return 'soru'
+  if (ofis === 'kapali') return 'evde'
+  if (ofis === 'duraklatildi') return 'mola'
   return 'bos'
 }
-export const DURUM_ADI = { calis: 'çalışıyor', hata: 'hata verdi', soru: 'onayını bekliyor', uyku: 'bağlantı yok', bos: 'boşta' }
-export const DURUM_RENK = { calis: '#4ade80', hata: '#f87171', soru: '#facc15', uyku: '#64748b', bos: '#94a3b8' }
+export const DURUM_ADI = {
+  calis: 'çalışıyor', hata: 'hata verdi', soru: 'onayını bekliyor', sohbet: 'sohbette', mola: 'molada', evde: 'evde',
+  uyku: 'bağlantı yok', bos: 'boşta',
+}
+export const DURUM_RENK = {
+  calis: '#4ade80', hata: '#f87171', soru: '#facc15', sohbet: '#60a5fa', mola: '#c4b5fd', evde: '#64748b', uyku: '#64748b', bos: '#94a3b8',
+}
+export const OFIS_ADI = { acik: 'açık', duraklatildi: 'duraklatıldı', kapali: 'kapalı' }
 
 // Sahne motoruna giden rol nesnesi
 export function rolNesnesi(meta, ajan, durum) {
@@ -121,7 +132,7 @@ export function rolNesnesi(meta, ajan, durum) {
   return {
     anahtar: meta.id, ad: meta.name, kisa: b.kisa, rol: meta.role, istasyon: meta.station,
     departman: b.departman || 'Ekip', renk: b.renk, durum, metin: ajan?.task || '', isId: ajan?.job_id || null,
-    calisiyor: durum === 'calis', hata: durum === 'hata', onayBekliyor: durum === 'soru',
+    calisiyor: durum === 'calis' || durum === 'sohbet', hata: durum === 'hata', onayBekliyor: durum === 'soru',
   }
 }
 

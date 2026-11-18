@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { portreCiz } from '../office/pikselOfis.js'
 import { AJANLAR, DURUM_ADI, DURUM_RENK, MOTOR_KISA, STATUS_TR, kisaNo, para } from '../sabitler.js'
 import { LogSatiri } from './LogTerminal.jsx'
@@ -43,7 +43,7 @@ function adimDurumu(j, id) {
 const ADIM_ISARET = { done: '✓', failed: '✕', working: '…', pending: '·' }
 
 // Karakter kartı (AI Ekip'teki gibi): portre, durum, istatistik, görevi, motoru, son işleri ve logları
-export function KarakterKarti({ rol, stats, config, jobs, logs, onKapat, onIsAc, onLoglar }) {
+export function KarakterKarti({ rol, stats, config, jobs, logs, onKapat, onIsAc, onLoglar, onSohbet }) {
   const ref = useRef(null)
   useEffect(() => {
     const d = ref.current
@@ -79,6 +79,11 @@ export function KarakterKarti({ rol, stats, config, jobs, logs, onKapat, onIsAc,
                 </span>
                 <span className="kr-cip">kurucu ekip</span>
                 {rol.metin && <span className="kr-cip">{rol.metin}</span>}
+              </div>
+              <div className="kr-eylem">
+                <button type="button" className="dugme kucuk birincil" onClick={() => onSohbet(id)}>
+                  💬 Sohbet et
+                </button>
               </div>
             </div>
             <button className="kapat" type="button" aria-label="Kapat" onClick={onKapat}>
@@ -155,69 +160,5 @@ export function KarakterKarti({ rol, stats, config, jobs, logs, onKapat, onIsAc,
         </div>
       )}
     </dialog>
-  )
-}
-
-// Seçili ajanın sağ altta açılan penceresi (AI Ekip'teki sohbet penceresinin yerinde): ayrıntılar + canlı logları
-export function AjanPenceresi({ rol, stats, jobs, logs, onKapat, onKart, onIsAc }) {
-  const [kucuk, setKucuk] = useState(false)
-  const govde = useRef(null)
-  const id = rol?.anahtar
-  const benimLog = useMemo(() => (id ? logs.filter((l) => l.agent === id).slice(-80) : []), [logs, id])
-  useEffect(() => {
-    if (govde.current) govde.current.scrollTop = govde.current.scrollHeight
-  }, [benimLog.length, id, kucuk])
-  if (!rol) return null
-  const b = AJANLAR[id] || {}
-  const s = (stats?.steps || {})[id]
-  const is =
-    jobs.find((j) => j.id === rol.isId) ||
-    (rol.durum === 'calis' ? jobs.find((j) => j.status === 'running') : rol.durum === 'soru' ? jobs.find((j) => j.status === 'awaiting_approval') : null)
-  return (
-    <div className="sohbetler">
-      <section className={`sohbet${kucuk ? ' kucuk' : ''}`} style={{ '--rol': b.renk }} aria-label={`${rol.ad} penceresi`}>
-        <header className="sb-bas" onClick={() => setKucuk((k) => !k)}>
-          <span className="rol-nokta" />
-          <div className="sb-baslik">
-            <div className="sb-ad">{rol.ad}</div>
-            <div className="sb-durum">{rol.durum === 'calis' && rol.metin ? rol.metin : `${rol.rol} · ${DURUM_ADI[rol.durum] || rol.durum}`}</div>
-          </div>
-          <div className="sb-dugmeler" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="sb-ikon" title="Karakter kartı" onClick={() => onKart(id)}>
-              🪪
-            </button>
-            <button type="button" className="sb-ikon" title={kucuk ? 'Büyüt' : 'Küçült'} onClick={() => setKucuk((k) => !k)}>
-              {kucuk ? '▴' : '▾'}
-            </button>
-            <button type="button" className="sb-ikon" title="Kapat (log filtresini de kaldırır)" onClick={onKapat}>
-              ×
-            </button>
-          </div>
-        </header>
-        <div className="sb-ayrinti">
-          <div className="kk-dep2">
-            {rol.departman} · {rol.istasyon}
-          </div>
-          {is ? (
-            <div className="mb-gorev">
-              <button type="button" className="baglanti" onClick={() => onIsAc(is.id)}>
-                #{kisaNo(is.id)} {is.title || is.topic || 'Konu seçiliyor…'}
-              </button>
-              <span className="soluk"> · {STATUS_TR[is.status] || is.status}</span>
-            </div>
-          ) : (
-            <div className="mb-gorev soluk">Üzerinde iş yok</div>
-          )}
-          <div className="mb-alt">
-            <span>{s ? `${s.success} başarılı · ${s.fail} hatalı` : 'Henüz çalışmadı'}</span>
-            {s?.avg_seconds != null && <span>ort. {s.avg_seconds} sn</span>}
-            <span>log terminali bu ajana süzüldü</span>
-          </div>
-        </div>
-        <div className="sb-govde" ref={govde}>
-          {benimLog.length ? benimLog.map((l) => <LogSatiri key={l.id} log={l} />) : <div className="sb-bos">Bu ajandan henüz log yok.</div>}
-        </div>
-      </section>
-    </div>
   )
 }
