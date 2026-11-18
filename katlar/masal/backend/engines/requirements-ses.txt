@@ -1,0 +1,5 @@
+# Chatterbox Multilingual + faster-whisper seslendirme işçisi (.venv-ses).
+# torch==2.6.0 / torchaudio==2.6.0, yerel-modeller.ps1 tarafından CUDA 12.4 dizininden kurulur.
+chatterbox-tts==0.1.7
+faster-whisper>=1.1
+soundfile

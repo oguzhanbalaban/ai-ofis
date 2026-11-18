@@ -1,0 +1,10 @@
+Bu klasör, GERÇEK modda (MOCK_MODE=false) arka plan müziği olarak kullanılacak
+KENDİ telifsiz müzik dosyalarınız içindir (.mp3, .wav, .ogg, .m4a, .flac).
+
+- Her üretimde buradan rastgele bir dosya seçilir ve video boyunca döngüye alınır.
+- Konuşma sırasında müzik otomatik olarak kısılır (sidechain ducking).
+- Klasör boşsa kodla üretilen sentetik "müzik kutusu" melodisi kullanılır.
+- Mock modda bu klasör kullanılmaz; her zaman sentetik melodi çalınır.
+
+Yalnızca kullanım hakkına sahip olduğunuz (ör. telifsiz / lisanslı) parçaları koyun.
+Bu klasörün içeriği git'e eklenmez.

@@ -1,0 +1,30 @@
+# sırlar
+.env
+backend/.env
+secrets/
+
+# python
+backend/.venv/
+backend/engines/.venv-*/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# üretim çıktıları ve indirilen ses modelleri
+backend/models/
+backend/data/
+backend/data-test/
+
+# node
+frontend/node_modules/
+frontend/dist/
+
+# kullanıcının kendi müzik dosyaları (telif kontrolü kullanıcıda)
+assets/music/*
+!assets/music/BENIOKU.txt
+assets/voices/*
+!assets/voices/BENIOKU.txt
+
+*.log
+# baslat.ps1 gizli sunucu günlükleri ve pid dosyaları
+logs/

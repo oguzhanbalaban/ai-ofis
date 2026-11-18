@@ -1,0 +1,251 @@
+{
+    "surum": 1,
+    "aciklama": "Creativity Office katının kadrosu (AI Ekip Şirketi binası). Creativity Office kadrosu (şablon). ad = İngilizce şirket unvanı, rol_tr = Türkçe karşılığı. Fikir hattı ve yönetim rollerinin araçları ayarlar.json > roller içinde; tasarımcıların ve İK’nın araçları burada (araclar) ya da panelden seçilirse ayarlar.json > roller içinde. İK yeni çalışanları kadro.yerel.json’a ekler. yetki: oku | yaz (korumalı alan) | tam.",
+    "uyeler": [
+        {
+            "anahtar": "lider",
+            "ad": "Creative Director",
+            "departman": "Yönetim",
+            "yerlesik": true,
+            "uzman_isi": false,
+            "yetki": "oku",
+            "renk": "#c2410c",
+            "renk_koyu": "#fb923c",
+            "uzmanlik": "Ofise gelen her işi okur, kimin yapacağına karar verir (fikir hattı, tasarımcılar ya da İK ile işe alım); uzman işlerini planlar ve kabul eder; ekip içi yardım isteklerini dağıtır.",
+            "istem": "istemler\\kadro\\lider.md",
+            "faaliyet_metni": "İşi yönlendiriyor",
+            "rol_tr": "Yaratıcı direktör",
+            "kisa_ad": "Creative Dir"
+        },
+        {
+            "anahtar": "sorun-giderici",
+            "ad": "Incident Manager",
+            "departman": "Yönetim",
+            "yerlesik": true,
+            "uzman_isi": false,
+            "yetki": "oku",
+            "renk": "#a16207",
+            "renk_koyu": "#facc15",
+            "uzmanlik": "Soru sorulmadan takılan işleri izler: nedenini teşhis eder, takılmayı giderebilecek bir çalışan varsa ona iş açar (ör. sistem yöneticisine kurulum), geçici sorunlarda yeniden denetir; ekipte çözebilecek kimse yoksa kullanıcıya ne yapması gerektiğini yazar.",
+            "istem": "istemler\\kadro\\sorun-giderici.md",
+            "faaliyet_metni": "Takılan işi inceliyor",
+            "rol_tr": "Sorun giderici"
+        },
+        {
+            "anahtar": "fikirci",
+            "ad": "Creative Strategist",
+            "departman": "Fikir hattı",
+            "yerlesik": true,
+            "uzman_isi": false,
+            "yetki": "oku",
+            "renk": "#d97706",
+            "renk_koyu": "#fbbf24",
+            "uzmanlik": "Konu ve alan için 2-3 özgün, küçük ve uygulanabilir fikir üretir; kullanıcı sorunu, hedef kitle, fayda ve küçük POC kapsamını yazar.",
+            "istem": "istemler\\kadro\\fikirci.md",
+            "faaliyet_metni": "Fikir üretiyor",
+            "rol_tr": "Fikir üretici",
+            "tanisma": "Merhaba! Ben Creative Strategist. Her konuya üç farklı açıdan bakar, en güçlü fikri gerekçesiyle öne çıkarırım."
+        },
+        {
+            "anahtar": "elestirmen",
+            "ad": "Product Analyst",
+            "departman": "Fikir hattı",
+            "yerlesik": true,
+            "uzman_isi": false,
+            "yetki": "oku",
+            "renk": "#dc2626",
+            "renk_koyu": "#f87171",
+            "uzmanlik": "Fikirleri fizibilite, özgünlük, fayda, veri ihtiyacı ve risk açısından karşılaştırır; birini seçer, en riskli varsayımı ve nasıl sınanacağını yazar.",
+            "istem": "istemler\\kadro\\elestirmen.md",
+            "faaliyet_metni": "Fikirleri eleştiriyor",
+            "rol_tr": "Eleştirmen",
+            "tanisma": "Ben Product Analyst. Fikirleri kanıta göre tartar, riskleri erkenden söylerim."
+        },
+        {
+            "anahtar": "planlamaci",
+            "ad": "Product Manager",
+            "departman": "Fikir hattı",
+            "yerlesik": true,
+            "uzman_isi": false,
+            "yetki": "oku",
+            "renk": "#2563eb",
+            "renk_koyu": "#60a5fa",
+            "uzmanlik": "Seçilen fikri tek küçük POC planına indirir: kapsam, dosyalar, adımlar, test komutları ve test edilebilir kabul ölçütleri.",
+            "istem": "istemler\\kadro\\planlamaci.md",
+            "faaliyet_metni": "POC planı yazıyor",
+            "rol_tr": "POC planlayıcı",
+            "tanisma": "Ben Product Manager. Büyük fikri iki günde sınanabilecek küçük bir POC planına çeviririm."
+        },
+        {
+            "anahtar": "maliyet",
+            "ad": "Cost Analyst",
+            "departman": "Fikir hattı",
+            "yerlesik": true,
+            "uzman_isi": false,
+            "yetki": "oku",
+            "renk": "#059669",
+            "renk_koyu": "#34d399",
+            "uzmanlik": "POC için süre, ajan çağrısı, token, kaynak ve bakım maliyetini varsayımlarıyla hesaplar; belirsizlikleri ve en ucuz doğrulama deneyini yazar.",
+            "istem": "istemler\\kadro\\maliyet.md",
+            "faaliyet_metni": "Maliyet hesaplıyor",
+            "rol_tr": "Maliyet analisti",
+            "tanisma": "Ben Cost Analyst. Her POC’un kaça mal olacağını varsayımlarıyla açıkça hesaplarım."
+        },
+        {
+            "anahtar": "karar-verici",
+            "ad": "Head of Product",
+            "departman": "Fikir hattı",
+            "yerlesik": true,
+            "uzman_isi": false,
+            "yetki": "oku",
+            "renk": "#7c3aed",
+            "renk_koyu": "#a78bfa",
+            "uzmanlik": "Fikir, eleştiri, plan ve maliyeti birlikte inceler: ONAYLA, en fazla üç kez REVIZE ya da REDDET; onaylanan POC’un teslim paketini hazırlar.",
+            "istem": "istemler\\kadro\\karar-verici.md",
+            "faaliyet_metni": "Karar veriyor",
+            "rol_tr": "Karar verici",
+            "tanisma": "Ben Head of Product. Onay, revizyon ya da ret: kararımı gerekçesiyle veririm."
+        },
+        {
+            "anahtar": "puanlayici",
+            "ad": "QA Analyst",
+            "departman": "Fikir hattı",
+            "yerlesik": true,
+            "uzman_isi": false,
+            "yetki": "oku",
+            "renk": "#db2777",
+            "renk_koyu": "#f472b6",
+            "uzmanlik": "AI Ofis’ten (ya da yerel teslimden) dönen çıktıyı onaylı plan ve kabul ölçütleriyle karşılaştırır, kanıtlarıyla 1-10 puanlar.",
+            "istem": "istemler\\kadro\\puanlayici.md",
+            "faaliyet_metni": "Çıktıyı puanlıyor",
+            "rol_tr": "Puanlayıcı",
+            "tanisma": "Ben QA Analyst. Teslim edilen POC’u kabul ölçütlerine göre kanıtla puanlarım."
+        },
+        {
+            "anahtar": "tasarimci-ui",
+            "ad": "UI/UX Designer",
+            "departman": "Tasarım",
+            "uzman_isi": true,
+            "yetki": "yaz",
+            "renk": "#db2777",
+            "renk_koyu": "#f472b6",
+            "uzmanlik": "Web siteleri, mobil ve masaüstü uygulama arayüzleri, panolar; kullanıcı akışı, tel kafes, yüksek doğruluklu ekran tasarımı, tıklanabilir HTML/CSS prototip, tasarım sistemi (renk, tipografi, bileşenler), erişilebilirlik.",
+            "istem": "istemler\\kadro\\tasarimci-ui.md",
+            "faaliyet_metni": "Arayüz tasarlıyor",
+            "araclar": [
+                {
+                    "arac": "claude",
+                    "model": "sonnet"
+                },
+                {
+                    "arac": "codex",
+                    "model": "gpt-6.1-sol",
+                    "efor": "high"
+                }
+            ],
+            "rol_tr": "Arayüz tasarımcısı"
+        },
+        {
+            "anahtar": "tasarimci-grafik",
+            "ad": "Graphic Designer & Illustrator",
+            "departman": "Tasarım",
+            "uzman_isi": true,
+            "yetki": "yaz",
+            "renk": "#b45309",
+            "renk_koyu": "#fbbf24",
+            "uzmanlik": "Oyun karakterleri ve konsept sanatı, illüstrasyon, logo ve marka kimliği, ikon setleri, sprite ve oyun varlıkları, afiş ve sosyal medya görselleri; görsel üretim aracı (raster), SVG (vektör) ve Python/Pillow ile çalışır.",
+            "istem": "istemler\\kadro\\tasarimci-grafik.md",
+            "faaliyet_metni": "Çiziyor",
+            "araclar": [
+                {
+                    "arac": "codex",
+                    "model": "gpt-6.1-sol",
+                    "efor": "high"
+                },
+                {
+                    "arac": "codex",
+                    "model": "gpt-6-astra",
+                    "efor": "high"
+                },
+                {
+                    "arac": "claude",
+                    "model": "sonnet"
+                }
+            ],
+            "rol_tr": "Grafik tasarımcı ve illüstratör"
+        },
+        {
+            "anahtar": "ses-tasarimci",
+            "ad": "Sound Designer",
+            "departman": "Tasarım",
+            "uzman_isi": true,
+            "yetki": "yaz",
+            "renk": "#7B4FA6",
+            "renk_koyu": "#7B4FA6",
+            "uzmanlik": "Oyun projeleri için ses efekti listeleri ve tarifleri, müzik brifleri, ses tasarım belgeleri üretir; Python (wave, numpy, scipy) ile WAV formatında programatik ses efektleri oluşturur.",
+            "istem": "istemler\\kadro\\ses-tasarimci.md",
+            "faaliyet_metni": "Ses efekti tasarlıyor",
+            "araclar": [
+                {
+                    "arac": "codex",
+                    "model": "gpt-6.1-sol",
+                    "efor": "high"
+                },
+                {
+                    "arac": "claude",
+                    "model": "sonnet"
+                }
+            ],
+            "tanisma": "Merhaba, ben Ses ve Müzik Tasarımcısıyım. Oyun projeleriniz için ses efekti tarifleri, müzik brifleri ve ses tasarım belgeleri hazırlıyor; Python ile WAV formatında programatik ses efektleri üretiyorum. Bana bir ses ihtiyacını veya müzik konseptini tanımlayan bir görev atayın, gerekli belge ve dosyaları teslim edeyim.",
+            "rol_tr": "Ses ve müzik tasarımcısı"
+        },
+        {
+            "anahtar": "ik",
+            "ad": "HR Specialist",
+            "departman": "İK ve iletişim",
+            "uzman_isi": true,
+            "yetki": "oku",
+            "renk": "#4d7c0f",
+            "renk_koyu": "#a3e635",
+            "uzmanlik": "Gelen işi yapabilecek çalışan yoksa doğru profili tanımlar, yeni yapay zeka çalışanını işe alır (rolü, talimatı, yetkisi, araçları), ekibe ve lidere tanıtır; mevcut biri yapabiliyorsa onu önerir.",
+            "istem": "istemler\\kadro\\ik.md",
+            "faaliyet_metni": "İşe alım yapıyor",
+            "araclar": [
+                {
+                    "arac": "claude",
+                    "model": "sonnet"
+                },
+                {
+                    "arac": "codex",
+                    "model": "gpt-6.1-sol",
+                    "efor": "high"
+                }
+            ],
+            "rol_tr": "İnsan kaynakları"
+        },
+        {
+            "anahtar": "iletisim",
+            "ad": "Communications Coordinator",
+            "departman": "İK ve iletişim",
+            "uzman_isi": true,
+            "yetki": "yaz",
+            "renk": "#a21caf",
+            "renk_koyu": "#e879f9",
+            "uzmanlik": "Katlar arası iletişimi yürütür: Creative Directorʼın ya da fikir hattının başka bir kata (ana kat, D&A, Masal) giden işini kendi başına anlaşılır bir brife çevirir, dönen sonucu ekibe raporlar; yazışma, rapor ve bildirim işlerini yapar.",
+            "istem": "istemler\\kadro\\iletisim.md",
+            "faaliyet_metni": "Yazışıyor",
+            "araclar": [
+                {
+                    "arac": "claude",
+                    "model": "sonnet"
+                },
+                {
+                    "arac": "codex",
+                    "model": "gpt-6-astra",
+                    "efor": "high"
+                }
+            ],
+            "rol_tr": "Haberleşme ve koordinasyon"
+        }
+    ]
+}

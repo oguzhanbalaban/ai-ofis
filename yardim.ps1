@@ -146,12 +146,13 @@ function Yardim-Yonlendir($G) {
         ISTEK = $istek; KADRO = (Kadro-Metni); ARACLAR = (Arac-Durumu-Metni); DURUM = (Yardim-Durum-Metni $G)
         GOREV = (Kirp (Gorev-Metni $G) 5000); ONCEKI = ($onceki -join "`n`n"); ZINCIR_KURALI = $zincir
     }
+    if (-not $zincirSiniri) { $istem += (Kat-Secenegi-Metni 'yardim' $G) }
     $r = Ajan-Cagir -Rol 'lider' -Istem $istem -Klasor $gk -KayitKlasoru (Kayit-Klasoru $G) -Etiket 'yardim'
     if (-not $r.basarili) { Adim-Basarisiz $G "Engineering Manager yardım isteğini değerlendiremedi: $($r.hata)"; return }
     Metin-Yaz (Join-Path $gk "yardim-karar-$n.md") (("# Engineering Managerʼın kararı · yardım isteği {0} · {1} · {2}/{3}" -f $n, (Get-Date).ToString('dd.MM.yyyy HH:mm'), $r.arac, $r.model) + "`n`n" + $r.metin)
     Ayarla $G 'lider' ('{0}/{1}' -f $r.arac, $r.model)
     $karar = Karar-Oku $r.metin
-    if ($zincirSiniri -and ($karar -eq 'ATA' -or $karar -eq 'ISE_ALIM')) { $karar = 'YANIT' }
+    if ($zincirSiniri -and ($karar -eq 'ATA' -or $karar -eq 'ISE_ALIM' -or $karar -eq 'KAT')) { $karar = 'YANIT' }
     $isteyen = Rol-Ad ([string]$G.yardim_isteyen)
     $neden = "$isteyen istedi: $($G.yardim_istek)"
     Ayarla $G 'yardim_karari' $karar
@@ -195,6 +196,11 @@ function Yardim-Yonlendir($G) {
         'YANIT' {
             $y = Bolum-Oku $r.metin 'Yanıt'; if (-not $y) { $y = Bolum-Oku $r.metin 'İş' }; if (-not $y) { $y = Kirp $r.metin 2000 }
             Yardim-Yanitla $G $y $donus $r 'Engineering Manager yanıtladı'
+        }
+        'KAT' {
+            # Yardımı şirketin başka bir katı karşılayacak (iletisim.ps1): Comms iletir, isteyen sonuç gelince kaldığı aşamadan sürer
+            $h = Kat-Kararini-Uygula $G $r 'yardim' $donus
+            if ($h) { Yardim-Yanitla $G ("Yardım başka bir kattan istenemedi: $h`n`nElinden gelen kısmı yap ya da başka bir yol dene.") $donus $r 'yardım başka kata iletilemedi' }
         }
         default {
             Metin-Yaz (Join-Path $gk 'yardim-karar-gecersiz.md') $r.metin
@@ -268,10 +274,12 @@ function Yardim-Bekleyenleri-Kontrol {
     $liste = @(Gorevleri-Listele)
     $dizin = @{}; foreach ($x in $liste) { $dizin[[string]$x.id] = $x }
     foreach ($g in $liste) {
-        if ([string]$g.asama -ne 'yardim_bekliyor') { continue }
+        if ([string]$g.asama -ne 'yardim_bekliyor' -and [string]$g.asama -ne 'kat_bekliyor') { continue }
         $bitti = $true
         $sonuclar = @()
         foreach ($id in @($g.yardim_bekleyen | Where-Object { $_ })) {
+            # "@<yazışma>": başka bir kattan beklenen iş / yardım (iletisim.ps1)
+            if (([string]$id).StartsWith('@')) { $ks = Kat-Bekleyen-Sonucu ([string]$id); if ($ks) { $sonuclar += $ks } else { $bitti = $false }; continue }
             $y = $dizin[[string]$id]
             if (-not $y) { $sonuclar += [pscustomobject]@{ id = [string]$id; baslik = ''; durum = 'bulunamadı'; metin = 'Yardım işi bulunamadı.' }; continue }
             switch ([string]$y.asama) {
@@ -286,6 +294,7 @@ function Yardim-Bekleyenleri-Kontrol {
             }
         }
         if (-not $bitti) { continue }
+        if ([string]$g.asama -eq 'kat_bekliyor') { Kat-Isi-Sonuclandir $g $sonuclar; continue }
         foreach ($s in $sonuclar) { Yardim-Sonucu-Ekle $g ('Yardım işi #{0} {1}: {2}' -f (No-Kisa $s.id), $s.durum, $s.baslik) $s.metin }
         $donus = Yardim-Donus-Asamasi $g
         Ayarla $g 'yardim_bekleyen' @()

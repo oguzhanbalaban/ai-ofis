@@ -29,7 +29,7 @@ function Posta-Oku([int]$Adet = 20, [string]$Klasor = $env:TEMP) {
     if (-not $a) { return [pscustomobject]@{ basarili = $false; iletiler = @(); hata = 'E-posta hesabı kurulmamış (eposta-kur.ps1).' } }
     $py = Python-Exe
     if (-not $py) { return [pscustomobject]@{ basarili = $false; iletiler = @(); hata = 'Python bulunamadı.' } }
-    $betik = Join-Path $Kok 'araclar\posta_oku.py'
+    $betik = Join-Path $KodKok 'araclar\posta_oku.py'
     $cik = Join-Path $Klasor ('posta-{0}.json' -f [Guid]::NewGuid().ToString('N'))
     $err = "$cik.err"
     $env:EKIP_POSTA_ADRES = [string]$a.adres

@@ -108,6 +108,8 @@ function Etkin-Asama($G) {
     return $d
 }
 function Gorev-Asamaya-Tasi($G, [string]$Hedef, [string]$Not = '') {
+    # Fikir hattı işleri kendi aşamalarına taşınır (yaratici.ps1)
+    if ([string]$G.tip -eq 'yaratici') { return (Yaratici-Asamaya-Tasi $G $Hedef $Not) }
     if ($TasimaHedefleri -notcontains $Hedef) { throw "Bu aşamaya taşınamaz: $Hedef" }
     $tip = [string]$G.tip; if (-not $tip) { $tip = 'yazilim' }
     $simdiki = [string]$G.asama
@@ -514,6 +516,11 @@ function Sorun-Gider($G) {
             }
             'AKTAR' {
                 $tur = (Deger-Temizle (Alan-Oku $r.metin 'TUR')).ToLowerInvariant()
+                if ([string]$G.tip -eq 'yaratici') {
+                    # Fikir hattı işi başka akışa aktarılmaz (belgeler, revizyonlar ve ana kata teslim bu akışa bağlı)
+                    Cozum-Kullaniciya $G ("Incident Manager bu fikir hattı işini '$tur' akışına aktarmak istedi; fikir hattı işleri aktarılmaz. " + $teshis) $teshis $r
+                    break
+                }
                 if (@('altyapi', 'uzman') -notcontains $tur -or $tur -eq [string]$G.tip) {
                     Cozum-Kullaniciya $G ("Incident Manager işi başka bir ekibe aktarmak istedi ama hedef geçersiz ('$tur'). " + $teshis) $teshis $r
                     break

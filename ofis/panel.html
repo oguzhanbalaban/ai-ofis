@@ -716,7 +716,7 @@ dialog.diyalog.karakter { width:min(880px, calc(100vw - 32px)); overflow:hidden;
 <header class="ust">
   <div class="marka">
     <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#1f2328"/><circle cx="9" cy="17" r="4" fill="#fb923c"/><circle cx="16" cy="13" r="4" fill="#7aa7ff"/><circle cx="23" cy="17" r="4" fill="#4fd1a1"/><rect x="5" y="22" width="22" height="3" rx="1.5" fill="#b4875a"/></svg>
-    <div><h1>AI Ekip Ofisi</h1><div class="alt" id="altBaslik">Bağlanıyor…</div></div>
+    <div><h1 id="ofisAd">AI Ekip Ofisi</h1><div class="alt" id="altBaslik">Bağlanıyor…</div></div>
   </div>
   <div class="saglik" id="saglik" role="status"><span class="nokta"></span><span id="saglikMetni">Bağlanıyor…</span></div>
   <div class="eylemler">
@@ -904,8 +904,11 @@ const GLIF_KUM = ['####', ' ## ', ' ## ', '####'];
 const VARSAYILAN_RENK = { lider: '#c2410c', gelistirici: '#2563eb', denetci: '#0e8459', sistem: '#7c3aed', ag: '#0e7490' };
 const rolRengi = r => (/^#[0-9a-f]{6}$/i.test(r.renk || '') ? r.renk : VARSAYILAN_RENK[r.anahtar]) || '#64748b';
 const KISA_AD = { lider: 'Eng Manager', 'sorun-giderici': 'Incident Mgr', tester: 'QA', mimar: 'Architect', gelistirici: 'Developer', denetci: 'Reviewer', sistem: 'SysAdmin', ag: 'Network Eng', guvenlik: 'Security',
-  'tasarimci-ui': 'UI/UX', 'tasarimci-grafik': 'Graphic', ik: 'HR', iletisim: 'Comms', 'ses-tasarimci': 'Sound' };
-const kisaAd = r => KISA_AD[r.anahtar] || String(r.ad || r.anahtar).split(/\s+/)[0].slice(0, 14);
+  'tasarimci-ui': 'UI/UX', 'tasarimci-grafik': 'Graphic', ik: 'HR', iletisim: 'Comms', 'ses-tasarimci': 'Sound',
+  'ds-gelistirici': 'DS ETL Dev', 'universe-gelistirici': 'Universe Dev', 'webi-gelistirici': 'WebI Dev', analist: 'BI Analyst',
+  fikirci: 'Strategist', elestirmen: 'Analyst', planlamaci: 'Product Mgr', maliyet: 'Cost Analyst', 'karar-verici': 'Head of Product', puanlayici: 'QA Analyst' };
+// Kadroda kisa_ad varsa o (katlar aynı rol anahtarına farklı unvan verebilir: D&A'da lider = D&A Manager)
+const kisaAd = r => r.kisa_ad || KISA_AD[r.anahtar] || String(r.ad || r.anahtar).split(/\s+/)[0].slice(0, 14);
 function aracRengi(a) {
   a = String(a || '');
   if (a.startsWith('claude')) return '#e8875b';
@@ -2142,6 +2145,27 @@ return {
 <script nonce="__NONCE__">
 'use strict';
 const ANAHTAR = '__OFIS_ANAHTARI__';
+// Şirket binası: bu panel hangi katın (sunucu /kat/<id>/ ile verirken yazar; doğrudan açılırsa ana kat)
+const KAT = '__OFIS_KATI__'.startsWith('__') ? 'ana' : '__OFIS_KATI__';
+// Katın yöneticisinin unvanı (ana katta Engineering Manager; D&A'da Data and Analytics Manager...): metinlerde kendiliğinden uyarlanır
+let EM_AD = 'Engineering Manager';
+const unvan = s => (EM_AD === 'Engineering Manager' || typeof s !== 'string') ? s : s.split('Engineering Manager').join(EM_AD);
+function statikUnvan() {
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = w.nextNode(); n; n = w.nextNode()) if (n.nodeValue.includes('Engineering Manager')) n.nodeValue = unvan(n.nodeValue);
+  for (const el of document.querySelectorAll('[title*="Engineering Manager"], [placeholder*="Engineering Manager"], [aria-label*="Engineering Manager"]'))
+    for (const a of ['title', 'placeholder', 'aria-label']) if (el.hasAttribute(a)) el.setAttribute(a, unvan(el.getAttribute(a)));
+}
+function katBasligi(v) {
+  const k = v && v.kat; if (!k) return;
+  const l = (v.roller || []).find(r => r.anahtar === 'lider');
+  if (l && l.ad && l.ad !== EM_AD) { EM_AD = l.ad; statikUnvan(); }
+  const ad = k.ad || 'AI Ekip Ofisi';
+  if ($('#ofisAd').textContent !== ad) $('#ofisAd').textContent = ad;
+  const baslik = k.kat_sayisi > 1 ? `${ad} · ${k.sirket || 'AI Ekip Şirketi'}` : ad;
+  if (document.title !== baslik) document.title = baslik;
+  if (/^#[0-9a-fA-F]{6}$/.test(k.renk || '')) document.documentElement.style.setProperty('--kat-renk', k.renk);
+}
 const ONIZLEME = '__ONIZLEME_ANAHTARI__';
 const FAALIYET_ADI = { analiz: 'Analiz', plan: 'Plan', gelistirme: 'Geliştirme', kontrol: 'Kontrol', test: 'Test', denetim: 'Denetim', kabul: 'Kabul', bosta: 'Boşta', bekliyor: 'Bekliyor', soru: 'Soru sordu',
   kesif: 'Keşif', yonetim: 'Yönetim', uygulama: 'Uygulama', dogrulama: 'Doğrulama', calisma: 'Çalışıyor', inceleme: 'İnceleme', ise_alim: 'İşe alım', cozum: 'Sorun inceleme' };
@@ -2153,7 +2177,9 @@ const koyuMu = () => window.matchMedia && window.matchMedia('(prefers-color-sche
 const ASAMA_ADI = { yeni: 'Sırada', analiz: 'Gereksinimler netleşiyor', kesif: 'Kod tabanı taranıyor', plan: 'Planlanıyor', gelistirme: 'Geliştiriliyor',
   kontrol: 'Kontrol ediliyor', test: 'Test ediliyor', denetim: 'Denetleniyor', kabul: 'Engineering Manager onayında',
   tamamla: 'Commit ediliyor', tamam: 'Tamamlandı', takildi: 'Takıldı', bekliyor_kullanici: 'Senden yanıt bekliyor', iptal: 'İptal',
-  yardim: 'Engineering Managerʼda (yardım isteği)', yardim_bekliyor: 'Ekipten yardım bekliyor' };
+  yardim: 'Engineering Managerʼda (yardım isteği)', yardim_bekliyor: 'Ekipten yardım bekliyor', kat_bekliyor: 'Başka katta yapılıyor (Comms)',
+  fikir: 'Fikir üretiliyor', elestiri: 'Eleştiriliyor', poc_plan: 'POC planlanıyor', maliyet: 'Maliyet hesaplanıyor', karar: 'Karar bekliyor', teslim: 'Teslim hazırlanıyor',
+  bekleme: 'Ana ofiste uygulanıyor', puanlama: 'Puanlanıyor', reddedildi: 'Reddedildi' };
 const AKTIF_ASAMALAR = ['yeni', 'analiz', 'kesif', 'plan', 'gelistirme', 'kontrol', 'test', 'denetim', 'kabul', 'tamamla', 'yardim'];
 const DOSYA_ADI = {
   'gelistirici-ozet.md': 'Geliştirici özeti', 'danisman-rapor.md': 'Danışman raporu', 'kontrol.md': 'Otomatik kontrol', 'test.md': 'QA test raporu', 'denetim.md': 'Code Reviewer raporu', 'kabul.md': 'Engineering Manager kararı',
@@ -2175,12 +2201,12 @@ function E(etiket, ozellik, ...cocuklar) {
   if (ozellik) for (const [k, v] of Object.entries(ozellik)) {
     if (v === undefined || v === null || v === false) continue;
     if (k === 'class') el.className = v;
-    else if (k === 'text') el.textContent = v;
+    else if (k === 'text') el.textContent = unvan(v);
     else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
     else if (k === 'dataset') Object.assign(el.dataset, v);
-    else el.setAttribute(k, v === true ? '' : v);
+    else el.setAttribute(k, v === true ? '' : unvan(v));
   }
-  for (const c of cocuklar.flat()) { if (c === null || c === undefined || c === false) continue; el.append(c instanceof Node ? c : String(c)); }
+  for (const c of cocuklar.flat()) { if (c === null || c === undefined || c === false) continue; el.append(c instanceof Node ? c : unvan(String(c))); }
   return el;
 }
 const iki = n => String(n).padStart(2, '0');
@@ -2208,7 +2234,7 @@ const noKisa = id => (id || '').split('-')[0];
 
 // ---------------------------------------------------------------- API
 async function api(yol, govde) {
-  const ayar = { headers: { 'X-Ofis-Anahtar': ANAHTAR }, cache: 'no-store' };
+  const ayar = { headers: { 'X-Ofis-Anahtar': ANAHTAR, 'X-Ofis-Kat': KAT }, cache: 'no-store' };
   if (govde !== undefined) { ayar.method = 'POST'; ayar.headers['Content-Type'] = 'application/json'; ayar.body = JSON.stringify(govde); }
   const r = await fetch(yol, ayar);
   if (r.status === 401) { oturumYenile(); throw new Error('Oturum yenileniyor'); }
@@ -3100,7 +3126,9 @@ function gorevKarti(g) {
   if (g.cozuluyor) rozetler.push(E('span', { class: 'gk-rozet calisiyor', text: 'Incident Mgr bakıyor' }));
   if (Number(g.oncelik) === 1 && !['tamam', 'iptal'].includes(g.asama)) rozetler.push(E('span', { class: 'gk-rozet acil', text: 'acil' }));
   if (g.asama === 'bekliyor_kullanici' || (g.asama === 'takildi' && g.cozum_durumu === 'kullanici')) rozetler.push(E('span', { class: 'gk-rozet soru', text: 'seni bekliyor' }));
-  if (g.asama === 'yardim_bekliyor' && (g.yardim_bekleyen || []).length) rozetler.push(E('span', { class: 'gk-rozet cozum', text: 'bekliyor: ' + g.yardim_bekleyen.map(x => '#' + noKisa(x)).join(', ') }));
+  if (g.asama === 'yardim_bekliyor' && (g.yardim_bekleyen || []).length) rozetler.push(E('span', { class: 'gk-rozet cozum', text: 'bekliyor: ' + g.yardim_bekleyen.map(x => String(x).startsWith('@') ? '✉ başka kat' : '#' + noKisa(x)).join(', ') }));
+  if (g.asama === 'kat_bekliyor') rozetler.push(E('span', { class: 'gk-rozet cozum', text: '✉ başka katta', title: 'Comms bu işi şirketin başka bir katına iletti; sonuç gelince iş kapanır' }));
+  if (g.kaynak_kat) rozetler.push(E('span', { class: 'gk-rozet', text: '📨 ' + katAdi(g.kaynak_kat), title: `Bu iş ${katAdi(g.kaynak_kat)} katından Comms aracılığıyla geldi (#${noKisa(g.kaynak_gorev || '')})` }));
   if (g.asama === 'takildi' && g.cozum_durumu === 'yardim_bekleniyor' && g.yardim_gorevi) rozetler.push(E('span', { class: 'gk-rozet cozum', text: 'bekliyor: #' + noKisa(g.yardim_gorevi) }));
   if (g.ana_gorev) rozetler.push(E('span', { class: 'gk-rozet cozum', text: `#${noKisa(g.ana_gorev)} için`, title: 'Başka bir işe yardım için açıldı' }));
   if (g.asama === 'tamamla') rozetler.push(E('span', { class: 'gk-rozet calisiyor', text: 'commit' }));
@@ -3340,7 +3368,10 @@ async function yenile() {
   try {
     const v = await api('/api/durum');
     veri = v; hataSayisi = 0; baglantiVar = true; sonVeriZamani = Date.now();
+    katBasligi(v);
     ciz(v);
+    // Bina kabuğundan (kat yazışması) gelen #gorev=<no> bağlantısı: ilk veride o görevi aç
+    if (!window.__gorevHashBakildi) { window.__gorevHashBakildi = true; const m = /(?:^|[#&])gorev=([A-Za-z0-9-]+)/.exec(location.hash); if (m && (v.gorevler || []).some(x => x.id === m[1])) gorevAc(m[1]); }
   } catch (e) {
     hataSayisi++;
     if (hataSayisi >= 2 && baglantiVar) { baglantiVar = false; if (veri) uyarilariCiz(veri); else uyarilariCiz({ dongu: {}, gorevler: [] }); $('#saglik').className = 'saglik hata'; $('#saglikMetni').textContent = 'Panel bağlantısı yok'; }
@@ -3819,6 +3850,7 @@ function cekmeceCiz() {
   if ((d.cozumler || []).length) sekmeler.push(['cozum', `Incident Manager (${d.cozumler.length})`]);
   const yardimSayisi = (d.yardimlar || []).filter(y => /^yardim-istek-/.test(y.ad)).length;
   if ((d.yardimlar || []).length) sekmeler.push(['yardimlar', `Ekip içi yardım (${yardimSayisi})`]);
+  if ((d.kat_yazismalari || []).length) sekmeler.push(['kat', `Kat yazışması (${d.kat_yazismalari.length})`]);
   sekmeler.push(['turlar', `Turlar (${d.turlar.length})`]);
   if (altyapi || uzman || danismanKlasor) {
     const teslim = (d.ciktilar || []).filter(f => f.yol.startsWith('cikti/')).length;
@@ -3831,7 +3863,7 @@ function cekmeceCiz() {
     onclick: () => { cekmece.sekme = k; cekmeceCiz(); } }, ad, k === 'soru' && g.asama === 'bekliyor_kullanici' ? E('span', { class: 'sekme-isaret' }) : null)));
   const ic = $('#ckIcerik');
   ic.replaceChildren(...({ ozet: ozetSekmesi, gorev: () => [md(d.gorev_md || '(gorev.md boş)')], plan: planSekmesi, soru: soruSekmesi, turlar: turlarSekmesi, diff: diffSekmesi,
-    ciktilar: ciktilarSekmesi, sonuc: () => [md(d.sonuc_md)],
+    ciktilar: ciktilarSekmesi, sonuc: () => [md(d.sonuc_md)], kat: () => katYazismaSekmesi(d),
     yonlendirme: () => [E('div', { class: 'soluk', text: '"İş ver" ile gelen işi Engineering Manager okudu ve kime vereceğine karar verdi. Ham çıktı:' }), md(d.yonlendirme_md)],
     cozum: () => d.cozumler.slice().reverse().flatMap((c, i) => [i ? E('hr', { class: 'ayrac' }) : null, md(c.md)].filter(Boolean)),
     yardimlar: () => [E('div', { class: 'soluk', text: 'Çalışanların iş sırasında Engineering Managerʼdan istediği yardımlar, Engineering Managerʼın kararları ve gelen sonuçlar (en yenisi üstte).' }),
@@ -3839,6 +3871,24 @@ function cekmeceCiz() {
     gereksinim: () => [E('div', { class: 'soluk', text: 'Product Manager talebi teknik ekibe gitmeden önce netleştirdi. Kabul ölçütleri (Definition of Done) her adımda ekibe gider; QA Engineer, Code Reviewer ve Engineering Manager bunlara göre onaylar.' }), md(d.gereksinimler_md)],
     kesif: () => [E('div', { class: 'soluk', text: altyapi ? 'Talep başındaki durum; her turun güncel keşfi Turlar sekmesinde.' : 'Codebase Explorer plandan önce depoyu salt okunur taradı; rapor Engineering Managerʼa ve geliştiricilere gitti.' }), md(d.kesif_md || '(henüz keşif yapılmadı)')] }[cekmece.sekme])(d, g));
   ic.scrollTop = 0;
+}
+// ---------------------------------------------------------------- şirket binası: katlar arası yazışmalar (Comms)
+const YZ_DURUM = { gonderildi: 'hedef katta sırada', calisiyor: 'hedef katta çalışılıyor', takildi: 'hedef katta takıldı', tamamlandi: 'tamamlandı', basarisiz: 'tamamlanamadı', iptal: 'iptal', beklemede: 'hedef kat kapalı; açılınca teslim edilecek' };
+function katAdi(id) { const y = ((veri && veri.yazismalar) || []).find(x => x.kaynak_kat === id || x.hedef_kat === id); if (y) return y.kaynak_kat === id ? y.kaynak_ofis : y.hedef_ofis; return id === 'ana' ? 'AI Ekip Ofisi' : id; }
+function katYazismaSekmesi(d) {
+  return (d.kat_yazismalari || []).flatMap((y, i) => {
+    const disari = y.kaynak_kat === KAT;
+    const parca = [i ? E('hr', { class: 'ayrac' }) : null,
+      E('h3', { text: `${y.kaynak_ofis} → ${y.hedef_ofis}` }),
+      E('div', { class: 'kutu' }, `${disari ? 'Giden' : 'Gelen'} ${y.tur === 'yardim' ? 'yardım isteği' : y.tur === 'poc' ? 'POC teslimi' : 'iş'} · durum: ${YZ_DURUM[y.durum] || y.durum}`,
+        y.hedef_gorev ? ` · hedef: ${y.hedef_tur === 'uygulama' ? 'uygulama işi ' : '#'}${y.hedef_tur === 'uygulama' ? y.hedef_gorev : noKisa(y.hedef_gorev)}` : '',
+        ` · ileten: ${y.gonderen || 'Comms'} → teslim alan: ${y.alan || 'Comms'}`),
+      E('h4', { text: 'Brif' }), md(y.brif || '(boş)')];
+    if ((y.kabul || []).length) parca.push(E('h4', { text: 'Kabul' }), E('ul', null, y.kabul.map(k => E('li', { text: k }))));
+    if (y.sonuc && (y.sonuc.rapor || y.sonuc.ham)) parca.push(E('h4', { text: 'Dönen sonuç (Comms raporu)' }), md(y.sonuc.rapor || y.sonuc.ham));
+    parca.push(E('h4', { text: 'Akış' }), E('ul', null, (y.gecmis || []).map(o => E('li', { text: `${tarihSaat(o.zaman)} · ${o.olay}${o.kim ? ' (' + o.kim + ')' : ''}` }))));
+    return parca.filter(Boolean);
+  });
 }
 function ozetSekmesi(d, g) {
   const parca = [];
@@ -3860,8 +3910,10 @@ function ozetSekmesi(d, g) {
   if (g.ana_gorev) parca.push(E('div', { class: 'kutu' }, 'Bu bir yardım işi: ', sgBaglanti(g.ana_gorev), ' için açıldı; bitince o iş sonucuyla kendiliğinden sürer.'));
   // Ekip içi yardım
   if (g.asama === 'yardim') parca.push(E('div', { class: 'kutu' }, `🙋 ${rolAdi(g.yardim_isteyen)} iş sırasında yardım istedi: ${g.yardim_istek || ''} Engineering Manager kimin yapacağına karar veriyor; sonra iş "${ASAMA_ADI[g.yardim_donus_asama] || g.yardim_donus_asama}" aşamasından sürer.`));
+  if (g.asama === 'kat_bekliyor') parca.push(E('div', { class: 'kutu' }, '✉ Bu iş şirketin başka bir katında yapılıyor: Comms (Communications Coordinator) brifi o kata iletti, sonucu getirip bu işi kapatacak. Ayrıntı: Kat yazışması sekmesi.'));
+  if (g.kaynak_kat) parca.push(E('div', { class: 'kutu' }, `📨 Bu iş ${katAdi(g.kaynak_kat)} katından Comms aracılığıyla geldi (#${noKisa(g.kaynak_gorev || '')}). Bitince sonucu o katın Communications Coordinatorʼı alıp ekibine raporlar.`));
   if (g.asama === 'yardim_bekliyor') parca.push(E('div', { class: 'kutu' }, `⏳ ${rolAdi(g.yardim_isteyen) || 'Ekip'} için yardım bekleniyor: `,
-    ...(g.yardim_bekleyen || []).flatMap((x, i) => [i ? ', ' : '', sgBaglanti(x)]), `. Bitince iş "${ASAMA_ADI[g.yardim_donus_asama] || g.yardim_donus_asama}" aşamasından, gelen sonuçla sürer.`));
+    ...(g.yardim_bekleyen || []).flatMap((x, i) => [i ? ', ' : '', String(x).startsWith('@') ? 'başka kat (Comms)' : sgBaglanti(x)]), `. Bitince iş "${ASAMA_ADI[g.yardim_donus_asama] || g.yardim_donus_asama}" aşamasından, gelen sonuçla sürer.`));
   const satir = (dt, dd) => dd ? [E('dt', { text: dt }), E('dd', {}, dd)] : [];
   const altyapi = d.tip === 'altyapi', uzman = d.tip === 'uzman';
   // Görevde araç kullanan her çalışan (durum.json'da rol anahtarı = "arac/model")
@@ -3911,7 +3963,7 @@ function ozetSekmesi(d, g) {
   })));
   return parca;
 }
-const onizleUrl = (id, yol) => `/onizle/${ONIZLEME}/${encodeURIComponent(id)}/` + yol.split('/').map(encodeURIComponent).join('/');
+const onizleUrl = (id, yol) => `/onizle/${ONIZLEME}/${KAT !== 'ana' ? '@' + KAT + '/' : ''}${encodeURIComponent(id)}/` + yol.split('/').map(encodeURIComponent).join('/');
 const boyutMetni = b => b < 1024 ? `${b} B` : b < 1048576 ? `${Math.ceil(b / 1024)} KB` : `${(b / 1048576).toFixed(1)} MB`;
 const RESIM = /^\.(png|jpe?g|gif|webp|svg|bmp|ico)$/;
 const METIN = /^\.(txt|json|css|js|py|ps1|csv|log|xml|ya?ml|sql|cmd|bat|sh|ts|tsx|jsx|cs|java|ini|cfg)$/;

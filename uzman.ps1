@@ -78,7 +78,7 @@ function Kadro-Anahtar-Coz([string]$Metin) {
 }
 function Rol-Talimati($Uye) {
     $t = ''
-    if ($Uye -and $Uye.istem) { $t = Metin-Oku (Join-Path $Kok ([string]$Uye.istem)) }
+    if ($Uye -and $Uye.istem) { $t = Metin-Oku (Kok-Dosyasi ([string]$Uye.istem)) }
     if (-not $t -and $Uye) { $t = [string]$Uye.uzmanlik }
     return $t
 }

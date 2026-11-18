@@ -3,15 +3,46 @@ ortak.ps1 - AI Ekip ortak işlevleri (diğer betikler dot-source eder: . "$PSScr
 Windows PowerShell 5.1 uyumludur. Dosya UTF-8 BOM ile kaydedilmelidir (Türkçe karakterler için).
 #>
 $ErrorActionPreference = 'Stop'
-$script:Kok        = $PSScriptRoot
-. (Join-Path $PSScriptRoot 'yapilandirma.ps1')
 $script:Utf8       = New-Object Text.UTF8Encoding $false
+# ---------------------------------------------------------------- şirket binası (katlar)
+# Kod tek (bu klasör); her kat (ofis) kendi veri klasöründe çalışır: kadro.json, ayarlar.json, projeler.json, gorevler, durum, calisma...
+# Kat AIEKIP_KAT ortam değişkeninden okunur (boşsa 'ana' = AI Ekip Ofisi, verisi bu klasörde). Katlar katlar.json'da tanımlıdır.
+$script:KodKok = $PSScriptRoot
+# Dağıtılan JSON şablonları değişmez; kişisel ayarlar *.yerel.json'da (kod kökü ve katlar için)
+. (Join-Path $PSScriptRoot 'yapilandirma.ps1')
+function Katlar-Oku {
+    $liste = @()
+    $y = Join-Path $script:KodKok 'katlar.json'
+    if ([IO.File]::Exists($y)) {
+        try { $j = [IO.File]::ReadAllText($y, $script:Utf8) | ConvertFrom-Json; $liste = @($j.katlar | Where-Object { $_ -and ([string]$_.id) -match '^[a-z0-9][a-z0-9-]{0,30}$' }) } catch {}
+    }
+    if (-not @($liste | Where-Object { [string]$_.id -eq 'ana' }).Count) {
+        $liste = @([pscustomobject]@{ id = 'ana'; ad = 'AI Ekip Ofisi'; kisa_ad = 'AI Ekip'; kat_no = 0; tur = 'ekip'; kok = '' }) + $liste
+    }
+    return $liste
+}
+function Kat-Bul([string]$Id) { foreach ($k in @(Katlar-Oku)) { if ([string]$k.id -eq $Id) { return $k } }; return $null }
+function Kat-Koku($K) {
+    if (-not $K -or [string]$K.id -eq 'ana' -or -not ([string]$K.kok).Trim()) { return $script:KodKok }
+    $y = ([string]$K.kok).Trim()
+    if (-not [IO.Path]::IsPathRooted($y)) { $y = Join-Path $script:KodKok $y }
+    return [IO.Path]::GetFullPath($y)
+}
+$script:KatKimligi = ([string]$env:AIEKIP_KAT).Trim().ToLowerInvariant()
+if (-not $script:KatKimligi) { $script:KatKimligi = 'ana' }
+$script:Kat = Kat-Bul $script:KatKimligi
+if (-not $script:Kat) { throw "Bilinmeyen kat: '$($script:KatKimligi)' (katlar.json)" }
+if ($script:KatKimligi -ne 'ana' -and [string]$script:Kat.tur -and [string]$script:Kat.tur -ne 'ekip') { throw "'$($script:KatKimligi)' katı bir ekip katı değil (tur: $($script:Kat.tur)); ekip motoru çalışmaz" }
+$script:Kok        = Kat-Koku $script:Kat
+if (-not [IO.Directory]::Exists($script:Kok)) { [void][IO.Directory]::CreateDirectory($script:Kok) }
 $script:YolGorev   = Join-Path $Kok 'gorevler'
 $script:YolDurum   = Join-Path $Kok 'durum'
 $script:YolGunluk  = Join-Path $Kok 'gunluk'
 $script:YolRapor   = Join-Path $Kok 'raporlar'
 $script:YolCalisma = Join-Path $Kok 'calisma'
-$script:YolIstem   = Join-Path $Kok 'istemler'
+# İstem şablonları kodla gelir (istemler); bir kat aynı adlı dosyayı kendi istemler klasörüne koyarak değiştirebilir
+$script:YolIstem   = Join-Path $KodKok 'istemler'
+$script:YolKatIstem = Join-Path $Kok 'istemler'
 foreach ($d in @($YolGorev, $YolDurum, $YolGunluk, $YolRapor, $YolCalisma)) {
     if (-not (Test-Path -LiteralPath $d)) { New-Item -ItemType Directory -Force $d | Out-Null }
 }
@@ -87,6 +118,76 @@ function Slug([string]$s) {
     return $t
 }
 function Q([string]$s) { '"' + $s + '"' }
+# Katın kendi dosyası varsa o, yoksa kodla gelen (ör. kadro istemleri: istemler\kadro\x.md)
+function Kok-Dosyasi([string]$Goreli) {
+    if (-not $Goreli) { return '' }
+    if ([IO.Path]::IsPathRooted($Goreli)) { return $Goreli }
+    $k = Join-Path $Kok $Goreli
+    if ($Kok -ne $KodKok -and -not (Test-Path -LiteralPath $k)) { return (Join-Path $KodKok $Goreli) }
+    return $k
+}
+# Kodla gelen istemler ana katın unvanlarını kullanır; alt katta kadro unvanları farklıysa ajanın istemi çevrilir (Ajan-Cagir)
+$script:VarsayilanUnvanlar = [ordered]@{ lider = 'Engineering Manager'; 'sorun-giderici' = 'Incident Manager'; gelistirici = 'Full-Stack Developer'; denetci = 'Code Reviewer'
+    sistem = 'System Administrator'; ag = 'Network Engineer'; tester = 'QA Engineer'; mimar = 'Solution Architect'; guvenlik = 'Security Engineer' }
+function Unvan-Uyarla([string]$Metin) {
+    if ($KatKimligi -eq 'ana' -or -not $Metin) { return $Metin }
+    $k = Json-Oku (Join-Path $Kok 'kadro.json')
+    $es = New-Object 'Collections.Generic.Dictionary[string,string]'
+    foreach ($a in $VarsayilanUnvanlar.Keys) {
+        $u = ''; foreach ($x in @($k.uyeler)) { if ($x -and [string]$x.anahtar -eq $a -and $x.ad) { $u = [string]$x.ad } }
+        $v = [string]$VarsayilanUnvanlar[$a]
+        if (-not $u -or $u -eq $v) { continue }
+        $es[$v] = $u; $es[$v.ToUpperInvariant()] = $u.ToUpperInvariant()
+        # Katın kendi unvanı (ör. "BI QA Engineer" içinde "QA Engineer") yeniden çevrilmesin: kendisine eşlenir, uzun olan önce denenir
+        $es[$u] = $u; $es[$u.ToUpperInvariant()] = $u.ToUpperInvariant()
+    }
+    if (-not @($es.Keys | Where-Object { $es[$_] -cne $_ }).Count) { return $Metin }
+    $desen = (@($es.Keys | Sort-Object { $_.Length } -Descending | ForEach-Object { [regex]::Escape($_) }) -join '|')
+    $h = $es
+    return [regex]::Replace($Metin, $desen, [Text.RegularExpressions.MatchEvaluator]{ param($m) $h[$m.Value] }.GetNewClosure())
+}
+function Ofis-Adi { if ($script:Kat -and $script:Kat.ad) { return [string]$script:Kat.ad }; return 'AI Ekip' }
+# Adlandırılmış kilitler / görev kimlikleri katlar arasında karışmasın: ana katta boş, diğerlerinde "_<kat>"
+function Kat-Soneki { if ($script:KatKimligi -eq 'ana') { return '' }; return '_' + ($script:KatKimligi -replace '[^a-z0-9]', '_') }
+# Kat kapalı mı: DURDUR dosyası "Ofis kapatıldı" ile başlıyorsa (panel / Ofis Kontrol böyle yazar). Yalnız duraklatma kapalı sayılmaz.
+function Kat-Kapali-mi([string]$KatKoku = '') {
+    if (-not $KatKoku) { $KatKoku = $Kok }
+    $d = Join-Path $KatKoku 'DURDUR'
+    if (-not (Test-Path -LiteralPath $d)) { return $false }
+    return ((Metin-Oku $d).TrimStart([char]0xFEFF).StartsWith('Ofis kapatıldı'))
+}
+function Kat-Dongu-Kilidi([string]$Id) { if ($Id -eq 'ana') { return 'Local\AIEkipDongusu' }; return 'Local\AIEkipDongusu_' + ($Id -replace '[^a-z0-9]', '_') }
+function Kat-Dongusu-Calisiyor-mu([string]$Id) {
+    $m = $null
+    if ([Threading.Mutex]::TryOpenExisting((Kat-Dongu-Kilidi $Id), [ref]$m)) { $m.Dispose(); return $true }
+    return $false
+}
+function Kat-Dongusu-Baslat([string]$Id) {
+    $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $arg = '--headless "{0}" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{1}"' -f $ps, (Join-Path $KodKok 'baslat.ps1')
+    $eski = $env:AIEKIP_KAT; $env:AIEKIP_KAT = $Id
+    try { Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\conhost.exe') -ArgumentList $arg -WorkingDirectory $KodKok -WindowStyle Hidden | Out-Null }
+    finally { $env:AIEKIP_KAT = $eski }
+}
+# Bina bekçisi (ana katın baslat.ps1'i her bekçi tetiğinde çağırır): açık alt katların döngüsü yoksa ya da kalbi durmuşsa başlatır;
+# donmuş döngüyü o katın baslat.ps1'i (kalp yaşına bakarak) kendisi sonlandırır.
+function Bina-Bekcisi {
+    foreach ($k in @(Katlar-Oku)) {
+        $id = [string]$k.id
+        if ($id -eq 'ana' -or ([string]$k.tur -and [string]$k.tur -ne 'ekip')) { continue }
+        $kk = Kat-Koku $k
+        if (-not (Test-Path -LiteralPath (Join-Path $kk 'ayarlar.json'))) { continue }
+        if (Kat-Kapali-mi $kk) { continue }
+        $calisiyor = Kat-Dongusu-Calisiyor-mu $id
+        if ($calisiyor) {
+            $kalp = Json-Oku (Join-Path $kk 'durum\kalp.json')
+            $yas = 9999; try { $yas = ((Get-Date) - [datetime]$kalp.zaman).TotalMinutes } catch {}
+            if ($yas -lt [double]$Ayar.dongu.bekci_dk) { continue }
+        }
+        Gunluk "Bina bekçisi: $($k.ad) katının döngüsü başlatılıyor"
+        try { Kat-Dongusu-Baslat $id } catch { Gunluk "Bina bekçisi: $id başlatılamadı: $($_.Exception.Message)" 'UYARI' }
+    }
+}
 
 # ---------------------------------------------------------------- günlük
 function Gunluk([string]$Mesaj, [string]$Seviye = 'BILGI') {
@@ -100,6 +201,12 @@ function Gunluk([string]$Mesaj, [string]$Seviye = 'BILGI') {
 function Ayarlari-Yukle {
     $a = Json-Oku (Join-Path $Kok 'ayarlar.json')
     if (-not $a) { throw 'ayarlar.json okunamadı' }
+    # Alt katlar ana katın ayarlarını miras alır: katın dosyasında olmayan üst düzey bloklar (ör. paralel, puanlama, model_katalogu)
+    # ana kattan gelir. Rol isteyen katmanlar (Product Manager, CTO, Outsource Consultant...) kadroda o çalışan yoksa zaten çalışmaz.
+    if ($Kok -ne $KodKok) {
+        $ana = Json-Oku (Join-Path $KodKok 'ayarlar.json')
+        if ($ana) { foreach ($p in $ana.PSObject.Properties) { if (-not $a.PSObject.Properties[$p.Name]) { $a | Add-Member -NotePropertyName $p.Name -NotePropertyValue $p.Value } } }
+    }
     $script:Ayar = $a
 }
 function Projeleri-Yukle {
@@ -253,7 +360,9 @@ function Git-Dosyaya([string]$Klasor, [string]$ArgMetni, [string]$Dosya) {
 
 # ---------------------------------------------------------------- şablon doldurma
 function Sablon-Doldur([string]$SablonAdi, [hashtable]$Degerler) {
-    $s = Metin-Oku (Join-Path $YolIstem $SablonAdi)
+    $s = ''
+    if ($YolKatIstem -ne $YolIstem) { $s = Metin-Oku (Join-Path $YolKatIstem $SablonAdi) }
+    if (-not $s) { $s = Metin-Oku (Join-Path $YolIstem $SablonAdi) }
     if (-not $s) { throw "İstem şablonu bulunamadı: $SablonAdi" }
     $d = $Degerler
     $deg = [Text.RegularExpressions.MatchEvaluator]{
@@ -721,6 +830,8 @@ function Yardim-Uygun-mu([string]$Rol, [string]$Etiket) {
     $a = $Ayar.yardimlasma
     if (-not $a -or -not $a.etkin) { return $false }
     if ($Rol -eq 'sorun-giderici') { return $false }
+    # Fikir hattı adımları (yaratici.ps1) belge üretir; yardım isteği ancak ayarlar.json > yaratici.yardimlasma açıksa
+    if ($YaraticiEtiketler -contains $Etiket -and -not ($Ayar.yaratici -and $Ayar.yaratici.yardimlasma)) { return $false }
     # Product Manager (analiz) ve Codebase Explorer (kesif) salt okunur rapor yazar; yardım istemez
     if (@('yardim', 'cozum', 'yonlendirme', 'ise_alim', 'kategori', 'analiz', 'kesif', 'danisman') -contains $Etiket -or $Etiket -like 'sohbet*' -or $Etiket -like 'birlikte-*') { return $false }
     if ($Rol -eq 'lider' -and $Etiket -ne 'kabul') { return $false }   # Engineering Manager planda ön işleri "YARDIM:" satırlarıyla ister
@@ -840,6 +951,7 @@ function Ajan-Cagir {
     $kimAdi = $Rol; if ($kisi -ne $Rol) { $kimAdi = "$kisi ($Rol yerine)" }
     $puanIstemi = Puan-Istem-Metni $Rol $Etiket
     if ($puanIstemi) { $Istem += $puanIstemi }
+    $Istem = (Unvan-Uyarla $Istem).Replace('{KAT_KOKU}', $Kok).Replace('{OFIS_KOKU}', $KodKok)
     $notlar = @()
     $gorevId = [string]$script:AktifGorev
     $iptalHata = 'görev kullanıcı tarafından iptal edildi'
@@ -948,9 +1060,13 @@ function Bildir {
         $satir = [ordered]@{ zaman = (Simdi); baslik = $Baslik; metin = $Metin; onem = $Onem } | ConvertTo-Json -Compress
         [IO.File]::AppendAllText((Join-Path $YolDurum 'bildirimler.jsonl'), $satir + "`n", $Utf8)
     } catch {}
-    if ($Ayar.bildirim.masaustu) { Toast-Goster $Baslik $Metin }
+    # Katlar aynı bildirim kanalını paylaşır: masaüstünde / telefonda hangi kattan geldiği görünsün (bildirim.telefon.baslik_on_eki ya da katın kısa adı)
+    $onEk = ''; try { $onEk = [string]$Ayar.bildirim.telefon.baslik_on_eki } catch {}
+    if (-not $onEk -and $script:KatKimligi -ne 'ana' -and $script:Kat) { $kisa = [string]$script:Kat.kisa_ad; if (-not $kisa) { $kisa = [string]$script:Kat.ad }; if ($kisa) { $onEk = "$kisa · " } }
+    $disBaslik = $Baslik; if ($onEk -and -not $Baslik.StartsWith($onEk)) { $disBaslik = $onEk + $Baslik }
+    if ($Ayar.bildirim.masaustu) { Toast-Goster $disBaslik $Metin }
     $tel = $Ayar.bildirim.telefon
-    if ($tel -and $tel.kanal -eq 'ntfy' -and $tel.ntfy_konu) { Ntfy-Gonder $Baslik $Metin $Onem }
+    if ($tel -and $tel.kanal -eq 'ntfy' -and $tel.ntfy_konu) { Ntfy-Gonder $disBaslik $Metin $Onem }
 }
 
 # ---------------------------------------------------------------- görev kayıtları
@@ -994,7 +1110,7 @@ function Gorev-Elle-Tasindi-mi($D) {
 # ---------------------------------------------------------------- görev kilidi
 # Ana döngü (ekip.ps1 > Gorev-Ilerlet) ve paralel hatlar (paralel.ps1) bir işi yürütürken adlandırılmış mutex tutar; aynı işi iki
 # süreç aynı anda yürütmez. Süreç ölürse kilit kendiliğinden bırakılır. Kilit aynı iş parçacığında yeniden alınabilir.
-function Gorev-Kilit-Adi([string]$Id) { 'Local\AIEkipGorev_' + ($Id -replace '[^A-Za-z0-9-]', '_') }
+function Gorev-Kilit-Adi([string]$Id) { 'Local\AIEkipGorev' + (Kat-Soneki) + '_' + ($Id -replace '[^A-Za-z0-9-]', '_') }
 function Gorev-Kilidi-Al([string]$Id) {
     $m = New-Object Threading.Mutex($false, (Gorev-Kilit-Adi $Id))
     $al = $false
@@ -1032,5 +1148,11 @@ $script:AsamaAdlari = @{
     kontrol = 'Kontrol ediliyor'; test = 'Test ediliyor'; denetim = 'Denetleniyor'; kabul = 'Engineering Manager onayında'; tamamla = 'Commit ediliyor'; tamam = 'Tamamlandı'
     takildi = 'Takıldı'; bekliyor_kullanici = 'Senden yanıt bekliyor'; iptal = 'İptal'
     yardim = 'Engineering Managerʼda (yardım isteği)'; yardim_bekliyor = 'Ekipten yardım bekliyor'
+    kat_bekliyor = 'Başka katta yapılıyor (Comms)'
+    # Fikir hattı (tip = yaratici; yaratici.ps1)
+    fikir = 'Fikir üretiliyor'; elestiri = 'Eleştiriliyor'; poc_plan = 'POC planlanıyor'; maliyet = 'Maliyet hesaplanıyor'
+    karar = 'Karar bekliyor'; teslim = 'Teslim hazırlanıyor'; bekleme = 'Ana ofiste uygulanıyor'; puanlama = 'Puanlanıyor'; reddedildi = 'Reddedildi'
 }
+# Fikir hattı ajan adımlarının etiketleri (Ajan-Cagir -Etiket); panel bunları aşamaya eşler
+$script:YaraticiEtiketler = @('fikirci', 'elestirmen', 'planlamaci', 'maliyet', 'karar-verici', 'teslim', 'puanlayici')
 function Asama-Adi([string]$A) { if ($AsamaAdlari.ContainsKey($A)) { return $AsamaAdlari[$A] }; return $A }

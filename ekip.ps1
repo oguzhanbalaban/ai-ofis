@@ -16,7 +16,8 @@ Görev yaşam döngüsü (gorevler\<id>\durum.json -> asama). Engineering Manage
 #>
 
 # 'yardim': ekip içi yardım isteğini Engineering Manager değerlendiriyor (yardim.ps1). 'yardim_bekliyor' etkin değildir (yardım işleri sürüyor).
-$script:AktifAsamalar = @('yeni', 'analiz', 'kesif', 'plan', 'gelistirme', 'kontrol', 'test', 'denetim', 'kabul', 'tamamla', 'yardim')
+# Fikir hattı (tip yaratici, yaratici.ps1) aşamaları da etkindir; yalnızca fikir hattı olan katta bu aşamada iş bulunur
+$script:AktifAsamalar = @('fikir', 'elestiri', 'poc_plan', 'maliyet', 'karar', 'teslim', 'bekleme', 'puanlama') + @('yeni', 'analiz', 'kesif', 'plan', 'gelistirme', 'kontrol', 'test', 'denetim', 'kabul', 'tamamla', 'yardim')
 # Sunucu / kurulum talepleri (tip = altyapi): System Administrator + Network Engineer rolleri
 . (Join-Path $PSScriptRoot 'altyapi.ps1')
 # Kadro, uzman işleri (tip = uzman), İK işe alımı, e-posta: uzman.ps1 (+ posta.ps1)
@@ -35,6 +36,10 @@ $script:AktifAsamalar = @('yeni', 'analiz', 'kesif', 'plan', 'gelistirme', 'kont
 . (Join-Path $PSScriptRoot 'yonetim.ps1')
 # Outsource Consultant: tek parça işler terminal yetkili Claude Codeʼa (tip = danisman)
 . (Join-Path $PSScriptRoot 'danisman.ps1')
+# Şirket binası: katlar arası iletişim (Comms; KARAR: KAT, sirket\yazismalar)
+. (Join-Path $PSScriptRoot 'iletisim.ps1')
+# Fikir hattı (tip = yaratici; Creativity Office katı) ve ana kata POC köprüsü (kopru.ps1)
+. (Join-Path $PSScriptRoot 'yaratici.ps1')
 
 # ---------------------------------------------------------------- yardımcılar
 function Tur-Klasoru($G) {
@@ -511,6 +516,7 @@ function Gorev-Ilerlet-Adim($G) {
         elseif ($G.tip -eq 'uzman') { Uzman-Adim $G }
         elseif ($G.tip -eq 'danisman') { Danisman-Adim $G }
         elseif ($G.tip -eq 'genel') { Genel-Adim $G }
+        elseif ($G.tip -eq 'yaratici') { Yaratici-Adim $G }   # fikir hattı (yaratici.ps1)
         else { switch ($G.asama) {
             'yeni'       { Adim-Hazirla $G }
             'kesif'      { Adim-Kesif $G }
@@ -594,7 +600,7 @@ function Mesaide-mi {
     return ($an -ge $b -or $an -lt $e)
 }
 function Betik-Damgasi {
-    $f = Get-ChildItem -LiteralPath $Kok -Filter '*.ps1' | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+    $f = Get-ChildItem -LiteralPath $KodKok -Filter '*.ps1' | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
     return $f.LastWriteTimeUtc.Ticks
 }
 function Bekle([int]$Sn) {
@@ -613,11 +619,11 @@ function Bekle([int]$Sn) {
 }
 function Ekip-Durumu-Kisa {
     $parca = @()
-    foreach ($rol in @('cto', 'lider', 'gelistirici', 'denetci', 'sistem', 'ag', 'sorun-giderici')) {
+    foreach ($rol in @('cto', 'lider', 'gelistirici', 'denetci', 'sistem', 'ag', 'fikirci', 'elestirmen', 'planlamaci', 'maliyet', 'karar-verici', 'puanlayici', 'sorun-giderici')) {
         if (-not $Ayar.roller.$rol) { continue }
         $ilk = $null
         foreach ($g in @($Ayar.roller.$rol)) { if (-not (Arac-Uygun $g)) { $ilk = $g; break } }
-        $ad = $rol; if ($rol -eq 'lider') { $ad = 'Engineering Manager' } elseif ($rol -eq 'cto') { $ad = 'CTO' }
+        $ad = $rol; if ($rol -eq 'lider') { $ad = Calisan-Adi 'lider' } elseif ($rol -eq 'cto') { $ad = 'CTO' }
         if ($ilk) { $parca += ('{0}: {1}' -f $ad, $ilk.arac) } else { $parca += "${ad}: YOK" }
     }
     return ($parca -join ', ')
@@ -628,9 +634,9 @@ function Ekip-Dongusu {
     param([int]$AdimSiniri = 0, [switch]$BosBitir)
     $damga = Betik-Damgasi
     Ayarlari-Yukle
-    Gunluk "=== AI Ekip döngüsü başladı (PID $PID) ==="
+    Gunluk "=== $(Ofis-Adi) döngüsü başladı (PID $PID, kat: $KatKimligi) ==="
     $sirada = @(Gorevleri-Listele | Where-Object { $AktifAsamalar -contains $_.asama }).Count
-    Bildir -Baslik 'AI Ekip mesaiye başladı' -Metin ('Sırada {0} görev var. Ekip: {1}' -f $sirada, (Ekip-Durumu-Kisa)) -Anahtar 'mesai' -AralikDk 240
+    Bildir -Baslik "$(Ofis-Adi) mesaiye başladı" -Metin ('Sırada {0} görev var. Ekip: {1}' -f $sirada, (Ekip-Durumu-Kisa)) -Anahtar 'mesai' -AralikDk 240
     Rapor-Uret
     $adim = 0
     $hataSayisi = 0
@@ -642,6 +648,8 @@ function Ekip-Dongusu {
             Kalp 'döngü'
             if ((Betik-Damgasi) -ne $damga) { Gunluk 'Betikler güncellendi; döngü yeni sürümle yeniden yükleniyor'; return 'yeniden' }
             if (Test-Path (Join-Path $Kok 'DURDUR')) {
+                # Alt katlar kapatılınca döngü çıkar; kat yeniden açılınca panel ya da bina bekçisi (ana katın baslat.ps1'i) başlatır
+                if ($KatKimligi -ne 'ana' -and (Kat-Kapali-mi)) { Gunluk 'Kat kapatıldı; döngü çıkıyor'; return 'kapandi' }
                 if (-not $durdurGunlendi) { Gunluk 'DURDUR dosyası var; ekip bekliyor'; $durdurGunlendi = $true }
                 Kalp 'durduruldu'
                 if ($BosBitir) { return 'bitti' }
@@ -654,7 +662,9 @@ function Ekip-Dongusu {
             Bekleyenleri-Kontrol
             # Incident Manager: biten yardım işlerinin takılan işlerini sürdür, incelenmemiş takılma varsa önce onu incele
             Yardim-Gorevleri-Kontrol
-            # Ekip içi yardım: yardım işleri biten görevler kaldıkları aşamadan sürer (yardim.ps1)
+            # Katlar arası yazışmalar: başka katlara giden işlerin durumu (iletisim.ps1); hata döngüyü durdurmaz
+            try { Kat-Yazismalari-Senkron } catch { Gunluk "Kat yazışmaları izlenemedi: $($_.Exception.Message)" 'UYARI' }
+            # Ekip içi yardım: yardım işleri biten görevler kaldıkları aşamadan sürer (yardim.ps1); başka kattan dönenler de
             Yardim-Bekleyenleri-Kontrol
             $tg = Cozulecek-Gorev
             if ($tg) {
@@ -691,7 +701,7 @@ function Ekip-Dongusu {
             $mesaj = $_.Exception.Message
             Gunluk ('Döngü hatası ({0}. ardışık): {1} @ {2}' -f $hataSayisi, $mesaj, ($_.InvocationInfo.PositionMessage -replace '\s+', ' ')) 'HATA'
             if ($hataSayisi -ge 5) {
-                try { Bildir -Baslik 'AI Ekip hata veriyor' -Metin ("Döngü üst üste {0} kez hata verdi: {1}" -f $hataSayisi, (Kisalt $mesaj 150)) -Anahtar 'dongu-hata' -Onem 'yuksek' -AralikDk 120 } catch {}
+                try { Bildir -Baslik "$(Ofis-Adi) hata veriyor" -Metin ("Döngü üst üste {0} kez hata verdi: {1}" -f $hataSayisi, (Kisalt $mesaj 150)) -Anahtar 'dongu-hata' -Onem 'yuksek' -AralikDk 120 } catch {}
             }
             Start-Sleep -Seconds ([Math]::Min(600, 30 * $hataSayisi))
         }

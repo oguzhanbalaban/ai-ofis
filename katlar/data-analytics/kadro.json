@@ -1,0 +1,325 @@
+{
+    "surum": 1,
+    "aciklama": "Data and Analytics Office katının kadrosu (AI Ekip Şirketi binası). Data and Analytics Office kadrosu. ad = İngilizce şirket unvanı, rol_tr = Türkçe karşılığı. Yerleşik rollerin (lider = Data and Analytics Manager, sorun-giderici, gelistirici, denetci, sistem, ag) araçları ayarlar.json > roller içinde; diğerlerinin araçları burada (araclar) ya da panelden seçilirse ayarlar.json > roller içinde. İK yeni çalışanları bu dosyaya ekler. yetki: oku | yaz (korumalı alan) | tam (sandbox'sız).",
+    "uyeler": [
+        {
+            "anahtar": "lider",
+            "ad": "Data and Analytics Manager",
+            "departman": "Yönetim",
+            "yerlesik": true,
+            "uzman_isi": false,
+            "yetki": "oku",
+            "uzmanlik": "Gelen her veri ve analitik işini alır, kimin yapacağına karar verir (ETL, universe, WebI raporu, veri modeli, analiz, platform/veritabanı ya da kod işi); çok adımlı BI işlerini (kaynak → ETL → DWH → universe → rapor) ön işlere böler, planlar ve son kabul/ret kararını verir; gerektiğinde İK'dan işe alım ister.",
+            "rol_tr": "Veri ve analitik yöneticisi",
+            "kisa_ad": "D&A Manager"
+        },
+        {
+            "anahtar": "sorun-giderici",
+            "ad": "Incident Manager",
+            "departman": "Yönetim",
+            "yerlesik": true,
+            "uzman_isi": false,
+            "yetki": "oku",
+            "renk": "#a16207",
+            "renk_koyu": "#facc15",
+            "uzmanlik": "Soru sorulmadan takılan işleri izler: nedenini teşhis eder (kapalı VM, ayağa kalkmamış CMS/Job Server, bağlantı, yetki, araç sınırı), takılmayı giderebilecek bir çalışan varsa ona iş açar, geçici sorunlarda yeniden denetir; ekipte çözebilecek kimse yoksa kullanıcıya ne yapması gerektiğini yazar.",
+            "istem": "istemler\\kadro\\sorun-giderici.md",
+            "faaliyet_metni": "Takılan işi inceliyor",
+            "rol_tr": "Sorun giderici",
+            "kisa_ad": "Incident Mgr"
+        },
+        {
+            "anahtar": "mimar",
+            "ad": "Data Architect",
+            "departman": "Yönetim",
+            "uzman_isi": true,
+            "yetki": "yaz",
+            "renk": "#475569",
+            "renk_koyu": "#a7b4c6",
+            "uzmanlik": "Veri ambarı ve veri pazarı mimarisi, boyutsal modelleme (yıldız/kar tanesi şema, olgu ve boyut tabloları, SCD tipleri), kaynak-hedef eşleme (source-to-target mapping), adlandırma standartları, DDL, katmanlar (staging, DWH, mart), mimari karar kayıtları (ADR); ETL ve universe tasarımlarının mimari incelemesi.",
+            "istem": "istemler\\kadro\\mimar.md",
+            "faaliyet_metni": "Veri modelini tasarlıyor",
+            "araclar": [
+                {
+                    "arac": "claude",
+                    "model": "opus"
+                },
+                {
+                    "arac": "codex",
+                    "model": "gpt-6.1-sol",
+                    "efor": "high"
+                }
+            ],
+            "rol_tr": "Veri mimarı",
+            "kisa_ad": "Data Architect"
+        },
+        {
+            "anahtar": "ds-gelistirici",
+            "ad": "SAP Data Services ETL Developer",
+            "departman": "Veri Entegrasyonu",
+            "uzman_isi": true,
+            "yetki": "tam",
+            "renk": "#0369a1",
+            "renk_koyu": "#38bdf8",
+            "uzmanlik": "SAP Data Services 4.3 ile ETL geliştirir: datastore'lar, iş (job), iş akışı (workflow), veri akışı (dataflow), Query/Merge/Case/Table Comparison/History Preserving/Key Generation dönüşümleri, değişkenler ve parametreler, artımlı yükleme ve SCD. Nesneleri DS-SRV'deki yerel repository'de (DS_REPO) oluşturur; ATL/XML dışa-içe aktarır, işleri Job Server'da çalıştırır, günlükleri ve satır sayılarını doğrular.",
+            "istem": "istemler\\kadro\\ds-gelistirici.md",
+            "faaliyet_metni": "ETL işini geliştiriyor",
+            "araclar": [
+                {
+                    "arac": "claude",
+                    "model": "claude-opus-5-5"
+                },
+                {
+                    "arac": "claude",
+                    "model": "sonnet"
+                },
+                {
+                    "arac": "codex",
+                    "model": "gpt-6.1-sol",
+                    "efor": "high"
+                }
+            ],
+            "rol_tr": "ETL geliştiricisi (Data Services)",
+            "kisa_ad": "DS ETL Dev"
+        },
+        {
+            "anahtar": "gelistirici",
+            "ad": "Analytics Engineer",
+            "departman": "Veri Entegrasyonu",
+            "yerlesik": true,
+            "uzman_isi": false,
+            "yetki": "yaz",
+            "uzmanlik": "Git deposundaki işleri yapar: SQL (DDL, görünümler, saklı yordamlar, veri doğrulama sorguları), Python/PowerShell otomasyonları, BI araçları ve betikleri, ETL/universe/rapor tanımlarının kod olarak tutulduğu dosyalar (görevin git dalında).",
+            "rol_tr": "Analitik mühendisi",
+            "kisa_ad": "Analytics Eng"
+        },
+        {
+            "anahtar": "universe-gelistirici",
+            "ad": "BusinessObjects Universe Developer",
+            "departman": "BI Geliştirme",
+            "uzman_isi": true,
+            "yetki": "tam",
+            "renk": "#7c3aed",
+            "renk_koyu": "#a78bfa",
+            "uzmanlik": "SAP BusinessObjects semantik katmanı: ilişkisel bağlantılar (.cnx; SQL Server, SAP IQ, ODBC/JDBC), veri temeli (.dfx: tablolar, birleştirmeler, kardinalite, türetilmiş tablolar, bağlamlar, döngü/fan trap/chasm trap çözümü), iş katmanı (.blx: klasörler, boyutlar, ölçüler, öznitelikler, LOV, filtreler, navigasyon yolları) ve UNX evrenlerini CMS'e yayımlama; Information Design Tool ve SL SDK (Java) ile çalışır, evren güvenlik profillerini uygular.",
+            "istem": "istemler\\kadro\\universe-gelistirici.md",
+            "faaliyet_metni": "Universe tasarlıyor",
+            "araclar": [
+                {
+                    "arac": "claude",
+                    "model": "claude-opus-5-5"
+                },
+                {
+                    "arac": "claude",
+                    "model": "sonnet"
+                },
+                {
+                    "arac": "codex",
+                    "model": "gpt-6.1-sol",
+                    "efor": "high"
+                }
+            ],
+            "rol_tr": "Universe (UNX) geliştiricisi",
+            "kisa_ad": "Universe Dev"
+        },
+        {
+            "anahtar": "webi-gelistirici",
+            "ad": "Web Intelligence Report Developer",
+            "departman": "BI Geliştirme",
+            "uzman_isi": true,
+            "yetki": "tam",
+            "renk": "#be185d",
+            "renk_koyu": "#f472b6",
+            "uzmanlik": "SAP BusinessObjects Web Intelligence raporları: UNX evreni üzerinden sorgular (sonuç nesneleri, filtreler, istemler), rapor sekmeleri, tablolar, çapraz tablolar, grafikler, değişkenler ve formüller, kesitler/bölümler, girdi kontrolleri, koşullu biçim; BI RESTful (raylight) API ile belge oluşturur, yeniler, kaydeder, dışa aktarır (xlsx/pdf); zamanlama ve yayın.",
+            "istem": "istemler\\kadro\\webi-gelistirici.md",
+            "faaliyet_metni": "WebI raporu hazırlıyor",
+            "araclar": [
+                {
+                    "arac": "claude",
+                    "model": "claude-opus-5-5"
+                },
+                {
+                    "arac": "claude",
+                    "model": "sonnet"
+                },
+                {
+                    "arac": "codex",
+                    "model": "gpt-6.1-sol",
+                    "efor": "high"
+                }
+            ],
+            "rol_tr": "WebI rapor geliştiricisi",
+            "kisa_ad": "WebI Dev"
+        },
+        {
+            "anahtar": "analist",
+            "ad": "Business Intelligence Analyst",
+            "departman": "BI Geliştirme",
+            "uzman_isi": true,
+            "yetki": "yaz",
+            "renk": "#0f766e",
+            "renk_koyu": "#5eead4",
+            "uzmanlik": "İş gereksinimlerini rapor ve veri gereksinimine çevirir: KPI ve ölçü tanımları (formül, tane, filtre), rapor taslağı (mockup) ve rapor şartnamesi, veri sözlüğü, kaynak sistem analizi, kabul ölçütleri; mevcut raporları ve verileri analiz edip bulgu raporu yazar.",
+            "istem": "istemler\\kadro\\analist.md",
+            "faaliyet_metni": "Gereksinimi analiz ediyor",
+            "araclar": [
+                {
+                    "arac": "claude",
+                    "model": "sonnet"
+                },
+                {
+                    "arac": "claude",
+                    "model": "opus"
+                },
+                {
+                    "arac": "codex",
+                    "model": "gpt-6.1-sol",
+                    "efor": "high"
+                }
+            ],
+            "rol_tr": "İş zekâsı analisti",
+            "kisa_ad": "BI Analyst"
+        },
+        {
+            "anahtar": "denetci",
+            "ad": "BI Technical Lead",
+            "departman": "Kalite ve İnceleme",
+            "yerlesik": true,
+            "uzman_isi": false,
+            "yetki": "oku",
+            "uzmanlik": "Git deposundaki işlerde (SQL, betik, araç, tanım dosyaları) bağımsız teknik inceleme yapar.",
+            "rol_tr": "BI teknik lideri",
+            "kisa_ad": "BI Tech Lead"
+        },
+        {
+            "anahtar": "tester",
+            "ad": "BI QA Engineer",
+            "departman": "Kalite ve İnceleme",
+            "uzman_isi": true,
+            "yetki": "tam",
+            "renk": "#0d9488",
+            "renk_koyu": "#2dd4bf",
+            "uzmanlik": "BI teslimlerini bağımsız test eder: ETL sonrası veri doğrulama (kaynak-hedef satır sayısı ve toplam mutabakatı, anahtar tekilliği, boş/yetim kayıt, SCD geçmişi), universe bütünlük kontrolü ve nesne SQL'lerinin doğruluğu, WebI rapor sayılarının doğrudan SQL ile karşılaştırılması, istem/filtre davranışı, performans; kanıtlı test raporu yazar.",
+            "istem": "istemler\\kadro\\tester.md",
+            "faaliyet_metni": "Veriyi doğruluyor",
+            "araclar": [
+                {
+                    "arac": "claude",
+                    "model": "sonnet"
+                },
+                {
+                    "arac": "claude",
+                    "model": "opus"
+                },
+                {
+                    "arac": "codex",
+                    "model": "gpt-6.1-sol",
+                    "efor": "high"
+                }
+            ],
+            "rol_tr": "BI test ve veri kalitesi uzmanı",
+            "kisa_ad": "BI QA"
+        },
+        {
+            "anahtar": "sistem",
+            "ad": "SAP Basis Administrator",
+            "departman": "Platform ve Veritabanı",
+            "yerlesik": true,
+            "uzman_isi": false,
+            "yetki": "tam",
+            "uzmanlik": "SAP BO BI 2025 ve IPS/Data Services 4.3 platformu: VM'ler, servisler (SIA, CMS, Tomcat, Job Server, Access Server), CMC ayarları, sunucu grupları, yama/kurulum, istemci araçları, repository kaydı, sertifika ve sistem sağlığı (sunucu/kurulum talepleri).",
+            "rol_tr": "SAP Basis yöneticisi",
+            "kisa_ad": "SAP Basis"
+        },
+        {
+            "anahtar": "ag",
+            "ad": "Database Administrator",
+            "departman": "Platform ve Veritabanı",
+            "yerlesik": true,
+            "uzman_isi": false,
+            "yetki": "tam",
+            "uzmanlik": "SQL Server 2022 ve SAP IQ 16.2 veritabanları: veritabanı/şema/kullanıcı/yetki oluşturma, yedekleme, performans ve dizin, ODBC/JDBC sürücüleri ve DSN'ler, BO/DS bağlantıları, portlar, konuk güvenlik duvarı ve makineler arası bağlantı (sunucu/kurulum talepleri).",
+            "rol_tr": "Veritabanı yöneticisi",
+            "kisa_ad": "DBA"
+        },
+        {
+            "anahtar": "guvenlik",
+            "ad": "BI Security Administrator",
+            "departman": "Platform ve Veritabanı",
+            "uzman_isi": true,
+            "yetki": "tam",
+            "renk": "#b91c1c",
+            "renk_koyu": "#f87171",
+            "uzmanlik": "BusinessObjects güvenlik modeli: kullanıcı ve gruplar, erişim seviyeleri, klasör/evren/bağlantı hakları, evren güvenlik profilleri (veri ve iş katmanı profilleri, satır düzeyinde güvenlik), Data Services kullanıcı ve repository hakları, denetim (audit) raporları; yetki matrisi hazırlar ve uygular, güvenlik incelemesi yapar.",
+            "istem": "istemler\\kadro\\guvenlik.md",
+            "faaliyet_metni": "Yetkileri düzenliyor",
+            "araclar": [
+                {
+                    "arac": "claude",
+                    "model": "sonnet"
+                },
+                {
+                    "arac": "claude",
+                    "model": "opus"
+                },
+                {
+                    "arac": "codex",
+                    "model": "gpt-6.1-sol",
+                    "efor": "high"
+                }
+            ],
+            "rol_tr": "BI güvenlik yöneticisi",
+            "kisa_ad": "BI Security"
+        },
+        {
+            "anahtar": "ik",
+            "ad": "HR Specialist",
+            "departman": "İK ve iletişim",
+            "uzman_isi": true,
+            "yetki": "oku",
+            "renk": "#4d7c0f",
+            "renk_koyu": "#a3e635",
+            "uzmanlik": "Gelen işi yapabilecek çalışan yoksa doğru profili tanımlar, yeni yapay zeka çalışanını işe alır (rolü, talimatı, yetkisi, araçları), ekibe ve lidere tanıtır; mevcut biri yapabiliyorsa onu önerir.",
+            "istem": "istemler\\kadro\\ik.md",
+            "faaliyet_metni": "İşe alım yapıyor",
+            "araclar": [
+                {
+                    "arac": "claude",
+                    "model": "sonnet"
+                },
+                {
+                    "arac": "codex",
+                    "model": "gpt-6.1-sol",
+                    "efor": "high"
+                }
+            ],
+            "rol_tr": "İnsan kaynakları",
+            "kisa_ad": "HR"
+        },
+        {
+            "anahtar": "iletisim",
+            "ad": "Communications Coordinator",
+            "departman": "İK ve iletişim",
+            "uzman_isi": true,
+            "yetki": "yaz",
+            "renk": "#a21caf",
+            "renk_koyu": "#e879f9",
+            "uzmanlik": "Ekip işlerinin durumunu derleyip raporlar, rapor dağıtım listeleri ve yayın notları hazırlar, gelen kutusunu okur ve özetler, e-posta yazar ve gönderir, masaüstü/telefon bildirimi gönderir.",
+            "istem": "istemler\\kadro\\iletisim.md",
+            "faaliyet_metni": "Yazışıyor",
+            "araclar": [
+                {
+                    "arac": "claude",
+                    "model": "sonnet"
+                },
+                {
+                    "arac": "codex",
+                    "model": "gpt-6-astra",
+                    "efor": "high"
+                }
+            ],
+            "rol_tr": "Haberleşme ve koordinasyon",
+            "kisa_ad": "Comms"
+        }
+    ]
+}

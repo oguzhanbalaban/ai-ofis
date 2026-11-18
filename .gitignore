@@ -24,6 +24,19 @@ ofis/uzak.json
 DURDUR
 # Outsource Consultant masası pakette gelir (CLAUDE.md, AGENTS.md, GEMINI.md); danışmanın kalıcı notları kişiseldir
 danisman/notlar/
+# Şirket binası: katlar arası yazışmalar çalışma kaydıdır (katların görev / durum klasörleri yukarıdaki kurallarla dışarıda)
+sirket/
+# Masal Shorts katının örnek ortam dosyası pakette gelir (.env.* kuralının istisnası)
+!katlar/masal/.env.example
+# Masal Shorts katının bağımlılık, model ve çıktı klasörleri (katlar/masal/.gitignore'da da var)
+.venv/
+.venv-*/
+node_modules/
+katlar/masal/backend/models/
+katlar/masal/backend/data/
+katlar/masal/backend/data-test/
+katlar/masal/frontend/dist/
+katlar/masal/logs/
 .test-calisma/
 dagitim/
 __pycache__/

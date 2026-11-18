@@ -1,0 +1,13 @@
+Chatterbox anlatıcı sesi (isteğe bağlı)
+=======================================
+
+Bu klasöre "anlatici.wav" adıyla bir ses örneği koyarsanız Chatterbox masalları o sesle okur.
+
+- 10-20 saniye, tek kişi, arka plan gürültüsü ve müzik olmadan, temiz Türkçe konuşma.
+- Sakin, sıcak, masal anlatır gibi bir okuma en iyi sonucu verir.
+- Yalnızca hakkı size ait (kendi sesiniz ya da izin aldığınız biri) kayıtları kullanın.
+  Ünlü birinin ya da izinsiz bir kişinin sesini taklit etmek için kullanmayın.
+- Dosya yoksa modelin kendi varsayılan sesi kullanılır.
+- Bu klasördeki ses dosyaları git'e eklenmez (.gitignore).
+
+Başka bir yol için .env → CHATTERBOX_REFERENCE=... ayarlayın.

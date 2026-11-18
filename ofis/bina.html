@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Ekip Şirketi</title>
+<meta name="theme-color" content="#161a23">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/simge-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AI Şirket">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231f2328'/%3E%3Crect x='9' y='5' width='14' height='23' rx='2' fill='%237aa7ff'/%3E%3Crect x='12' y='9' width='3' height='3' fill='%231f2328'/%3E%3Crect x='17' y='9' width='3' height='3' fill='%231f2328'/%3E%3Crect x='12' y='15' width='3' height='3' fill='%231f2328'/%3E%3Crect x='17' y='15' width='3' height='3' fill='%231f2328'/%3E%3Crect x='14' y='22' width='4' height='6' fill='%23fb923c'/%3E%3C/svg%3E">
+<style>
+:root { color-scheme:light dark; }
+:root {
+  --zemin:#f4f2ee; --kart:#ffffff; --kart2:#faf8f5; --yazi:#1f2328; --soluk:#666c75; --cizgi:#e2ddd5;
+  --vurgu:#2f55d4; --vurgu-yazi:#fff; --yesil:#17784a; --sari:#8f5b00; --kirmizi:#b42318; --gri:#9aa1ab;
+  --kabin:#262b33; --kabin-yazi:#ffcf6b; --golge-k:0 1px 2px rgba(30,25,15,.06), 0 4px 14px rgba(30,25,15,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --zemin:#131519; --kart:#1b1e23; --kart2:#20242a; --yazi:#e6e8eb; --soluk:#9aa1ab; --cizgi:#2d323a;
+    --vurgu:#7c9cff; --vurgu-yazi:#0d1222; --yesil:#5fd394; --sari:#f2c063; --kirmizi:#ff8b7b; --gri:#6b717a;
+    --kabin:#0d0f13; --kabin-yazi:#ffcf6b; --golge-k:0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"] {
+  --zemin:#131519; --kart:#1b1e23; --kart2:#20242a; --yazi:#e6e8eb; --soluk:#9aa1ab; --cizgi:#2d323a;
+  --vurgu:#7c9cff; --vurgu-yazi:#0d1222; --yesil:#5fd394; --sari:#f2c063; --kirmizi:#ff8b7b; --gri:#6b717a;
+  --kabin:#0d0f13; --kabin-yazi:#ffcf6b;
+}
+* { box-sizing:border-box; }
+html, body { margin:0; height:100%; }
+body { background:var(--zemin); color:var(--yazi); font:14px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; display:grid; grid-template-columns:236px minmax(0, 1fr); overflow:hidden; }
+aside.bina { border-right:1px solid var(--cizgi); background:var(--kart); display:flex; flex-direction:column; min-height:0; }
+.marka { display:flex; gap:10px; align-items:center; padding:14px 14px 10px; }
+.marka svg { flex:none; }
+.marka h1 { font-size:15px; margin:0; line-height:1.2; }
+.marka .alt { color:var(--soluk); font-size:12px; }
+.ekran { margin:0 14px 10px; background:var(--kabin); color:var(--kabin-yazi); border-radius:8px; padding:6px 10px; display:flex; align-items:center; justify-content:space-between; font:600 13px/1.2 "Cascadia Mono", Consolas, monospace; letter-spacing:.04em; }
+.ekran .ok { opacity:.8; }
+.bolum-ad { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--soluk); padding:8px 14px 4px; }
+.katlar { list-style:none; margin:0; padding:0 8px; display:flex; flex-direction:column; gap:4px; }
+.kat-dugme { width:100%; display:grid; grid-template-columns:34px minmax(0, 1fr); gap:10px; align-items:center; text-align:left; border:1px solid transparent; border-left:4px solid var(--kat-renk, var(--gri)); background:transparent; color:inherit; padding:8px 8px 8px 6px; border-radius:8px; cursor:pointer; font:inherit; }
+.kat-dugme:hover { background:var(--kart2); }
+.kat-dugme[aria-current="page"] { background:var(--kart2); border-color:var(--cizgi); border-left-color:var(--kat-renk, var(--vurgu)); box-shadow:var(--golge-k); }
+.kat-dugme:focus-visible { outline:2px solid var(--vurgu); outline-offset:1px; }
+.kat-no { width:34px; height:34px; border-radius:8px; background:var(--kabin); color:var(--kabin-yazi); display:grid; place-items:center; font:700 15px/1 "Cascadia Mono", Consolas, monospace; }
+.kat-ad { font-weight:600; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kat-satir { display:flex; gap:6px; align-items:center; font-size:12px; color:var(--soluk); flex-wrap:wrap; }
+.nokta { width:8px; height:8px; border-radius:50%; background:var(--gri); flex:none; }
+.nokta.acik { background:var(--yesil); } .nokta.duraklatildi, .nokta.calismiyor { background:var(--sari); } .nokta.kapali, .nokta.kurulmadi { background:var(--gri); }
+.rozet { display:inline-flex; align-items:center; gap:2px; font-size:11px; font-weight:600; padding:0 5px; border-radius:9px; background:var(--zemin); border:1px solid var(--cizgi); color:var(--yazi); }
+.rozet.uyari { color:var(--kirmizi); } .rozet.soru { color:var(--sari); }
+.yazisma { flex:1; min-height:0; overflow:auto; padding-bottom:8px; }
+.yz-liste { list-style:none; margin:0; padding:0 10px; display:flex; flex-direction:column; gap:6px; }
+.yz { border:1px solid var(--cizgi); border-radius:8px; padding:6px 8px; background:var(--kart2); font-size:12px; cursor:pointer; }
+.yz:hover { border-color:var(--vurgu); }
+.yz-yon { font-weight:600; display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+.yz-baslik { color:var(--yazi); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.yz-durum { color:var(--soluk); }
+.yz-durum.tamamlandi { color:var(--yesil); } .yz-durum.basarisiz, .yz-durum.iptal { color:var(--kirmizi); } .yz-durum.takildi, .yz-durum.beklemede { color:var(--sari); }
+.bos { color:var(--soluk); font-size:12px; padding:2px 14px; }
+.alt-cubuk { border-top:1px solid var(--cizgi); padding:10px 12px; display:flex; gap:8px; align-items:center; }
+.dugme { font:inherit; font-size:12.5px; font-weight:600; border:1px solid var(--cizgi); background:var(--kart); color:var(--yazi); padding:6px 10px; border-radius:7px; cursor:pointer; }
+.dugme:hover { border-color:var(--vurgu); }
+.dugme:disabled { opacity:.5; cursor:default; }
+.dugme.birincil { background:var(--vurgu); color:var(--vurgu-yazi); border-color:var(--vurgu); }
+.alt-cubuk .bilgi { font-size:12px; color:var(--soluk); flex:1; min-width:0; }
+main { position:relative; min-width:0; min-height:0; overflow:hidden; }
+iframe { border:0; width:100%; height:100%; display:block; background:var(--zemin); }
+.yer-tutucu { position:absolute; inset:0; display:grid; place-items:center; padding:16px; }
+.yt-kart { max-width:460px; background:var(--kart); border:1px solid var(--cizgi); border-radius:12px; padding:22px; box-shadow:var(--golge-k); }
+.yt-kart h2 { margin:0 0 6px; font-size:18px; }
+.yt-kart p { margin:0 0 14px; color:var(--soluk); }
+.kapilar { position:absolute; inset:0; pointer-events:none; display:grid; grid-template-columns:1fr 1fr; z-index:3; }
+.kapilar i { background:linear-gradient(90deg, #8c939e, #b8bec7 50%, #8c939e); transform:translateX(-101%); transition:transform .32s ease; }
+.kapilar i + i { transform:translateX(101%); }
+.kapilar.kapali i { transform:none; }
+.kapilar span { position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); background:var(--kabin); color:var(--kabin-yazi); font:700 22px/1 "Cascadia Mono", Consolas, monospace; padding:10px 16px; border-radius:8px; opacity:0; transition:opacity .2s; }
+.kapilar.kapali span { opacity:1; }
+.tost { position:fixed; right:16px; bottom:16px; background:var(--kart); border:1px solid var(--cizgi); border-radius:8px; padding:10px 14px; box-shadow:var(--golge-k); font-size:13px; z-index:9; max-width:min(420px, calc(100vw - 32px)); }
+.tost.hata { border-color:var(--kirmizi); }
+@media (prefers-reduced-motion: reduce) { .kapilar i, .kapilar span { transition:none; } }
+@media (max-width: 760px) {
+  body { grid-template-columns:minmax(0, 1fr); grid-template-rows:auto minmax(0, 1fr); }
+  aside.bina { border-right:0; border-bottom:1px solid var(--cizgi); }
+  .marka { padding:8px 16px 4px; } .marka .alt, .ekran, .bolum-ad, .yazisma, .alt-cubuk { display:none; }
+  .katlar { flex-direction:row; overflow-x:auto; padding:0 16px 8px; gap:6px; }
+  .katlar li { flex:none; }
+  .kat-dugme { grid-template-columns:28px auto; padding:5px 8px 5px 5px; }
+  .kat-no { width:28px; height:28px; font-size:13px; }
+  .kat-ad { max-width:140px; }
+}
+</style>
+</head>
+<body>
+<aside class="bina" aria-label="Şirket binası">
+  <div class="marka">
+    <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#1f2328"/><rect x="9" y="5" width="14" height="23" rx="2" fill="#7aa7ff"/><rect x="12" y="9" width="3" height="3" fill="#1f2328"/><rect x="17" y="9" width="3" height="3" fill="#1f2328"/><rect x="12" y="15" width="3" height="3" fill="#1f2328"/><rect x="17" y="15" width="3" height="3" fill="#1f2328"/><rect x="14" y="22" width="4" height="6" fill="#fb923c"/></svg>
+    <div><h1 id="sirketAd">AI Ekip Şirketi</h1><div class="alt" id="sirketAlt">Bağlanıyor…</div></div>
+  </div>
+  <div class="ekran" aria-hidden="true"><span id="ekranKat">–</span><span class="ok" id="ekranOk">▲▼</span></div>
+  <div class="bolum-ad" id="katBaslik">Katlar</div>
+  <ul class="katlar" id="katlar" aria-labelledby="katBaslik"></ul>
+  <div class="bolum-ad" id="yzBaslik" title="Katlar arası iletişimi her katın Communications Coordinator'ı (Comms) yürütür">Kat yazışmaları · Comms</div>
+  <div class="yazisma"><ul class="yz-liste" id="yazismalar" aria-labelledby="yzBaslik"></ul></div>
+  <div class="alt-cubuk"><span class="bilgi" id="katBilgi"></span><button class="dugme" id="katDugme" type="button" hidden></button></div>
+</aside>
+<main>
+  <iframe id="katCerceve" title="Kat paneli"></iframe>
+  <div class="yer-tutucu" id="yerTutucu" hidden><div class="yt-kart"><h2 id="ytBaslik"></h2><p id="ytMetin"></p><button class="dugme birincil" id="ytDugme" type="button" hidden></button></div></div>
+  <div class="kapilar" id="kapilar" aria-hidden="true"><i></i><i></i><span id="kapiNo"></span></div>
+</main>
+<script nonce="__NONCE__">
+'use strict';
+const ANAHTAR = '__OFIS_ANAHTARI__';
+const $ = s => document.querySelector(s);
+let bina = null, secili = '', yuklenen = '';
+const DURUM_ADI = { acik: 'açık', kapali: 'kapalı', duraklatildi: 'duraklatıldı', calismiyor: 'döngü yok', kurulmadi: 'kurulmadı' };
+const YZ_DURUM = { gonderildi: 'sırada', calisiyor: 'çalışılıyor', takildi: 'takıldı', tamamlandi: 'tamamlandı', basarisiz: 'tamamlanamadı', iptal: 'iptal', beklemede: 'kat kapalı, bekliyor' };
+const renk = r => /^#[0-9a-fA-F]{6}$/.test(r || '') ? r : '';
+function E(t, o, ...c) {
+  const e = document.createElement(t);
+  if (o) for (const [k, v] of Object.entries(o)) { if (v == null || v === false) continue; if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (k === 'style') e.setAttribute('style', v); else e.setAttribute(k, v === true ? '' : v); }
+  for (const x of c.flat()) if (x != null && x !== false) e.append(x instanceof Node ? x : String(x));
+  return e;
+}
+async function api(yol, govde) {
+  const ayar = { headers: { 'X-Ofis-Anahtar': ANAHTAR }, cache: 'no-store' };
+  if (govde !== undefined) { ayar.method = 'POST'; ayar.headers['Content-Type'] = 'application/json'; ayar.body = JSON.stringify(govde); }
+  const r = await fetch(yol, ayar);
+  if (r.status === 401) { setTimeout(() => location.reload(), 1200); throw new Error('Oturum yenileniyor'); }
+  const v = await r.json();
+  if (!r.ok) throw new Error(v.hata || v.cikti || r.statusText);
+  return v;
+}
+function tost(m, hata = false) { const t = E('div', { class: 'tost' + (hata ? ' hata' : ''), role: hata ? 'alert' : 'status', text: m }); document.body.append(t); setTimeout(() => t.remove(), hata ? 8000 : 4500); }
+const katNo = k => (k.kat_no === 0 || k.kat_no === '0') ? 'Z' : String(k.kat_no ?? '?');
+const katBul = id => bina && bina.katlar.find(k => k.id === id);
+function hashKat() { const m = /(?:^|[#&])kat=([a-z0-9-]+)/.exec(location.hash); return m ? m[1] : ''; }
+function hashGorev() { const m = /(?:^|[#&])gorev=([A-Za-z0-9-]+)/.exec(location.hash); return m ? m[1] : ''; }
+
+function katlariCiz() {
+  const ul = $('#katlar'); ul.replaceChildren();
+  const sirali = [...bina.katlar].sort((a, b) => (+b.kat_no || 0) - (+a.kat_no || 0));
+  for (const k of sirali) {
+    const satir = [E('span', { class: 'nokta ' + k.durum }), DURUM_ADI[k.durum] || k.durum];
+    if (k.tur === 'uygulama') satir.push(' · uygulama');
+    else if (k.aktif) satir.push(` · ${k.aktif} iş`);
+    const rozetler = [];
+    if (k.bekleyen_soru) rozetler.push(E('span', { class: 'rozet soru', title: 'Senden yanıt bekleyen iş' }, '? ', String(k.bekleyen_soru)));
+    if (k.takilan) rozetler.push(E('span', { class: 'rozet uyari', title: 'Takılan iş' }, '! ', String(k.takilan)));
+    const yz = (bina.yazismalar || []).filter(y => (y.kaynak_kat === k.id || y.hedef_kat === k.id) && !['tamamlandi', 'basarisiz', 'iptal'].includes(y.durum)).length;
+    if (yz) rozetler.push(E('span', { class: 'rozet', title: 'Süren katlar arası yazışma (Comms)' }, '✉ ', String(yz)));
+    const d = E('button', { class: 'kat-dugme', type: 'button', style: renk(k.renk) ? `--kat-renk:${k.renk}` : null, 'aria-current': k.id === secili ? 'page' : null,
+      title: [k.ad, k.alan].filter(Boolean).join(' · '), onclick: () => katSec(k.id, true) },
+      E('span', { class: 'kat-no', 'aria-hidden': 'true' }, katNo(k)),
+      E('span', null, E('div', { class: 'kat-ad' }, (k.simge ? k.simge + ' ' : ''), k.ad), E('div', { class: 'kat-satir' }, satir, rozetler)));
+    d.setAttribute('aria-label', `${k.ad}, kat ${katNo(k)}, ${DURUM_ADI[k.durum] || k.durum}`);
+    ul.append(E('li', null, d));
+  }
+  const kisi = bina.katlar.reduce((t, k) => t + (+k.kisi || 0), 0);
+  $('#sirketAd').textContent = bina.sirket || 'AI Ekip Şirketi';
+  $('#sirketAlt').textContent = `${bina.katlar.length} kat · ${kisi} çalışan`;
+  const yl = $('#yazismalar'); yl.replaceChildren();
+  const ys = (bina.yazismalar || []).slice(0, 10);
+  if (!ys.length) yl.append(E('li', { class: 'bos' }, 'Henüz yazışma yok. Bir işi başka katın uzmanlığı gerektirince Comms iletir.'));
+  for (const y of ys) {
+    const kaynak = katBul(y.kaynak_kat), hedef = katBul(y.hedef_kat);
+    yl.append(E('li', { class: 'yz', tabindex: '0', role: 'button', title: `${y.son_olay || ''}${y.ozet ? '\n' + y.ozet : ''}`,
+      onclick: () => yazismaAc(y), onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); yazismaAc(y); } } },
+      E('div', { class: 'yz-yon' }, (kaynak && kaynak.kisa_ad) || y.kaynak_ofis, ' → ', (hedef && hedef.kisa_ad) || y.hedef_ofis),
+      E('div', { class: 'yz-baslik' }, y.baslik || y.kaynak_gorev),
+      E('div', { class: 'yz-durum ' + y.durum }, YZ_DURUM[y.durum] || y.durum, y.tur === 'yardim' ? ' · yardım' : y.tur === 'poc' ? ' · POC' : '')));
+  }
+  altCubuk();
+}
+function yazismaAc(y) {
+  // Gönderen katın görevini aç (hedef ekip katındaysa onun görevi de o katın panosunda görünür)
+  katSec(y.kaynak_kat, true, y.kaynak_gorev);
+}
+function altCubuk() {
+  const k = katBul(secili); const d = $('#katDugme');
+  if (!k) { d.hidden = true; return; }
+  $('#katBilgi').textContent = `${k.ad}: ${DURUM_ADI[k.durum] || k.durum}`;
+  if (k.id === 'ana' || k.durum === 'kurulmadi' || (k.tur === 'uygulama' && bina.uzak)) { d.hidden = true; return; }
+  d.hidden = false;
+  const acik = k.tur === 'uygulama' ? k.acik : k.durum !== 'kapali';
+  d.textContent = acik ? 'Katı kapat' : 'Katı aç';
+  d.className = 'dugme' + (acik ? '' : ' birincil');
+  d.onclick = () => katAcKapat(k, !acik);
+}
+async function katAcKapat(k, ac) {
+  if (!ac && !confirm(`${k.ad} kapatılsın mı? ${k.tur === 'uygulama' ? 'Sunucuları durdurulur.' : 'Çalışan adımını bitiren çıkar; yeni iş almaz.'}`)) return;
+  const d = $('#katDugme'); d.disabled = true;
+  try { const r = await api(ac ? '/api/kat-ac' : '/api/kat-kapat', { kat: k.id }); tost(r.cikti || 'Tamam'); setTimeout(yenile, 1500); if (k.tur === 'uygulama') setTimeout(() => { yuklenen = ''; cerceveYukle(); }, ac ? 6000 : 1500); }
+  catch (e) { tost(e.message, true); } finally { d.disabled = false; }
+}
+function yerTutucu(baslik, metin, dugme, eylem) {
+  $('#katCerceve').hidden = true; $('#katCerceve').removeAttribute('src');
+  $('#yerTutucu').hidden = false; $('#ytBaslik').textContent = baslik; $('#ytMetin').textContent = metin;
+  const d = $('#ytDugme'); d.hidden = !dugme; if (dugme) { d.textContent = dugme; d.onclick = eylem; }
+}
+function cerceveYukle(gorev) {
+  const k = katBul(secili); if (!k) return;
+  const ifr = $('#katCerceve');
+  if (k.tur === 'uygulama') {
+    if (bina.uzak) { yerTutucu(k.ad, `${k.ad} kendi sunucusunda çalışan bir uygulama; paneli yalnızca bu bilgisayardan açılır. Kat yazışmaları buradan izlenir.`); yuklenen = ''; return; }
+    if (!k.acik) { yerTutucu(k.ad, `${k.ad} şu an kapalı. Açınca kendi paneli bu katta görünür.`, 'Katı aç', () => katAcKapat(k, true)); yuklenen = ''; return; }
+    if (yuklenen === k.id) return;
+    $('#yerTutucu').hidden = true; ifr.hidden = false; ifr.src = k.adres; yuklenen = k.id; return;
+  }
+  if (k.durum === 'kurulmadi') { yerTutucu(k.ad, 'Bu kat henüz kurulmamış (katın klasöründe kadro.json yok).'); yuklenen = ''; return; }
+  const hedef = `/kat/${encodeURIComponent(k.id)}/` + (gorev ? `#gorev=${encodeURIComponent(gorev)}` : '');
+  if (yuklenen === k.id && !gorev) return;
+  $('#yerTutucu').hidden = true; ifr.hidden = false; ifr.src = hedef; yuklenen = k.id;
+}
+function asansor(k) {
+  const kp = $('#kapilar');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
+  $('#kapiNo').textContent = katNo(k);
+  kp.classList.add('kapali');
+  return new Promise(r => setTimeout(() => { r(); setTimeout(() => kp.classList.remove('kapali'), 120); }, 340));
+}
+async function katSec(id, kullanici = false, gorev = '') {
+  const k = katBul(id) || katBul('ana'); if (!k) return;
+  const degisti = k.id !== secili;
+  const onceki = katBul(secili);
+  secili = k.id;
+  try { localStorage.setItem('bina.kat', k.id); } catch {}
+  const h = '#kat=' + k.id + (gorev ? '&gorev=' + gorev : '');
+  if (location.hash !== h) history.replaceState(null, '', h);
+  $('#ekranKat').textContent = `KAT ${katNo(k)}`;
+  $('#ekranOk').textContent = onceki && degisti ? ((+k.kat_no || 0) > (+onceki.kat_no || 0) ? '▲' : '▼') : '▲▼';
+  document.title = `${k.ad} · ${bina.sirket || 'AI Ekip Şirketi'}`;
+  katlariCiz();
+  if (kullanici && degisti) await asansor(k);
+  if (degisti || gorev) { if (gorev) yuklenen = ''; cerceveYukle(gorev); }
+}
+async function yenile() {
+  if (document.visibilityState === 'hidden' && bina) return;
+  try {
+    bina = await api('/api/katlar');
+    if (!secili) { let ilk = hashKat(); if (!ilk) { try { ilk = localStorage.getItem('bina.kat') || ''; } catch {} } await katSec(ilk || 'ana', false, hashGorev()); }
+    else { katlariCiz(); const k = katBul(secili); if (k && k.tur === 'uygulama' && ((k.acik && yuklenen !== k.id) || (!k.acik && yuklenen === k.id))) { yuklenen = ''; cerceveYukle(); } }
+  } catch (e) { $('#sirketAlt').textContent = 'Bağlantı yok: ' + e.message; }
+}
+window.addEventListener('hashchange', () => { const k = hashKat(); if (k && k !== secili) katSec(k, true, hashGorev()); });
+// Kat panelleri başka bir kata geçmek isteyebilir (ör. Creativity'nin "ana ofis" bağlantısı): yalnızca aynı kökenden
+window.addEventListener('message', e => { if (e.origin !== location.origin || !e.data || e.data.tur !== 'kat-sec') return; katSec(String(e.data.kat || ''), true, String(e.data.gorev || '')); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') yenile(); });
+yenile();
+setInterval(yenile, 8000);
+</script>
+</body>
+</html>

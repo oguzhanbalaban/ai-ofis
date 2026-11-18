@@ -32,7 +32,7 @@ function Ozet-Gonder {
     $m = Ozet-Metni
     $yol = Join-Path $YolRapor ('ozet-{0}.md' -f (Get-Date).ToString('yyyy-MM-dd'))
     try { [IO.File]::AppendAllText($yol, $m.uzun + "`r`n", $Utf8) } catch {}
-    Bildir -Baslik 'AI Ekip özeti' -Metin $m.kisa
+    Bildir -Baslik "$(Ofis-Adi) özeti" -Metin $m.kisa
 }
 
 function Ozet-Kontrol {
@@ -102,7 +102,7 @@ function Rapor-Uret {
         $html = @"
 <!doctype html>
 <html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="refresh" content="60"><title>AI Ekip</title>
+<meta http-equiv="refresh" content="60"><title>$(Ofis-Adi)</title>
 <style>
 :root { --zemin:#f6f7f9; --kart:#fff; --yazi:#1d2330; --soluk:#667085; --cizgi:#e4e7ec; --yesil:#127a46; --yesil-z:#e3f5ea; --kirmizi:#b42318; --kirmizi-z:#fde8e6; --mavi:#1f5fbf; --mavi-z:#e6eefb; --gri-z:#eef0f3; }
 @media (prefers-color-scheme: dark) { :root { --zemin:#14171c; --kart:#1c2027; --yazi:#e6e8eb; --soluk:#98a2b3; --cizgi:#2d333d; --yesil:#5fd394; --yesil-z:#163626; --kirmizi:#ff8a7a; --kirmizi-z:#3d1d1a; --mavi:#8ab4ff; --mavi-z:#1b2a44; --gri-z:#262b33; } }
@@ -124,7 +124,7 @@ th { font-size:12px; color:var(--soluk); font-weight:600; }
 ul { margin:0; padding-left:18px; } li { margin:3px 0; }
 code { font-size:12px; }
 </style></head><body><main>
-<h1>AI Ekip</h1>
+<h1>$(Ofis-Adi)</h1>
 <div class="soluk">Son güncelleme: $((Get-Date).ToString('dd.MM.yyyy HH:mm:ss')) &middot; Döngü: $(HtmlK $kalpMetni)</div>
 <div class="izgara">
   <div class="kart"><div class="kucuk">Bugün tamamlanan</div><div class="sayi">$([int]$s.tamamlanan)</div></div>

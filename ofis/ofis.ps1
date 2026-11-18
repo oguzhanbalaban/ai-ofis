@@ -20,6 +20,7 @@ ofis.ps1 - AI Ekip "görsel ofis" paneli: yalnızca 127.0.0.1'e bağlanan küç�
 param(
     [ValidateRange(1024, 65000)][int]$Port = 8765,
     [switch]$Ac,
+    [ValidatePattern('^$|^[a-z0-9][a-z0-9-]{0,30}$')][string]$AcilacakKat = '',   # -Ac ile binayı bu katta aç (kısayollar)
     [switch]$Konsol,
     [ValidateRange(0, 1440)][int]$BosKapanDk = 60
 )
@@ -32,6 +33,296 @@ $script:Latin1 = [Text.Encoding]::GetEncoding(28591)
 $script:YolGorev = Join-Path $Kok 'gorevler'
 $script:YolDurum = Join-Path $Kok 'durum'
 $script:YolGunluk = Join-Path $Kok 'gunluk'
+
+# ---------------------------------------------------------------- şirket binası (katlar)
+# Tek panel sunucusu bütün katlara hizmet eder. Kat panelleri isteklerine X-Ofis-Kat başlığı (önizlemelerde yol, sayfada /kat/<id>/)
+# ekler; istek hangi kata aitse $Kok o katın veri klasörü olur (sunucu tek iş parçacıklıdır). Kod her zaman $KodKok'tadır.
+$script:KodKok = $Kok
+$script:AktifKatId = 'ana'
+$script:AktifKat = $null
+$script:KatlarOnbellek = $null; $script:KatlarDamga = -1
+function Katlar-Listesi {
+    $y = Join-Path $KodKok 'katlar.json'
+    $damga = 0; try { $fi = New-Object IO.FileInfo $y; if ($fi.Exists) { $damga = $fi.LastWriteTimeUtc.Ticks } } catch {}
+    if ($null -ne $script:KatlarOnbellek -and $damga -eq $script:KatlarDamga) { return , $script:KatlarOnbellek }
+    $l = @()
+    if ($damga) { $j = Json-Oku $y; if ($j) { $l = @($j.katlar | Where-Object { $_ -and ([string]$_.id) -match '^[a-z0-9][a-z0-9-]{0,30}$' }) } }
+    if (-not @($l | Where-Object { [string]$_.id -eq 'ana' }).Count) { $l = @([pscustomobject]@{ id = 'ana'; ad = 'AI Ekip Ofisi'; kisa_ad = 'AI Ekip'; kat_no = 0; tur = 'ekip'; kok = '' }) + $l }
+    $script:KatlarOnbellek = $l; $script:KatlarDamga = $damga
+    return , $l
+}
+function Bina-Bilgisi { $j = Json-Oku (Join-Path $KodKok 'katlar.json'); $ad = 'AI Ekip Şirketi'; if ($j -and $j.sirket) { $ad = [string]$j.sirket }; return $ad }
+function Kat-Bul-P([string]$Id) { foreach ($k in (Katlar-Listesi)) { if ([string]$k.id -eq $Id) { return $k } }; return $null }
+function Kat-Koku-P($K) {
+    if (-not $K -or [string]$K.id -eq 'ana' -or -not ([string]$K.kok).Trim()) { return $KodKok }
+    $y = ([string]$K.kok).Trim()
+    if (-not [IO.Path]::IsPathRooted($y)) { $y = Join-Path $KodKok $y }
+    return [IO.Path]::GetFullPath($y)
+}
+function Kat-Sec([string]$Id) {
+    $Id = ([string]$Id).Trim().ToLowerInvariant(); if (-not $Id) { $Id = 'ana' }
+    $k = Kat-Bul-P $Id
+    if (-not $k) { throw 'HTTP:404:Bilinmeyen kat' }
+    $script:AktifKat = $k; $script:AktifKatId = $Id
+    $script:Kok = Kat-Koku-P $k
+    $script:YolGorev = Join-Path $Kok 'gorevler'; $script:YolDurum = Join-Path $Kok 'durum'; $script:YolGunluk = Join-Path $Kok 'gunluk'
+    $script:YolKullanim = Join-Path $YolDurum 'kullanim'
+    # Panelin başlattığı betikler (durum.ps1, is-ver.ps1, paralel.ps1...) bu katın verisinde çalışsın (ortak.ps1 AIEKIP_KAT okur)
+    if ($Id -eq 'ana') { Remove-Item -LiteralPath env:AIEKIP_KAT -ErrorAction SilentlyContinue } else { $env:AIEKIP_KAT = $Id }
+}
+function Kat-Ekip-mi($K) { if (-not $K) { $K = $AktifKat }; return ([string]$K.tur -ne 'uygulama') }
+# Alt katlar ana katın ayarlarını miras alır (ortak.ps1 > Ayarlari-Yukle ile aynı kural: katta olmayan üst düzey bloklar)
+function Kat-Ayar-Oku {
+    $a = Json-Oku (Join-Path $Kok 'ayarlar.json')
+    if ($a -and $Kok -ne $KodKok) {
+        $ana = Json-Oku (Join-Path $KodKok 'ayarlar.json')
+        if ($ana) { foreach ($p in $ana.PSObject.Properties) { if (-not $a.PSObject.Properties[$p.Name]) { $a | Add-Member -NotePropertyName $p.Name -NotePropertyValue $p.Value } } }
+    }
+    return $a
+}
+function Kok-Dosyasi-P([string]$Goreli) {
+    $k = Join-Path $Kok $Goreli
+    if ($Kok -ne $KodKok -and -not [IO.File]::Exists($k)) { return (Join-Path $KodKok $Goreli) }
+    return $k
+}
+function Kat-Kapali-P([string]$KatKoku) {
+    $d = Join-Path $KatKoku 'DURDUR'
+    if (-not [IO.File]::Exists($d)) { return $false }
+    return ((Metin-Oku $d 200).TrimStart([char]0xFEFF).StartsWith('Ofis kapatıldı'))
+}
+function Kat-Dongu-Kilidi-P([string]$Id) { if ($Id -eq 'ana') { return 'Local\AIEkipDongusu' }; return 'Local\AIEkipDongusu_' + ($Id -replace '[^a-z0-9]', '_') }
+function Kat-Dongusu-Calisiyor-P([string]$Id) {
+    $m = $null
+    if ([Threading.Mutex]::TryOpenExisting((Kat-Dongu-Kilidi-P $Id), [ref]$m)) { $m.Dispose(); return $true }
+    return $false
+}
+function Gizli-Baslat([string]$Betik, [string]$ArgMetni, [string]$KatId) {
+    $arg = '--headless "{0}" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{1}" {2}' -f $PsExe, $Betik, $ArgMetni
+    $eski = $env:AIEKIP_KAT
+    if ($KatId -and $KatId -ne 'ana') { $env:AIEKIP_KAT = $KatId } else { Remove-Item -LiteralPath env:AIEKIP_KAT -ErrorAction SilentlyContinue }
+    try { Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\conhost.exe') -ArgumentList $arg.TrimEnd() -WorkingDirectory (Split-Path -Parent $Betik) -WindowStyle Hidden | Out-Null }
+    finally { if ($null -ne $eski) { $env:AIEKIP_KAT = $eski } else { Remove-Item -LiteralPath env:AIEKIP_KAT -ErrorAction SilentlyContinue } }
+}
+function Kat-Dongusu-Baslat-P([string]$Id) { Gizli-Baslat (Join-Path $KodKok 'baslat.ps1') '' $Id; Ofis-Kayit "Kat döngüsü başlatıldı: $Id" }
+# Uygulama katı (kendi sunucusu olan uygulama, ör. Masal Shorts): API adresinin portu açık mı (kısa TCP denemesi)
+function Uygulama-Calisiyor($K) {
+    try {
+        $u = [Uri]([string]$K.uygulama.api)
+        $c = New-Object Net.Sockets.TcpClient
+        try { $t = $c.ConnectAsync($u.Host, $u.Port); return ($t.Wait(400) -and $c.Connected) } finally { $c.Close() }
+    } catch { return $false }
+}
+function Uygulama-Koku($K) {
+    $y = ([string]$K.kok).Trim(); if (-not $y) { return '' }
+    if (-not [IO.Path]::IsPathRooted($y)) { $y = Join-Path $KodKok $y }
+    return [IO.Path]::GetFullPath($y)
+}
+function Kat-Ozeti($K) {
+    $id = [string]$K.id
+    $o = [ordered]@{ id = $id; ad = [string]$K.ad; kisa_ad = [string]$K.kisa_ad; kat_no = $K.kat_no; tur = $(if ([string]$K.tur) { [string]$K.tur } else { 'ekip' })
+        renk = [string]$K.renk; simge = [string]$K.simge; alan = [string]$K.alan; aciklama = [string]$K.aciklama
+        kurulu = $false; acik = $false; durum = 'kapali'; dongu = $false; aktif = 0; bekleyen_soru = 0; takilan = 0; bekleyen_kat = 0; kisi = 0; adres = '' }
+    if ($o.tur -eq 'uygulama') {
+        $kk = Uygulama-Koku $K
+        $o.kurulu = [bool]($kk -and [IO.Directory]::Exists($kk))
+        $o.acik = Uygulama-Calisiyor $K
+        $o.durum = $(if ($o.acik) { 'acik' } else { 'kapali' })
+        $o.adres = [string]$K.uygulama.adres
+        $o.kisi = [int]$K.uygulama.kisi
+        return $o
+    }
+    $kk = Kat-Koku-P $K
+    $o.kurulu = [IO.File]::Exists((Join-Path $kk 'kadro.json'))
+    if (-not $o.kurulu) { $o.durum = 'kurulmadi'; return $o }
+    $kapali = Kat-Kapali-P $kk
+    $durdur = [IO.File]::Exists((Join-Path $kk 'DURDUR'))
+    $o.dongu = Kat-Dongusu-Calisiyor-P $id
+    $o.acik = -not $kapali
+    $o.durum = $(if ($kapali) { 'kapali' } elseif ($durdur) { 'duraklatildi' } elseif ($o.dongu) { 'acik' } else { 'calismiyor' })
+    $kd = Json-Oku (Join-Path $kk 'kadro.json'); $o.kisi = @($kd.uyeler | Where-Object { $_ -and $_.anahtar }).Count
+    $yg = Join-Path $kk 'gorevler'
+    if ([IO.Directory]::Exists($yg)) {
+        foreach ($d in [IO.Directory]::GetDirectories($yg)) {
+            $f = Join-Path $d 'durum.json'
+            $fi = New-Object IO.FileInfo $f
+            if (-not $fi.Exists) { continue }
+            $damga = '{0}-{1}' -f $fi.LastWriteTimeUtc.Ticks, $fi.Length
+            $c = $KatOzetOnbellek[$f]
+            if (-not $c -or $c.damga -ne $damga) { $g = Json-Oku $f; $c = @{ damga = $damga; asama = [string](Ozellik $g 'asama') }; $KatOzetOnbellek[$f] = $c }
+            switch ($c.asama) {
+                'bekliyor_kullanici' { $o.bekleyen_soru++ }
+                'takildi' { $o.takilan++ }
+                'kat_bekliyor' { $o.bekleyen_kat++ }
+                default { if ($AktifAsamalar -contains $c.asama -or @('fikir', 'elestiri', 'poc_plan', 'maliyet', 'karar', 'teslim', 'puanlama') -contains $c.asama) { $o.aktif++ } }
+            }
+        }
+    }
+    return $o
+}
+$script:KatOzetOnbellek = @{}
+function Yazisma-Listesi([string]$Kat = '', [int]$Adet = 30) {
+    $kl = Join-Path (Join-Path $KodKok 'sirket') 'yazismalar'
+    $l = New-Object Collections.Generic.List[object]
+    if (-not [IO.Directory]::Exists($kl)) { return , $l }
+    foreach ($f in @([IO.Directory]::GetFiles($kl, '*.json') | Sort-Object -Descending)) {
+        if ($l.Count -ge $Adet) { break }
+        $y = Json-Oku $f
+        if (-not $y -or -not $y.id) { continue }
+        if ($Kat -and [string]$y.kaynak_kat -ne $Kat -and [string]$y.hedef_kat -ne $Kat) { continue }
+        $son = @($y.gecmis | Where-Object { $_ }) | Select-Object -Last 1
+        $l.Add([ordered]@{ id = [string]$y.id; tur = [string]$y.tur; durum = [string]$y.durum; baslik = [string]$y.baslik
+            kaynak_kat = [string]$y.kaynak_kat; kaynak_ofis = [string]$y.kaynak_ofis; kaynak_gorev = [string]$y.kaynak_gorev
+            hedef_kat = [string]$y.hedef_kat; hedef_ofis = [string]$y.hedef_ofis; hedef_gorev = [string]$y.hedef_gorev; hedef_asama = [string]$y.hedef_asama
+            gonderen = [string]$y.gonderen; alan = [string]$y.alan; olusturma = $y.olusturma; guncelleme = $y.guncelleme
+            son_olay = $(if ($son) { [string]$son.olay } else { '' }); ozet = $(if ($y.sonuc) { [string]$y.sonuc.ozet } else { '' }) })
+    }
+    return , $l
+}
+function Yazisma-Ayrinti([string]$Id) {
+    if ($Id -notmatch '^[A-Za-z0-9][A-Za-z0-9-]{5,90}$') { throw 'HTTP:400:Geçersiz yazışma' }
+    $kl = Join-Path (Join-Path $KodKok 'sirket') 'yazismalar'
+    $y = Json-Oku (Join-Path $kl "$Id.json")
+    if (-not $y) { throw 'HTTP:404:Yazışma bulunamadı' }
+    return $y
+}
+function Katlar-Bilgisi {
+    $l = New-Object Collections.Generic.List[object]
+    foreach ($k in (Katlar-Listesi)) { $l.Add((Kat-Ozeti $k)) }
+    return [ordered]@{ sirket = (Bina-Bilgisi); zaman = (Get-Date).ToString('o'); uzak = [bool]$script:IstekUzak; katlar = $l; yazismalar = (Yazisma-Listesi '' 20) }
+}
+# Katı aç: ekip katında DURDUR kaldırılır, döngü çalışmıyorsa başlatılır; uygulama katında kendi başlatıcısı (gizli) çalışır
+function Eylem-KatAc($Veri) {
+    $id = [string](Ozellik $Veri 'kat'); if (-not $id) { $id = $AktifKatId }
+    $k = Kat-Bul-P $id; if (-not $k) { throw 'HTTP:404:Bilinmeyen kat' }
+    if (-not (Kat-Ekip-mi $k)) {
+        $kk = Uygulama-Koku $k; $b = [string]$k.uygulama.baslat
+        if (-not $kk -or -not $b -or -not [IO.File]::Exists((Join-Path $kk $b))) { throw 'HTTP:400:Bu katın başlatıcısı yok' }
+        if (Uygulama-Calisiyor $k) { return [ordered]@{ basarili = $true; cikti = "$($k.ad) zaten açık."; hata = '' } }
+        Gizli-Baslat (Join-Path $kk $b) ([string]$k.uygulama.baslat_arg) ''
+        Ofis-Kayit "Uygulama katı açılıyor: $id"
+        return [ordered]@{ basarili = $true; cikti = "$($k.ad) açılıyor (sunucuların hazır olması birkaç saniye sürer)."; hata = '' }
+    }
+    $kk = Kat-Koku-P $k
+    if (-not [IO.File]::Exists((Join-Path $kk 'kadro.json'))) { throw 'HTTP:400:Bu kat kurulmamış' }
+    $durdur = Join-Path $kk 'DURDUR'
+    if ([IO.File]::Exists($durdur)) { Remove-Item -LiteralPath $durdur -Force }
+    if (-not (Kat-Dongusu-Calisiyor-P $id)) { Kat-Dongusu-Baslat-P $id }
+    Ofis-Kayit "Kat açıldı: $id"
+    return [ordered]@{ basarili = $true; cikti = "$($k.ad) açıldı; ekip geliyor."; hata = '' }
+}
+function Eylem-KatKapat($Veri) {
+    $id = [string](Ozellik $Veri 'kat'); if (-not $id) { $id = $AktifKatId }
+    $k = Kat-Bul-P $id; if (-not $k) { throw 'HTTP:404:Bilinmeyen kat' }
+    if (-not (Kat-Ekip-mi $k)) {
+        $kk = Uygulama-Koku $k; $b = [string]$k.uygulama.durdur
+        if (-not $kk -or -not $b -or -not [IO.File]::Exists((Join-Path $kk $b))) { throw 'HTTP:400:Bu katın durdurucusu yok' }
+        Gizli-Baslat (Join-Path $kk $b) ([string]$k.uygulama.durdur_arg) ''
+        Ofis-Kayit "Uygulama katı kapatılıyor: $id"
+        return [ordered]@{ basarili = $true; cikti = "$($k.ad) kapatılıyor."; hata = '' }
+    }
+    if ($id -eq 'ana') { $eski = $AktifKatId; Kat-Sec 'ana'; try { return (Eylem-OfisKapat) } finally { Kat-Sec $eski } }
+    $kk = Kat-Koku-P $k
+    $metin = "Ofis kapatıldı (panelden), {0}. Kat yeni iş almaz; açmak için panelde katı aç.`n" -f (Get-Date).ToString('dd.MM.yyyy HH:mm')
+    [IO.File]::WriteAllText((Join-Path $kk 'DURDUR'), $metin, (New-Object Text.UTF8Encoding($false)))
+    Ofis-Kayit "Kat kapatıldı: $id"
+    return [ordered]@{ basarili = $true; cikti = "$($k.ad) kapanıyor: çalışan adımını bitiren çıkar."; hata = '' }
+}
+$script:SonBinaBekcisi = Get-Date
+# Panel açıkken açık katların döngüsü düşerse yeniden başlatır (ana katın zamanlanmış görevi de 10 dakikada bir bakar)
+function Bina-Bekcisi-P {
+    if (((Get-Date) - $script:SonBinaBekcisi).TotalSeconds -lt 120) { return }
+    $script:SonBinaBekcisi = Get-Date
+    foreach ($k in (Katlar-Listesi)) {
+        $id = [string]$k.id
+        if ($id -eq 'ana' -or -not (Kat-Ekip-mi $k)) { continue }
+        $kk = Kat-Koku-P $k
+        if (-not [IO.File]::Exists((Join-Path $kk 'ayarlar.json')) -or (Kat-Kapali-P $kk)) { continue }
+        if (-not (Kat-Dongusu-Calisiyor-P $id)) { try { Kat-Dongusu-Baslat-P $id } catch { Ofis-Kayit "Bina bekçisi: $id başlatılamadı: $($_.Exception.Message)" 'UYARI' } }
+    }
+}
+# ---------------------------------------------------------------- fikir hattı (Creativity Office katı; tip = yaratici, yaratici.ps1)
+$script:YaraticiAsamaRol = @{ yeni = 'fikirci'; fikir = 'fikirci'; elestiri = 'elestirmen'; poc_plan = 'planlamaci'; maliyet = 'maliyet'; karar = 'karar-verici'; teslim = 'karar-verici'; bekleme = 'karar-verici'; puanlama = 'puanlayici' }
+$script:YaraticiAsamaAdlari = @{
+    yeni = 'Sırada'; fikir = 'Fikir üretiliyor'; elestiri = 'Eleştiriliyor'; poc_plan = 'POC planlanıyor'; maliyet = 'Maliyet hesaplanıyor'
+    karar = 'Karar bekliyor'; teslim = 'Teslim hazırlanıyor'; bekleme = 'Ana ofiste uygulanıyor'; puanlama = 'Puanlanıyor'; tamam = 'Puanlandı'; reddedildi = 'Reddedildi'
+}
+$script:YaraticiMetni = @{
+    yeni = 'Konuyu fikir hattına alıyor'; fikir = 'Fikir üretiyor'; elestiri = 'Fikirleri eleştiriyor'; poc_plan = 'POC planı yazıyor'; maliyet = 'Maliyet hesaplıyor'
+    karar = 'Karar veriyor'; teslim = 'Teslim paketi hazırlıyor'; bekleme = 'Ana ofisi izliyor'; puanlama = 'Çıktıyı puanlıyor'
+}
+$script:YaraticiFaaliyet = @{ yeni = 'fikir'; fikir = 'fikir'; elestiri = 'elestiri'; poc_plan = 'poc_plan'; maliyet = 'maliyet'; karar = 'karar'; teslim = 'teslim'; bekleme = 'bekleme'; puanlama = 'puanlama' }
+function Yaratici-Katinda-mi($Kadro) { return [bool](Kadro-Bul $Kadro 'fikirci') }
+function Yaratici-Ayar-Oku($A) {
+    $s = [ordered]@{ revizyon_siniri = 3; ana_ofis_yolu = ''; varsayilan_proje = '' }
+    if ($A) {
+        foreach ($ad in @('revizyon_siniri', 'ana_ofis_yolu', 'varsayilan_proje')) { $v = Ozellik $A $ad; if ($null -ne $v) { $s[$ad] = $v } }
+        $y = Ozellik $A 'yaratici'
+        if ($y) { foreach ($ad in @('revizyon_siniri', 'ana_ofis_yolu', 'varsayilan_proje')) { $v = Ozellik $y $ad; if ($null -ne $v) { $s[$ad] = $v } } }
+    }
+    $s.revizyon_siniri = [Math]::Max(0, [Math]::Min(3, [int]$s.revizyon_siniri))
+    $s.ana_ofis_yolu = ([string]$s.ana_ofis_yolu).Trim()
+    if (-not $s.ana_ofis_yolu -and $AktifKatId -ne 'ana') { $s.ana_ofis_yolu = $KodKok }
+    return [pscustomobject]$s
+}
+function Ana-Kok($A, $G) {
+    $yol = ''
+    if ($G -and (Ozellik $G 'ana_ofis')) { $yol = [string](Ozellik $G 'ana_ofis') }
+    else { $yol = (Yaratici-Ayar-Oku $A).ana_ofis_yolu }
+    if (-not $yol) { return '' }
+    if (-not [IO.Path]::IsPathRooted($yol)) { $yol = Join-Path $Kok $yol }
+    return $yol
+}
+$script:AnaAsamaOnbellek = @{}
+function Yaratici-Ana-Asama($G) {
+    $a = [string](Ozellik $G 'ana_asama')
+    $id = [string](Ozellik $G 'ana_gorev_id')
+    if (-not $id -or $id -notmatch '^[A-Za-z0-9][A-Za-z0-9_-]{0,119}$' -or @('bekleme', 'puanlama') -notcontains [string]$G.asama) { return $a }
+    $kok = Ana-Kok $null $G
+    if (-not $kok) { return $a }
+    $f = Join-Path (Join-Path (Join-Path $kok 'gorevler') $id) 'durum.json'
+    try {
+        $fi = New-Object IO.FileInfo $f
+        if (-not $fi.Exists) { return $a }
+        $o = $AnaAsamaOnbellek[$f]
+        if ($o -and $o.damga -eq $fi.LastWriteTimeUtc.Ticks) { return $o.asama }
+        $j = Json-Oku $f
+        if ($j -and $j.asama) { $AnaAsamaOnbellek[$f] = @{ damga = $fi.LastWriteTimeUtc.Ticks; asama = [string]$j.asama }; return [string]$j.asama }
+    } catch {}
+    return $a
+}
+function Ana-Ofis($A) {
+    $s = [ordered]@{ yapilandirildi = $false; bagli = $false; canli = $false; kapali = $false; durum = ''; panel = '' }
+    $kok = Ana-Kok $A $null
+    if (-not $kok) { return $s }
+    $s.yapilandirildi = $true
+    if (-not [IO.File]::Exists((Join-Path $kok 'gorev-ekle.ps1'))) { return $s }
+    $s.bagli = $true
+    $k = Json-Oku (Join-Path $kok 'durum\kalp.json')
+    if ($k) { try { $s.canli = (((Get-Date) - [datetime]$k.zaman).TotalMinutes -lt 15) -and [string]$k.durum -ne 'durdu'; $s.durum = [string]$k.durum } catch {} }
+    $s.kapali = [IO.File]::Exists((Join-Path $kok 'DURDUR'))
+    $s.panel = '/#kat=ana'
+    return $s
+}
+function Ofis-Durumu($A, [bool]$Durdur) {
+    $kapali = Kat-Kapali-P $Kok
+    return [ordered]@{ acik = (-not $kapali -and -not $Durdur); niyet = (-not $kapali); mesai = $true; calisma_saatleri = [string]$A.dongu.calisma_saatleri }
+}
+function Eylem-KonuEkle($Veri) {
+    $konu = Metin-Alani $Veri 'konu' 500 -Zorunlu
+    $alan = Metin-Alani $Veri 'alan' 60
+    $proje = Metin-Alani $Veri 'proje' 400
+    $oncelik = [int](Ozellik $Veri 'oncelik')
+    if ($oncelik -lt 1 -or $oncelik -gt 3) { $oncelik = 2 }
+    $a = @('-Konu', (Ps-Tirnak $konu))
+    if ($alan) { $a += '-Alan'; $a += (Ps-Tirnak $alan) }
+    if ($proje) { $a += '-Proje'; $a += (Ps-Tirnak $proje) }
+    $a += '-Oncelik'; $a += [string]$oncelik
+    $r = Betik-Calistir 'proje-ekle.ps1' ($a -join ' ')
+    $m = [regex]::Match([string]$r.cikti, 'Konu eklendi: (\S+)')
+    if ($m.Success) { $r['id'] = $m.Groups[1].Value; $r['cikti'] = "Konu fikir hattına eklendi: #$(($m.Groups[1].Value -split '-')[0])" }
+    if ($r.basarili -and [bool](Ozellik $Veri 'ofisi_ac') -and (Kat-Kapali-P $Kok)) { [void](Eylem-KatAc ([pscustomobject]@{ kat = $AktifKatId })) }
+    return $r
+}
 $script:SunucuDosyasi = Join-Path $OfisKok 'sunucu.json'
 $script:KayitDosyasi = Join-Path $OfisKok 'ofis.log'
 $script:PanelDosyasi = Join-Path $OfisKok 'panel.html'
@@ -51,6 +342,7 @@ $script:AsamaAdlari = @{
     kontrol = 'Kontrol ediliyor'; test = 'Test ediliyor'; denetim = 'Denetleniyor'; kabul = 'Engineering Manager onayında'; tamamla = 'Commit ediliyor'; tamam = 'Tamamlandı'
     takildi = 'Takıldı'; bekliyor_kullanici = 'Senden yanıt bekliyor'; iptal = 'İptal'
     yardim = 'Engineering Managerʼda (yardım isteği)'; yardim_bekliyor = 'Ekipten yardım bekliyor'
+    kat_bekliyor = 'Başka katta yapılıyor (Comms)'; reddedildi = 'Reddedildi'
 }
 # "İş ver" ile gelen, Engineering Managerʼın henüz yönlendirmediği işler (tip = genel; bkz. yonlendirme.ps1)
 $script:GenelAsamaAdlari = @{ yeni = 'Engineering Managerʼda'; plan = 'Engineering Managerʼda' }
@@ -94,13 +386,14 @@ $script:UzmanMetni = @{
 }
 $script:UzmanAsamaAdlari = @{ gelistirme = 'Çalışılıyor'; denetim = 'İnceleniyor'; tamamla = 'Kapatılıyor' }
 # Kalp atışındaki adım etiketi -> görev aşaması
-$script:EtiketAsama = @{ uygulama = 'gelistirme'; dogrulama = 'denetim'; calisma = 'gelistirme'; inceleme = 'denetim'; ise_alim = 'plan'; danisman = 'gelistirme' }
+$script:EtiketAsama = @{ uygulama = 'gelistirme'; dogrulama = 'denetim'; calisma = 'gelistirme'; inceleme = 'denetim'; ise_alim = 'plan'; danisman = 'gelistirme'
+    fikirci = 'fikir'; elestirmen = 'elestiri'; planlamaci = 'poc_plan'; maliyet = 'maliyet'; 'karar-verici' = 'karar'; teslim = 'teslim'; puanlayici = 'puanlama' }
 # Outsource Consultant işleri (tip = danisman; danisman.ps1): her aşama danışmanda
 $script:DanismanAsamaAdlari = @{ yeni = 'Danışmana veriliyor'; gelistirme = 'Danışmanda'; kontrol = 'Kontrol ediliyor'; tamamla = 'Kapatılıyor' }
 $script:DanismanMetni = @{ yeni = 'Çalışma klasörünü hazırlıyor'; gelistirme = 'Terminalde işi baştan sona yapıyor'; kontrol = 'Sonucu otomatik kontrolden geçiriyor'; tamamla = 'Sonucu teslim ediyor' }
 function Gorev-Tipi($G) {
     $t = [string](Ozellik $G 'tip')
-    if ($t -eq 'altyapi' -or $t -eq 'uzman' -or $t -eq 'genel' -or $t -eq 'danisman') { return $t }
+    if ($t -eq 'altyapi' -or $t -eq 'uzman' -or $t -eq 'genel' -or $t -eq 'danisman' -or $t -eq 'yaratici') { return $t }
     return 'yazilim'
 }
 function Altyapi-Mi($G) { return ((Gorev-Tipi $G) -eq 'altyapi') }
@@ -120,6 +413,7 @@ function Kalp-Etiketi([string]$Adim, $G) {
         $x = $e
         if ($x -match '^inceleme-') { $x = 'denetim' }
         if ($x -match '^birlikte-') { $x = 'yardim' }   # yardımcı, yardım isteyen işin içinde hemen çalışıyor
+        if ($x -match '^kat-') { $x = [string]$G.asama }   # Comms başka kata yazışıyor (iletisim.ps1)
         if ($x -eq 'yonlendirme') { $x = [string]$G.asama }   # Engineering Managerʼın "İş ver" yönlendirmesi (yeni ya da plan)
         if ($EtiketAsama.ContainsKey($x)) { $x = $EtiketAsama[$x] }
         if ($x -eq [string]$G.asama) { $arac = $kimlik } else { $e = '' }
@@ -156,8 +450,11 @@ function Gorev-Rolu-Ham($G, [string]$Etiket = '') {
     if ($Etiket -eq 'ise_alim') { return 'ik' }
     if ($Etiket -match '^inceleme-(.+)$') { return $Matches[1] }
     if ($Etiket -match '^birlikte-(.+)$') { return $Matches[1] }
+    if ($Etiket -match '^kat-') { return 'iletisim' }   # katlar arası yazışma (Comms)
     $asama = [string]$G.asama
     $tip = Gorev-Tipi $G
+    if ($asama -eq 'kat_bekliyor') { return 'iletisim' }
+    if ($tip -eq 'yaratici') { if ($YaraticiAsamaRol.ContainsKey($asama)) { return $YaraticiAsamaRol[$asama] }; return 'lider' }
     if ($asama -eq 'analiz') { return 'urun' }   # Product Manager ("İş ver" ve yazılım işleri)
     if ($tip -eq 'danisman') { return 'danisman' }   # Outsource Consultant
     if ($tip -eq 'genel' -or $asama -eq 'yardim') { return 'lider' }
@@ -189,6 +486,11 @@ function Asama-Adi-Bul($G) {
     if ($tip -eq 'altyapi' -and $AltyapiAsamaAdlari.ContainsKey($asama)) { return $AltyapiAsamaAdlari[$asama] }
     if ($tip -eq 'uzman' -and $UzmanAsamaAdlari.ContainsKey($asama)) { return $UzmanAsamaAdlari[$asama] }
     if ($tip -eq 'danisman' -and $DanismanAsamaAdlari.ContainsKey($asama)) { return $DanismanAsamaAdlari[$asama] }
+    if ($tip -eq 'yaratici' -and $YaraticiAsamaAdlari.ContainsKey($asama)) {
+        if ($asama -eq 'bekleme' -and [string](Ozellik $G 'teslim_turu') -eq 'yerel') { return 'Uygulama çıktısı bekleniyor (yerel teslim)' }
+        if ($asama -eq 'bekleme' -and (Ozellik $G 'ana_takildi')) { return 'Ana ofiste takıldı (bekleniyor)' }
+        return $YaraticiAsamaAdlari[$asama]
+    }
     if ($tip -eq 'genel' -and $GenelAsamaAdlari.ContainsKey($asama)) { return $GenelAsamaAdlari[$asama] }
     if ($AsamaAdlari.ContainsKey($asama)) { return $AsamaAdlari[$asama] }
     return $asama
@@ -337,7 +639,7 @@ function Kullanim-Ozeti([int]$Gun) {
             yuzde = $(if ($t -gt 0 -and $p -gt 0) { [Math]::Round(100.0 * $t / $p, 1) } else { $null }); hata = [string]$r['hata'] })
     }
     # Araç hakları: Claude için günlük çağrı sınırı + (varsa güncel) kullanım kartı; Codex için oturum dosyasındaki yüzdeler
-    $ayar = Json-Oku (Join-Path $Kok 'ayarlar.json')
+    $ayar = Kat-Ayar-Oku
     $sayac = Sayac-Bugun
     $claude = [ordered]@{ bugun = [int](Ozellik $sayac 'claude'); sinir = [int](Ozellik $ayar.gunluk_sinir 'claude'); kalan_yuzde = $null; guncelleme = $null }
     if ($ayar -and $ayar.claude -and $ayar.claude.kullanim_dosyasi) {
@@ -500,7 +802,7 @@ function Codex-Oturum-Tuketimi([datetime]$Bas) {
                     } catch {}
                 }
             }
-            $ekipten = ($o.cwd -and $o.cwd.StartsWith($Kok, [StringComparison]::OrdinalIgnoreCase))
+            $ekipten = ($o.cwd -and $o.cwd.StartsWith($KodKok, [StringComparison]::OrdinalIgnoreCase))
             if ($ekipten) { $sonuc.ekip += $o.toplam } elseif ($o.toplam -gt 0) { $sonuc.dis += $o.toplam; $sonuc.dis_oturum++ }
             if ($o.haklar -and (-not $enYeni -or $o.haklar_zaman -gt $enYeni.haklar_zaman)) { $enYeni = $o }
         }
@@ -613,16 +915,17 @@ function Gorevleri-Oku {
         $g = $null
         if ($fi.Exists) {
             $damga = '{0}-{1}' -f $fi.LastWriteTimeUtc.Ticks, $fi.Length
-            $o = $Onbellek[$ad]
+            $o = $Onbellek[$d]
             if ($o -and $o.damga -eq $damga) { $g = $o.nesne }
             else {
                 $g = Json-Oku $f
-                if ($g) { $Onbellek[$ad] = @{ damga = $damga; nesne = $g } }
+                if ($g) { $Onbellek[$d] = @{ damga = $damga; nesne = $g } }
             }
         } else { $g = Json-Oku $f }
-        if ($g -and (Ozellik $g 'id')) { $liste.Add($g); $gorulen[$ad] = $true }
+        if ($g -and (Ozellik $g 'id')) { $liste.Add($g); $gorulen[$d] = $true }
     }
-    foreach ($k in @($Onbellek.Keys)) { if (-not $gorulen.ContainsKey($k)) { $Onbellek.Remove($k) } }
+    $onEk = $YolGorev.TrimEnd('\') + '\'
+    foreach ($k in @($Onbellek.Keys)) { if ($k.StartsWith($onEk, [StringComparison]::OrdinalIgnoreCase) -and -not $gorulen.ContainsKey($k)) { $Onbellek.Remove($k) } }
     $sirali = New-Object Collections.Generic.List[object]
     foreach ($g in @($liste | Sort-Object { [string]$_.id })) { $sirali.Add($g) }
     return , $sirali
@@ -670,7 +973,7 @@ function Arac-Engeli($Giris, $Sayac, $Kilitler, $Ayar, $ClaudeKullanim, [datetim
 # ---------------------------------------------------------------- anlık durum (panel birkaç saniyede bir ister)
 function Durum-Uret {
     $simdi = Get-Date
-    $ayar = Json-Oku (Join-Path $Kok 'ayarlar.json')
+    $ayar = Kat-Ayar-Oku
     $kalp = Json-Oku (Join-Path $YolDurum 'kalp.json')
     $kilitler = Json-Oku (Join-Path $YolDurum 'kilitler.json')
     $sayac = Sayac-Bugun
@@ -780,6 +1083,9 @@ function Durum-Uret {
             $altyapi = ($aktifTip -eq 'altyapi')
             if ($kalpEtiket -eq 'ise_alim') { $faaliyet = 'ise_alim'; $metin = 'İşe alım yapıyor' }
             elseif ($kalpEtiket -match '^birlikte-') { $faaliyet = 'calisma'; $metin = 'Ekip arkadaşıyla birlikte çalışıyor (anlık yardım)' }
+            elseif ($kalpEtiket -eq 'kat-gonder') { $faaliyet = 'calisma'; $metin = 'İşi başka kata brif olarak yazıyor (katlar arası iletişim)' }
+            elseif ($kalpEtiket -eq 'kat-rapor') { $faaliyet = 'calisma'; $metin = 'Başka kattan gelen sonucu ekibe raporluyor' }
+            elseif ($aktifTip -eq 'yaratici' -and $YaraticiFaaliyet.ContainsKey($asama)) { $faaliyet = $YaraticiFaaliyet[$asama]; $metin = $YaraticiMetni[$asama] }
             elseif ($asama -eq 'yardim') { $faaliyet = 'plan'; $metin = 'Ekip içi yardım isteğini değerlendiriyor' }
             elseif ($asama -eq 'analiz') { $faaliyet = 'analiz'; $metin = $AsamaMetni['analiz'] }
             elseif ($aktifTip -eq 'genel') { $faaliyet = 'plan'; $metin = 'Yeni işi okuyup kime vereceğine karar veriyor' }
@@ -805,10 +1111,13 @@ function Durum-Uret {
             if ($gecmis.Count -gt 0 -and $gecmis[-1]) { $baslangic = $gecmis[-1].zaman }
             if ($anlikArac) { $arac = $anlikArac; $aracKaynak = 'şu an' }
             elseif ($asama -eq 'kontrol') { $arac = $(if ($aktifTip -eq 'yazilim') { 'betik · otomatik kontrol' } else { 'betik · doğrulama komutları' }); $aracKaynak = 'şu an' }
+            elseif ($aktifTip -eq 'yaratici' -and ($asama -eq 'yeni' -or $asama -eq 'bekleme')) { $arac = $(if ($asama -eq 'bekleme') { 'betik · ana kata köprü' } else { 'betik' }); $aracKaynak = 'şu an' }
             elseif (($asama -eq 'yeni' -or $asama -eq 'tamamla') -and $aktifTip -ne 'genel') { $arac = $(if ($altyapi) { 'betik · keşif' } elseif ($aktifTip -eq 'uzman') { 'betik' } else { 'git' }); $aracKaynak = 'şu an' }
         } else {
             foreach ($g in $gorevler) {
                 $sd = Tarih (Ozellik $g 'sonraki_deneme')
+                # Fikir hattında "bekleme" ana katı izleme aralığıdır, yeniden deneme değil
+                if ((Gorev-Tipi $g) -eq 'yaratici' -and [string]$g.asama -eq 'bekleme') { continue }
                 if (($AktifAsamalar -contains [string]$g.asama) -and (Gorev-Rolu $g) -eq $rol -and $sd -and $sd -gt $simdi) {
                     $faaliyet = 'bekliyor'; $metin = 'Yeniden denemeyi bekliyor'
                     $gorevBilgi = [ordered]@{ id = $g.id; baslik = $g.baslik; tur = $g.tur; max_tur = $g.max_tur }
@@ -854,6 +1163,7 @@ function Durum-Uret {
             anahtar = $rol; ad = [string]$uye.ad; departman = [string]$uye.departman; renk = [string](Ozellik $uye 'renk'); renk_koyu = [string](Ozellik $uye 'renk_koyu')
             uzmanlik = [string](Ozellik $uye 'uzmanlik'); yetki = [string](Ozellik $uye 'yetki'); yerlesik = [bool](Ozellik $uye 'yerlesik')
             uzman_isi = [bool](Ozellik $uye 'uzman_isi'); dogrudan_is = [bool](Ozellik $uye 'dogrudan_is'); tanisma = [string](Ozellik $uye 'tanisma'); ise_alan = [string](Ozellik $uye 'ise_alan')
+            kisa_ad = [string](Ozellik $uye 'kisa_ad')
             yeni = [bool]($iseAlinma -and ($simdi - $iseAlinma).TotalDays -lt 7)
             faaliyet = $faaliyet; metin = $metin; calisiyor = [bool]$isbasinda
             gorev = $gorevBilgi; baslangic = $baslangic; arac = $arac; arac_kaynak = $aracKaynak; zincir = $zincir
@@ -883,6 +1193,10 @@ function Durum-Uret {
             tur = $g.tur; max_tur = $g.max_tur; dal = (Ozellik $g 'dal'); oncelik = $g.oncelik
             son_olay = (Ozellik $son 'olay'); son_zaman = (Ozellik $son 'zaman')
             son_hata = (Ozellik $g 'son_hata'); ozet = (Ozellik $g 'ozet'); commit = (Ozellik $g 'commit')
+            kaynak_kat = (Ozellik $g 'kaynak_kat'); kaynak_gorev = (Ozellik $g 'kaynak_gorev'); yazisma = (Ozellik $g 'yazisma'); kat_yazismalari = @(Ozellik $g 'kat_yazismalari' | Where-Object { $_ })
+            alan = (Ozellik $g 'alan'); revizyon = (Ozellik $g 'revizyon'); karar = (Ozellik $g 'karar'); puan = (Ozellik $g 'puan')
+            ana_gorev_id = (Ozellik $g 'ana_gorev_id'); ana_asama = $(if ((Gorev-Tipi $g) -eq 'yaratici') { Yaratici-Ana-Asama $g } else { '' }); teslim_turu = (Ozellik $g 'teslim_turu')
+            ana_takildi = [bool](Ozellik $g 'ana_takildi'); takildi_asama = (Ozellik $g 'takildi_asama')
             sonraki_deneme = (Ozellik $g 'sonraki_deneme'); guncelleme = (Ozellik $g 'guncelleme'); olusturma = (Ozellik $g 'olusturma')
             lider = (Ozellik $g 'lider'); gelistirici = (Ozellik $g 'gelistirici'); denetci = (Ozellik $g 'denetci')
             aktif = [bool](($calisiyor -and $aktif.id -eq $g.id) -or ($paralelGorev.ContainsKey([string]$g.id) -and $paralelGorev[[string]$g.id].calisiyor))
@@ -969,6 +1283,12 @@ function Durum-Uret {
         eposta_kurulu = $epostaKurulu
         model_katalogu = $(if ($ayar -and $ayar.model_katalogu) { $mk = [ordered]@{}; foreach ($mkArac in @('claude', 'codex', 'gemini')) { if ($ayar.model_katalogu.PSObject.Properties[$mkArac]) { $mk[$mkArac] = @($ayar.model_katalogu.$mkArac | Where-Object { $_ }) } }; $mk } else { $null })
         yonetim = (Yonetim-Ozeti $ayar $ctoCalisiyor)
+        kat = [ordered]@{ id = $AktifKatId; ad = [string]$AktifKat.ad; kisa_ad = [string]$AktifKat.kisa_ad; renk = [string]$AktifKat.renk; simge = [string]$AktifKat.simge; kat_no = $AktifKat.kat_no; sirket = (Bina-Bilgisi); kat_sayisi = @(Katlar-Listesi).Count }
+        yazismalar = (Yazisma-Listesi $AktifKatId 12)
+        ofis = (Ofis-Durumu $ayar $duraklatildi)
+        ana_ofis = $(if ($AktifKatId -ne 'ana') { Ana-Ofis $ayar } else { $null })
+        yaratici = $(if (Yaratici-Katinda-mi $kadro) { $ya = Yaratici-Ayar-Oku $ayar; [ordered]@{ revizyon_siniri = $ya.revizyon_siniri; varsayilan_proje = $ya.varsayilan_proje; kopru = [bool]$ya.ana_ofis_yolu } } else { $null })
+        uzak = [bool]$script:IstekUzak
         sorun_giderici = [ordered]@{
             etkin = [bool]($ayar -and $ayar.roller -and (Ozellik $ayar.roller 'sorun-giderici') -and -not ($ayar.sorun_giderici -and $ayar.sorun_giderici.etkin -eq $false))
             en_fazla = $(if ($ayar -and $ayar.sorun_giderici -and $ayar.sorun_giderici.gorev_basina_en_fazla) { [int]$ayar.sorun_giderici.gorev_basina_en_fazla } else { 2 })
@@ -1015,7 +1335,32 @@ function Gorev-Ayrinti([string]$Id) {
     foreach ($f in @(Get-ChildItem -LiteralPath $gk -Filter 'yardim-*.md' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime)) {
         $yardimlar.Add([ordered]@{ ad = $f.Name; zaman = $f.LastWriteTime.ToString('o'); md = (Metin-Oku $f.FullName 60000) })
     }
+    $katYazismalari = New-Object Collections.Generic.List[object]
+    $yids = @(); if ($g) { $yids = @(Ozellik $g 'kat_yazismalari' | Where-Object { $_ }); $yz = [string](Ozellik $g 'yazisma'); if ($yz) { $yids += $yz } }
+    foreach ($yid in $yids) { try { $katYazismalari.Add((Yazisma-Ayrinti ([string]$yid))) } catch {} }
+    $yaratici = $null
+    if ($g -and (Gorev-Tipi $g) -eq 'yaratici') {
+        $belgeler = [ordered]@{}
+        foreach ($ad in @('gorev.md', 'fikir.md', 'elestiri.md', 'poc-plan.md', 'maliyet.md', 'karar.md', 'teslim.json', 'teslim.md', 'ana-ofis-ciktisi.md', 'uygulama-ciktisi.md', 'puanlama.md', 'sonuc.md')) {
+            $belgeler[$ad] = Metin-Oku (Join-Path $gk $ad) 200000
+        }
+        $kayit = New-Object Collections.Generic.List[object]
+        $kd = Join-Path $gk 'kayitlar'
+        if ([IO.Directory]::Exists($kd)) {
+            foreach ($f in @(Get-ChildItem -LiteralPath $kd -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in @('.md', '.txt') } | Sort-Object FullName | Select-Object -First 400)) {
+                $kayit.Add([ordered]@{ ad = $f.Name; yol = ($f.FullName.Substring($gk.Length + 1) -replace '\\', '/'); boyut = $f.Length; zaman = $f.LastWriteTime.ToString('o') })
+            }
+        }
+        $ayarY = Kat-Ayar-Oku
+        $yaratici = [ordered]@{
+            belgeler = $belgeler; geri_bildirimler = @(Ozellik $g 'geri_bildirimler' | Where-Object { $_ }); revizyon_siniri = (Yaratici-Ayar-Oku $ayarY).revizyon_siniri
+            ana_asama = (Yaratici-Ana-Asama $g); ana_panel = (Ana-Ofis $ayarY).panel; ana_kok = (Ana-Kok $ayarY $g); kayitlar = $kayit
+            onceki_teslimler = @(Ozellik $g 'onceki_teslimler' | Where-Object { $_ })
+        }
+    }
     return [ordered]@{
+        kat_yazismalari = $katYazismalari
+        yaratici = $yaratici
         yardimlar = $yardimlar
         yonlendirme_md = (Metin-Oku (Join-Path $gk 'yonlendirme.md') 60000)
         cozumler = $cozumler
@@ -1039,8 +1384,8 @@ function Gorev-Ayrinti([string]$Id) {
 }
 function Gorev-Dosyasi-Oku([string]$Id, [string]$Yol) {
     $gk = Gorev-Klasoru-Bul $Id
-    if ($Yol -notmatch '^((tur\d{1,3}|kayitlar)/)?[A-Za-z0-9][A-Za-z0-9._-]{0,150}$' -or $Yol -match '\.\.') { throw 'HTTP:400:Geçersiz dosya yolu' }
-    if ($Yol -notmatch '\.(md|txt|diff|err)$') { throw 'HTTP:400:Bu dosya türü gösterilmiyor' }
+    if ($Yol -notmatch '^((tur\d{1,3}|kayitlar(/revizyon-\d{1,2}/[a-z-]{2,40}-deneme-\d{1,2})?)/)?[A-Za-z0-9][A-Za-z0-9._-]{0,150}$' -or $Yol -match '\.\.') { throw 'HTTP:400:Geçersiz dosya yolu' }
+    if ($Yol -notmatch '\.(md|txt|diff|err|json)$') { throw 'HTTP:400:Bu dosya türü gösterilmiyor' }
     $tam = Join-Path $gk ($Yol -replace '/', '\')
     if (-not [IO.File]::Exists($tam)) { throw 'HTTP:404:Dosya bulunamadı' }
     return (Metin-Oku $tam 400000)
@@ -1076,7 +1421,7 @@ function Ps-Tirnak([string]$Metin) {
     return "'" + ($temiz -replace '([‘’‚‛''])', '$1$1') + "'"
 }
 function Betik-Calistir([string]$Betik, [string]$ArgMetni, [int]$ZamanAsimiSn = 120) {
-    $yol = Join-Path $Kok $Betik
+    $yol = Join-Path $KodKok $Betik
     if (-not [IO.File]::Exists($yol)) { throw "HTTP:500:Betik bulunamadı: $Betik" }
     $komut = @"
 `$ErrorActionPreference = 'Stop'
@@ -1257,10 +1602,12 @@ $script:IcerikTurleri = @{
     '.mp4' = 'video/mp4'; '.webm' = 'video/webm'; '.woff2' = 'font/woff2'; '.ttf' = 'font/ttf'
 }
 function Onizleme-Gonder($Akis, [string]$Yol) {
-    $m = [regex]::Match($Yol, '^/onizle/([0-9a-f]{32,64})/(\d{4}-[A-Za-z0-9-]{1,60})/(.+)$')
+    $m = [regex]::Match($Yol, '^/onizle/([0-9a-f]{32,64})/(?:@([a-z0-9][a-z0-9-]{0,30})/)?(\d{4}-[A-Za-z0-9-]{1,60})/(.+)$')
     if (-not $m.Success -or $m.Groups[1].Value -cne $OnizlemeAnahtari) { Yanit-Metin $Akis 404 'Bulunamadı'; return }
-    $wt = [IO.Path]::GetFullPath((Join-Path (Join-Path $Kok 'calisma') $m.Groups[2].Value))
-    $parcalar = @($m.Groups[3].Value.Split('/') | ForEach-Object { [Uri]::UnescapeDataString($_) })
+    $katP = $m.Groups[2].Value; if (-not $katP) { $katP = 'ana' }
+    try { Kat-Sec $katP } catch { Yanit-Metin $Akis 404 'Bulunamadı'; return }
+    $wt = [IO.Path]::GetFullPath((Join-Path (Join-Path $Kok 'calisma') $m.Groups[3].Value))
+    $parcalar = @($m.Groups[4].Value.Split('/') | ForEach-Object { [Uri]::UnescapeDataString($_) })
     foreach ($p in $parcalar) { if (-not $p -or $p -eq '.' -or $p -eq '..' -or $p -match '[\\:*?"<>|]') { Yanit-Metin $Akis 400 'Geçersiz yol'; return } }
     $tam = [IO.Path]::GetFullPath((Join-Path $wt ($parcalar -join '\')))
     if (-not $tam.StartsWith($wt + '\', [StringComparison]::OrdinalIgnoreCase) -or -not [IO.File]::Exists($tam)) { Yanit-Metin $Akis 404 'Bulunamadı'; return }
@@ -1326,7 +1673,7 @@ function Eylem-Komut($Veri) {
     $r = Betik-Calistir 'durum.ps1' $a
     if ($r.basarili -and ([string]$r.cikti -match '(?m)^PARALEL: (\d{4}-[A-Za-z0-9-]{1,60})\s*$')) {
         $gid = $Matches[1]
-        $arg = '--headless "{0}" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{1}" -Gorev {2} -Kim {3} -Komut {4}' -f $PsExe, (Join-Path $Kok 'paralel.ps1'), $gid, $kim, $emir
+        $arg = '--headless "{0}" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{1}" -Gorev {2} -Kim {3} -Komut {4}' -f $PsExe, (Join-Path $KodKok 'paralel.ps1'), $gid, $kim, $emir
         $p = Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\conhost.exe') -ArgumentList $arg -WindowStyle Hidden -PassThru
         # Hat kendi kaydını yazana kadar panel "başlıyor" göstersin (paralel.ps1 aynı dosyayı günceller)
         $kl = Join-Path $YolDurum 'paralel'
@@ -1459,7 +1806,9 @@ $script:RolIstemleri = @{
     sistem = @('altyapi-uygulama.md', 'altyapi-dogrulama.md'); ag = @('altyapi-uygulama.md', 'altyapi-dogrulama.md')
     tester = @('qa-test.md', 'tester-inceleme.md', 'uzman-calisma.md'); ik = @('ik-ise-alim.md')
     urun = @('urun-analiz.md'); kasif = @('kasif-kesif.md'); frontend = @('gelistirici.md'); backend = @('gelistirici.md'); cto = @('cto-degerlendirme.md')
-    danisman = @('danisman-gorev.md', 'danisman-claude.md')
+    danisman = @('danisman-gorev.md', 'danisman-claude.md'); iletisim = @('iletisim-gonder.md', 'iletisim-rapor.md', 'uzman-calisma.md')
+    fikirci = @('fikirci.md'); elestirmen = @('elestirmen.md'); planlamaci = @('planlamaci.md'); maliyet = @('maliyet.md')
+    'karar-verici' = @('karar-verici.md', 'teslim.md'); puanlayici = @('puanlayici.md')
 }
 $script:RolAdimlari = @{
     lider = @('İş ver yönlendirmesi', 'Plan ve iş dağılımı', 'Kabul / ret', 'Ekip içi yardım kararı'); 'sorun-giderici' = @('Takılan işi inceleme', 'Kök neden kategorisi')
@@ -1468,6 +1817,9 @@ $script:RolAdimlari = @{
     urun = @('Gereksinim analizi (kabul ölçütleri)'); kasif = @('Kod tabanı keşfi'); frontend = @('Önyüz geliştirme parçası'); backend = @('Arka uç geliştirme parçası')
     cto = @('Yönetim değerlendirmesi (ofis boştayken)', 'Ekip ilkeleri', 'Önceliklendirme', 'İş önerisi')
     danisman = @('Tek parça iş: terminal ajanı (Claude Code / Codex / Gemini, masadaki kural dosyası)', 'Sonucu ve özeti ofise / sohbete raporlama')
+    iletisim = @('Katlar arası iletişim: başka kata brif (KARAR: KAT)', 'Başka kattan dönen sonucu ekibe raporlama', 'Uzman işi (yazışma, rapor, bildirim)')
+    fikirci = @('1 · Fikir'); elestirmen = @('2 · Eleştiri'); planlamaci = @('3 · POC planı'); maliyet = @('4 · Maliyet')
+    'karar-verici' = @('5 · Karar (ONAYLA / REVIZE / REDDET)', 'Teslim paketi (ana kat)'); puanlayici = @('6 · Puan (1-10)')
 }
 function Karakter-Bilgisi([string]$Rol) {
     $Rol = Sohbet-Rolu $Rol
@@ -1477,7 +1829,7 @@ function Karakter-Bilgisi([string]$Rol) {
     if ($talimatYolu -and $talimatYolu -match '^istemler\\kadro\\[a-z0-9-]+\.md$') { $istemler.Add([ordered]@{ ad = ($talimatYolu -replace '\\', '/'); tur = 'rol talimatı' }) }
     $adimIstemleri = @(); if ($RolIstemleri.ContainsKey($Rol)) { $adimIstemleri = $RolIstemleri[$Rol] } elseif ([bool](Ozellik $uye 'uzman_isi')) { $adimIstemleri = @('uzman-calisma.md', 'uzman-inceleme.md', 'ek-inceleme.md') }
     foreach ($a in $adimIstemleri) { $istemler.Add([ordered]@{ ad = "istemler/$a"; tur = 'adım istemi' }) }
-    $talimat = ''; if ($istemler.Count -and $istemler[0].tur -eq 'rol talimatı') { $talimat = Metin-Oku (Join-Path $Kok ($istemler[0].ad -replace '/', '\')) 30000 }
+    $talimat = ''; if ($istemler.Count -and $istemler[0].tur -eq 'rol talimatı') { $talimat = Metin-Oku (Kok-Dosyasi-P ($istemler[0].ad -replace '/', '\')) 30000 }
     # İstatistik (son 30 gün)
     $st = [ordered]@{ cagri = 0; basarisiz = 0; toplam = [long]0; sure_sn = [long]0; tepe_yuzde = $null; ort_yuzde = $null; modeller = [ordered]@{}; adimlar = [ordered]@{}; son = $null; gun = 30 }
     $yt = 0.0; $ya = 0
@@ -1599,14 +1951,25 @@ function Kaynak-Listesi {
         @('Adım istemleri', '*.md', 'istemler'), @('Rol talimatları (yetenekler)', '*.md', 'istemler\kadro'),
         @('Ayarlar', 'ayarlar.json', ''), @('Ayarlar', 'ayarlar.yerel.json', ''), @('Ayarlar', 'kadro.json', ''), @('Ayarlar', 'kadro.yerel.json', ''),
         @('Ayarlar', 'projeler.json', ''), @('Ayarlar', 'projeler.yerel.json', ''),
-        @('Araçlar', '*.ps1', 'araclar'), @('Araçlar', '*.py', 'araclar'), @('Testler', '*.ps1', 'testler'), @('Outsource Consultant masası', '*.md', 'danisman'), @('Belgeler', 'README.md', '')
+        @('Araçlar', '*.ps1', 'araclar'), @('Araçlar', '*.py', 'araclar'), @('Testler', '*.ps1', 'testler'), @('Outsource Consultant masası', '*.md', 'danisman'), @('Belgeler', 'README.md', ''),
+        @('Şirket binası', 'katlar.json', ''), @('Panel', 'bina.html', 'ofis')
     )
+    # Alt katta: ayarlar / kadro / projeler katın kendi dosyaları; katın istem ve bilgi dosyaları ayrı grup (yol öneki @kat/)
+    $katGruplari = @()
+    if ($Kok -ne $KodKok) {
+        $gruplar = @($gruplar | Where-Object { $_[0] -ne 'Ayarlar' })
+        $katGruplari = @(@('Kat ayarları', 'ayarlar.json', ''), @('Kat ayarları', 'ayarlar.yerel.json', ''), @('Kat ayarları', 'kadro.json', ''), @('Kat ayarları', 'kadro.yerel.json', ''),
+            @('Kat ayarları', 'projeler.json', ''), @('Kat ayarları', 'projeler.yerel.json', ''),
+            @('Kat istemleri', '*.md', 'istemler'), @('Kat istemleri', '*.md', 'istemler\kadro'), @('Kat bilgisi', '*.md', 'bilgi'))
+    }
     $l = New-Object Collections.Generic.List[object]
-    foreach ($g in $gruplar) {
-        $kl = $Kok; if ($g[2]) { $kl = Join-Path $Kok $g[2] }
-        if (-not [IO.Directory]::Exists($kl)) { continue }
-        foreach ($f in @(Get-ChildItem -LiteralPath $kl -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -like $g[1] } | Sort-Object Name)) {
-            $l.Add([ordered]@{ grup = $g[0]; yol = ($f.FullName.Substring($Kok.Length + 1) -replace '\\', '/'); boyut = $f.Length; zaman = $f.LastWriteTime.ToString('o') })
+    foreach ($kume in @(@{ kok = $KodKok; onek = ''; liste = $gruplar }, @{ kok = $Kok; onek = '@kat/'; liste = $katGruplari })) {
+        foreach ($g in $kume.liste) {
+            $kl = $kume.kok; if ($g[2]) { $kl = Join-Path $kume.kok $g[2] }
+            if (-not [IO.Directory]::Exists($kl)) { continue }
+            foreach ($f in @(Get-ChildItem -LiteralPath $kl -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -like $g[1] } | Sort-Object Name)) {
+                $l.Add([ordered]@{ grup = $g[0]; yol = ($kume.onek + ($f.FullName.Substring($kume.kok.Length + 1) -replace '\\', '/')); boyut = $f.Length; zaman = $f.LastWriteTime.ToString('o') })
+            }
         }
     }
     return , $l
@@ -1615,8 +1978,10 @@ function Kaynak-Oku([string]$Yol) {
     $liste = Kaynak-Listesi
     $k = $null; foreach ($x in $liste) { if ($x.yol -ceq $Yol) { $k = $x; break } }
     if (-not $k) { throw 'HTTP:404:Bu dosya listede yok' }
-    $metin = Metin-Oku (Join-Path $Kok ($Yol -replace '/', '\')) 800000
-    if ($Yol -like 'ayarlar*.json') {
+    $taban = $KodKok; $goreli = $Yol
+    if ($Yol.StartsWith('@kat/')) { $taban = $Kok; $goreli = $Yol.Substring(5) }
+    $metin = Metin-Oku (Join-Path $taban ($goreli -replace '/', '\')) 800000
+    if ($goreli -like 'ayarlar*.json') {
         # Gizli değerler panelde gösterilmez
         $metin = [regex]::Replace($metin, '("(ntfy_konu|parola|sifre|password|token|api_key|anahtar)"\s*:\s*")[^"]*(")', '$1***$3')
     }
@@ -1701,12 +2066,31 @@ function Simge-Gonder($Akis, [string]$Boyut) {
     if (-not [IO.File]::Exists($f)) { Yanit-Metin $Akis 404 'Simge yok'; return }
     Yanit-Gonder $Akis 200 'image/png' ([IO.File]::ReadAllBytes($f)) @{ 'Cache-Control' = 'max-age=86400' }
 }
-function Panel-Gonder($Akis) {
-    $html = Metin-Oku $PanelDosyasi
+# Bina kabuğu (/): solda kat seçici, sağda seçilen katın paneli (aynı sunucudan /kat/<id>/) ya da uygulama katının kendi paneli
+function Bina-Gonder($Akis) {
+    $html = Metin-Oku (Join-Path $OfisKok 'bina.html')
+    if (-not $html) { Panel-Gonder $Akis 'ana'; return }
+    $nonce = [Guid]::NewGuid().ToString('N')
+    $html = $html.Replace('__OFIS_ANAHTARI__', $Anahtar).Replace('__NONCE__', $nonce)
+    # Uygulama katlarının panelleri yalnız bu bilgisayardan (yerel adres) çerçevelenebilir
+    $kaynaklar = @("'self'")
+    if (-not $script:IstekUzak) { foreach ($k in (Katlar-Listesi)) { if ([string]$k.tur -eq 'uygulama' -and [string]$k.uygulama.adres -match '^(https?://(127\.0\.0\.1|localhost)(:\d{1,5})?)(/|$)') { $kaynaklar += $Matches[1] } } }
+    $csp = "default-src 'none'; script-src 'nonce-$nonce'; style-src 'unsafe-inline'; img-src 'self' data:; frame-src $($kaynaklar -join ' '); connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    Yanit-Gonder $Akis 200 'text/html; charset=utf-8' ($Utf8.GetBytes($html)) @{ 'Content-Security-Policy' = $csp }
+}
+function Panel-Gonder($Akis, [string]$KatId = 'ana') {
+    $k = Kat-Bul-P $KatId
+    if (-not $k -or -not (Kat-Ekip-mi $k)) { Yanit-Metin $Akis 404 'Bulunamadı'; return }
+    # Katın kendi paneli olabilir (katlar.json > panel, ofis\ altında; ör. Creativity Office'in stüdyo paneli)
+    $dosya = $PanelDosyasi
+    $ozel = [string]$k.panel
+    if ($ozel -match '^[A-Za-z0-9][A-Za-z0-9._-]{0,80}\.html$' -and [IO.File]::Exists((Join-Path $OfisKok $ozel))) { $dosya = Join-Path $OfisKok $ozel }
+    $html = Metin-Oku $dosya
     if (-not $html) { Yanit-Metin $Akis 500 'panel.html bulunamadı'; return }
     $nonce = [Guid]::NewGuid().ToString('N')
-    $html = $html.Replace('__OFIS_ANAHTARI__', $Anahtar).Replace('__ONIZLEME_ANAHTARI__', $OnizlemeAnahtari).Replace('__NONCE__', $nonce)
+    $html = $html.Replace('__OFIS_ANAHTARI__', $Anahtar).Replace('__ONIZLEME_ANAHTARI__', $OnizlemeAnahtari).Replace('__NONCE__', $nonce).Replace('__OFIS_KATI__', $KatId)
     $csp = "default-src 'none'; script-src 'nonce-$nonce'; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self'; frame-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    $csp = $csp -replace "frame-ancestors 'none'", "frame-ancestors 'self'"   # bina kabuğunun çerçevesinde açılır
     Yanit-Gonder $Akis 200 'text/html; charset=utf-8' ($Utf8.GetBytes($html)) @{ 'Content-Security-Policy' = $csp }
 }
 function Istek-Isle($Akis, $I) {
@@ -1718,9 +2102,11 @@ function Istek-Isle($Akis, $I) {
         if (($UzakHostlar -contains $hostBasligi) -or $tsKim) {
             if (-not $tsKim -or ($UzakKullanicilar.Count -gt 0 -and $UzakKullanicilar -notcontains $tsKim)) { Yanit-Metin $Akis 403 'Bu hesaba izin verilmiyor.'; return }
         }
+        $script:IstekUzak = [bool](($UzakHostlar -contains $hostBasligi) -or $tsKim)
         $yol = [string]$I.yol
         $yontem = [string]$I.yontem
-        if ($yontem -eq 'GET' -and ($yol -eq '/' -or $yol -eq '/index.html')) { Panel-Gonder $Akis; return }
+        if ($yontem -eq 'GET' -and ($yol -eq '/' -or $yol -eq '/index.html')) { Bina-Gonder $Akis; return }
+        if ($yontem -eq 'GET' -and $yol -match '^/kat/([a-z0-9][a-z0-9-]{0,30})/?$') { Panel-Gonder $Akis $Matches[1]; return }
         if ($yontem -eq 'GET' -and $yol -eq '/manifest.webmanifest') { Manifest-Gonder $Akis; return }
         if ($yontem -eq 'GET' -and $yol -match '^/simge-(180|192|512)\.png$') { Simge-Gonder $Akis $Matches[1]; return }
         if ($yontem -eq 'GET' -and $yol.StartsWith('/onizle/')) { Onizleme-Gonder $Akis $yol; return }
@@ -1731,6 +2117,13 @@ function Istek-Isle($Akis, $I) {
         if ($koken -and $IzinliKokenler -notcontains $koken.ToLowerInvariant()) { Yanit-Json $Akis 403 @{ hata = 'Bu kaynaktan istek kabul edilmiyor.' }; return }
         $sfs = [string]$I.basliklar['sec-fetch-site']
         if ($sfs -and $sfs -ne 'same-origin' -and $sfs -ne 'none') { Yanit-Json $Akis 403 @{ hata = 'Siteler arası istek kabul edilmiyor.' }; return }
+        # Şirket binası: istek hangi katın paneli için (kat panelleri X-Ofis-Kat başlığı gönderir; yoksa ana kat)
+        $katIstek = [string]$I.basliklar['x-ofis-kat']; if (-not $katIstek) { $katIstek = [string]$I.sorgu['kat'] }
+        Kat-Sec $katIstek
+        if ($yol -eq '/api/katlar') { Yanit-Json $Akis 200 (Katlar-Bilgisi); return }
+        if ($yol -eq '/api/yazismalar') { Yanit-Json $Akis 200 ([ordered]@{ yazismalar = (Yazisma-Listesi ([string]$I.sorgu['filtre']) 60) }); return }
+        if ($yol -eq '/api/yazisma') { Yanit-Json $Akis 200 (Yazisma-Ayrinti ([string]$I.sorgu['id'])); return }
+        if (-not (Kat-Ekip-mi $AktifKat) -and $yol -notmatch '^/api/kat-(ac|kapat)$') { Yanit-Json $Akis 400 @{ hata = 'Bu kat bir uygulama katı; kendi paneli kullanılır.' }; return }
 
         if ($yontem -eq 'GET') {
             switch ($yol) {
@@ -1744,7 +2137,7 @@ function Istek-Isle($Akis, $I) {
                 '/api/yonetim' { Yanit-Json $Akis 200 (Yonetim-Bilgisi); return }
                 '/api/kaynak' {
                     $ky = [string]$I.sorgu['yol']
-                    if ($ky) { Yanit-Metin $Akis 200 (Kaynak-Oku $ky) } else { Yanit-Json $Akis 200 ([ordered]@{ kok = $Kok; dosyalar = (Kaynak-Listesi) }) }
+                    if ($ky) { Yanit-Metin $Akis 200 (Kaynak-Oku $ky) } else { Yanit-Json $Akis 200 ([ordered]@{ kok = $KodKok; kat_kok = $Kok; dosyalar = (Kaynak-Listesi) }) }
                     return
                 }
             }
@@ -1761,8 +2154,16 @@ function Istek-Isle($Akis, $I) {
                 '/api/talep-ekle' { $r = Eylem-TalepEkle $v }
                 '/api/uzman-ekle' { $r = Eylem-UzmanEkle $v }
                 '/api/duraklat' { $r = Betik-Calistir 'durum.ps1' '-Duraklat' }
-                '/api/surdur' { $r = Betik-Calistir 'durum.ps1' '-Surdur' }
-                '/api/ofis-kapat' { $r = Eylem-OfisKapat }
+                '/api/surdur' {
+                    $r = Betik-Calistir 'durum.ps1' '-Surdur'
+                    # Alt katların döngüsü kapalıyken çıkar: sürdürünce döngü yoksa başlat
+                    if ($r.basarili -and $AktifKatId -ne 'ana' -and -not (Kat-Kapali-P $Kok) -and -not (Kat-Dongusu-Calisiyor-P $AktifKatId)) { Kat-Dongusu-Baslat-P $AktifKatId }
+                }
+                '/api/ofis-kapat' { if ($AktifKatId -eq 'ana') { $r = Eylem-OfisKapat } else { $r = Eylem-KatKapat ([pscustomobject]@{ kat = $AktifKatId }) } }
+                '/api/ofis-ac' { $r = Eylem-KatAc ([pscustomobject]@{ kat = $AktifKatId }) }
+                '/api/kat-ac' { $r = Eylem-KatAc $v }
+                '/api/kat-kapat' { $r = Eylem-KatKapat $v }
+                '/api/konu-ekle' { $r = Eylem-KonuEkle $v }
                 '/api/sohbet' { $r = Eylem-Sohbet $v }
                 '/api/sohbet-temizle' { $r = Eylem-SohbetTemizle $v }
                 '/api/devam' { $r = Eylem-Devam $v }
@@ -1789,7 +2190,8 @@ function Istek-Isle($Akis, $I) {
 
 # ---------------------------------------------------------------- başlatma
 function Panel-Ac([int]$P) {
-    try { Start-Process "http://127.0.0.1:$P/" } catch { Ofis-Kayit "Tarayıcı açılamadı: $($_.Exception.Message)" 'UYARI' }
+    $ek = ''; if ($AcilacakKat) { $ek = "#kat=$AcilacakKat" }
+    try { Start-Process "http://127.0.0.1:$P/$ek" } catch { Ofis-Kayit "Tarayıcı açılamadı: $($_.Exception.Message)" 'UYARI' }
 }
 
 $mutex = New-Object Threading.Mutex($false, 'Local\AIEkipOfis')
@@ -1889,6 +2291,7 @@ try {
             }
         }
         if (-not $is) {
+            try { Bina-Bekcisi-P } catch {}
             if ($BosKapanDk -gt 0 -and $baglantilar.Count -eq 0 -and ((Get-Date) - $sonIstek).TotalMinutes -ge $BosKapanDk) {
                 Ofis-Kayit "$BosKapanDk dakikadır istek gelmedi; panel sunucusu kapanıyor"
                 break

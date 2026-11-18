@@ -1,0 +1,45 @@
+# Ornek tanim: SAP IQ iqdemo GROUPO verisi uzerinde DA_ onekli deneme evreni.
+# 13.11.2026'da bu sunucuda calisan IQDEMO_GROUPO evreninin (D:\SapIqLab) tanim dosyasi karsiligi.
+# Satir bicimi "anahtar: deger"; '#' ile baslayan satirlar yorum. Coklu alanlar '|' ile ayrilir.
+#
+# Calistirma (ana makinede, parolalar ortam degiskeninden):
+#   $env:DAO_BO_PAROLA = '<CMS Administrator>'; $env:DAO_DB_PAROLA = '<IQ boadmin>'
+#   .\araclar\sap\sap-java.ps1 -Kaynak .\araclar\sap\unx\UnxBuilder.java -Ek .\araclar\sap\unx\ornek-groupo.unxspec -Arguman ornek-groupo.unxspec
+
+evren: DA_GROUPO_ORNEK
+aciklama: Data and Analytics Office - SAP IQ GROUPO ornek satis evreni
+evren_klasoru: DA Office
+
+# Yeni baglanti (ya da mevcut bir baglantiyi kullanmak icin: mevcut_baglanti: Connections/IQDEMO_GROUPO.cnx)
+baglanti: DA_IQDEMO_GROUPO
+baglanti_aciklama: SAP IQ 16.2 iqdemo (IQ-SRV 192.168.1.54:2640)
+baglanti_klasoru: DA Office
+ara_katman: Sybase IQ 16
+surucu: ODBC Drivers
+parametre: DATASOURCE = IQDEMO
+parametre: USER_NAME = boadmin
+
+# Tablolar: sahip.tablo ya da niteleyici.sahip.tablo (SQL Server: DA_DWH.dbo.FactSales)
+niteleyici:
+tablo: GROUPO.Customers
+tablo: GROUPO.SalesOrders
+tablo: GROUPO.SalesOrderItems
+tablo: GROUPO.Products
+
+# birlestirme: <SQL ifadesi> ; <N-1 | 1-N | 1-1 | N-N>
+birlestirme: SalesOrders.CustomerID=Customers.ID ; N-1
+birlestirme: SalesOrderItems.ID=SalesOrders.ID ; N-1
+birlestirme: SalesOrderItems.ProductID=Products.ID ; N-1
+
+# boyut: <klasor yolu> | <ad> | <SELECT> | <STRING|NUMERIC|DATE|...> | <aciklama>
+boyut: Müşteri | Şirket | Customers.CompanyName | STRING | Müşteri şirket adı
+boyut: Müşteri | Şehir | Customers.City | STRING
+boyut: Ürün | Ürün Adı | Products.Name | STRING
+boyut: Sipariş | Bölge | SalesOrders.Region | STRING
+boyut: Sipariş | Sipariş Tarihi | SalesOrders.OrderDate | DATE
+boyut: Sipariş | Sipariş Yılı | CAST(YEAR(SalesOrders.OrderDate) AS VARCHAR(4)) | STRING | Metin; raporda 2,000 gibi görünmesin
+
+# olcu: <klasor yolu> | <ad> | <SELECT> | [veri tipi] | <aciklama>
+olcu: Ölçüler | Adet | SUM(SalesOrderItems.Quantity) | NUMERIC
+olcu: Ölçüler | Ciro | SUM(SalesOrderItems.Quantity * Products.UnitPrice) | NUMERIC | Adet x birim fiyat
+olcu: Ölçüler | Sipariş Sayısı | COUNT(DISTINCT SalesOrders.ID) | NUMERIC

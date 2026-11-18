@@ -1,0 +1,7 @@
+"""`python -m app` — .env'deki BACKEND_HOST/BACKEND_PORT ile sunucuyu başlatır."""
+import uvicorn
+
+from .config import settings
+
+if __name__ == "__main__":
+    uvicorn.run("app.main:app", host=settings.host, port=settings.port, log_level="info")

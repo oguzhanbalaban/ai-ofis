@@ -61,7 +61,7 @@ function Paralel-Kalp([string]$Durum) {
 # Paralel hattı başlatır (görünmez pencerede paralel.ps1). Panel sunucusu kendi başlatır; bu, komut satırı (durum.ps1) içindir.
 function Paralel-Baslat([string]$Id, [string]$Kim, [string]$Emir) {
     $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
-    $arg = '--headless "{0}" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{1}" -Gorev {2} -Kim {3} -Komut {4}' -f $ps, (Join-Path $Kok 'paralel.ps1'), $Id, $Kim, $Emir
+    $arg = '--headless "{0}" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{1}" -Gorev {2} -Kim {3} -Komut {4}' -f $ps, (Join-Path $KodKok 'paralel.ps1'), $Id, $Kim, $Emir
     $p = Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\conhost.exe') -ArgumentList $arg -WindowStyle Hidden -PassThru
     return $p.Id
 }
@@ -81,6 +81,7 @@ function Adim-Rolu($G) {
     if ($a -eq 'takildi') { $a = [string]$G.takildi_asama }
     $tip = [string]$G.tip; if (-not $tip) { $tip = 'yazilim' }
     if ($a -eq 'analiz') { return 'urun' }   # Product Manager (planlama.ps1)
+    if ($tip -eq 'yaratici') { return (Yaratici-Adim-Rolu $a) }
     if ($tip -eq 'danisman') { return 'danisman' }   # Outsource Consultant (danisman.ps1)
     if ($a -eq 'yardim' -or $tip -eq 'genel') { return 'lider' }
     if ($tip -eq 'altyapi') {

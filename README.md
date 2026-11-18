@@ -68,6 +68,28 @@ Yazılım işleri katmanlı yürür (`planlama.ps1`; ayarlar `ayarlar.json > pla
 
 **Onay kapısı:** commit'ten önce bu turda Code Reviewer'ın (QA testi yapıldıysa QA Engineer'ın ve ek incelemelerin de) onayı aranır; yoksa iş incelemeye döner. Panoda işi kendiniz Tamamlandı'ya taşırsanız commit edilir ve mesaja not düşülür. Ekip push / merge yapmaz. Katmanlar `ayarlar.yerel.json > planlama` ile kapatılabilir (`analiz`, `kesif`, `qa_testi`, `onay_kapisi`); bir rol kadroda ya da model zincirinde yoksa o katman kendiliğinden atlanır.
 
+## Şirket binası: katlar ve katlar arası iletişim (Comms)
+
+Ofis çok katlı bir şirkettir. Panel açılınca solda **Kat** seçici (asansör) görünür; her kat ayrı bir ofistir, kendi kadrosu,
+ayarları, görev panosu ve döngüsüyle çalışır, kod ortaktır:
+
+| Kat | Ofis | Ne yapar |
+| --- | --- | --- |
+| 3 | **AI Ekip Ofisi** (ana kat, genel merkez) | Yazılım, altyapı, tasarım, test; verisi kök klasörde |
+| 2 | **Data and Analytics Office** (`katlar\data-analytics`) | SAP Data Services ETL, BusinessObjects UNX universe ve Web Intelligence raporları; SAP ortamınızı `bilgi\sap-ortami.md` ve `altyapi.makineler` içine yazın |
+| 1 | **Creativity Office** (`katlar\creativity`) | Fikir hattı: fikir → eleştiri → POC planı → maliyet → karar; onaylanan POC ana kata gider, sonuç puanlanır (stüdyo paneli) |
+| Z | **Masal Shorts Stüdyosu** (`katlar\masal`) | Uygulama katı: çocuk masalı YouTube Shorts üretim hattı (kendi sunucusu ve paneli). Kurulumu `katlar\masal\README.md`; yayın / yükleme yalnızca sizin onayınızla |
+
+- **Katlar arası iletişimi Communications Coordinator'lar (Comms) yürütür.** Bir iş başka bir katın uzmanlığındaysa katın yöneticisi
+  `KARAR: KAT` verir (ya da bir çalışan başka kattan yardım ister); Comms isteği o katın ekibinin tek başına anlayacağı bir brife çevirir,
+  hedef katta görev açar (uygulama katında API'sine iş verir), işi izler ve sonuç gelince kendi ekibine rapor yazar. Görev o sırada
+  "Başka katta yapılıyor" bekler. Yazışmalar `sirket\yazismalar\` altında, panelde sol altta ve görevin "Kat yazışması" sekmesindedir.
+- Bir iş geldiği kata geri gönderilemez; zincir en fazla iki kat derinliktir (`ayarlar.json > kat_iletisimi`).
+- Alt katların ayarları yalnız kata özgü blokları taşır (roller, kat kuralları); araç yolları, bildirim, döngü ve model kataloğu ana kattan
+  miras alınır. Kurulum sihirbazı katların rol zincirlerini de seçtiğiniz yapay zekaya uyarlar (`katlar\<id>\*.yerel.json`).
+- Katlar kapalı başlar: panelde katı seçip **Katı aç** deyin; döngüsü başlar (ana katın bekçisi açık katları ayakta tutar). Kapatınca
+  çalışan adım bitince döngü çıkar. Yeni kat eklemek için `katlar.json`'a kat ve `katlar\<id>\` altına `kadro.json` / `ayarlar.json` koyun.
+
 ## Outsource Consultant: tek parça işler kendi yapay zekanıza
 
 Paralel ekip çalışması gerektirmeyen, tek bağlam penceresinde baştan sona çözülebilecek işler iç ekibe dağıtılmaz (`danisman.ps1`, ayarlar `ayarlar.json > danisman`). "İş ver" ile gelen işi Product Manager analiz eder ve `ATAMA: danisman | ekip` kararı verir; danışmansa işi `## Danışman brifi` bölümünde tek, net bir isteme çevirir (panelde **Brif** sekmesi). İşi doğrudan danışmana verirseniz (karakter kartında **Bu çalışana iş ver**, sohbetteki iş önerisi ya da `is-ver.ps1 -Rol danisman`) yönlendirme zorunludur.
@@ -159,6 +181,9 @@ Bu sürümden önceki bir kurulumdan yükseltiyorsanız: `ayarlar.json` içindek
 | `planlama.ps1` | Product Manager, Codebase Explorer, iş dağılımı (Frontend / Backend), QA test aşaması, onay kapısı |
 | `yonetim.ps1` | CTO: yönetim değerlendirmesi, ekip ilkeleri, önceliklendirme, iş önerisi |
 | `komut.ps1`, `paralel.ps1` | Çalışana doğrudan komut (Devam et / Devral) ve paralel çalışma hatları |
+| `katlar.json`, `katlar/`, `iletisim.ps1` | Şirket binası: katlar (her biri kendi verisiyle) ve katlar arası iletişim (Comms, yazışmalar) |
+| `yaratici.ps1`, `kopru.ps1`, `proje-ekle.ps1`, `sonuc-ekle.ps1` | Fikir hattı (Creativity Office katı) ve onaylı POC'un ana kata köprüsü |
+| `ofis/bina.html`, `ofis/panel-creativity.html` | Bina paneli (solda Kat seçici) ve Creativity katının stüdyo paneli |
 | `danisman.ps1`, `danisman/` | Outsource Consultant: tek parça işler seçilen yapay zekanın terminal ajanına; masa (`CLAUDE.md` ana kurallar, `AGENTS.md` / `GEMINI.md` kopyaları) |
 | `gorev-ekle.ps1`, `talep-ekle.ps1`, `uzman-ekle.ps1` | Yazılım, altyapı ve uzman işini doğrudan ekleme |
 | `ayarlar.json`, `kadro.json`, `projeler.json` | Anonim ayar, kadro ve proje şablonları |

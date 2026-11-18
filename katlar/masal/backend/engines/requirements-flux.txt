@@ -1,0 +1,9 @@
+# FLUX.2 [klein] 4B çizim işçisi (.venv-flux). torch, yerel-modeller.ps1 tarafından CUDA dizininden kurulur.
+diffusers>=0.37
+transformers>=4.57
+accelerate>=1.2
+safetensors
+huggingface_hub
+sentencepiece
+protobuf
+pillow

@@ -32,6 +32,14 @@ function Projeler-Metni {
     $n = 0
     foreach ($x in @($p.projeler)) { if ($x -and $x.ad) { $n++; [void]$sb.AppendLine(('| {0} | {1} |' -f $x.ad, $x.klasor)) } }
     if ($n -eq 0) { [void]$sb.AppendLine('| (kayıtlı proje yok) | |') }
+    if (Yaratici-Katta-mi) {
+        # Fikir hattı: onaylı POC'ların varsayılan hedefi ve ana kata köprü (yaratici.ps1)
+        $ya = Yaratici-Ayari
+        $hedef = '(yok; konu eklenirken belirtilir)'; if ($ya.varsayilan_proje) { $hedef = $ya.varsayilan_proje }
+        $kopru = 'yerel teslim (köprü yok)'; if ($ya.ana_ofis_yolu) { $kopru = 'ana kata köprü açık (Comms kaydıyla)' }
+        [void]$sb.AppendLine('')
+        [void]$sb.AppendLine("Fikir hattında onaylanan POC'ların varsayılan hedefi: $hedef · teslim: $kopru")
+    }
     return $sb.ToString()
 }
 function Makineler-Metni {
@@ -106,12 +114,26 @@ function Yonlendirme-Bitir($G, [string]$Olay, [string]$Ayrinti, $Sonuc, [string]
 function Yonetici-Yonlendir($G) {
     $gk = Gorev-Klasoru $G.id
     $istem = Sablon-Doldur 'yonetici-yonlendirme.md' @{ KADRO = (Kadro-Metni); PROJELER = (Projeler-Metni); MAKINELER = (Makineler-Metni); GOREV = (Gorev-Metni $G) }
+    # Şirket binası: iş başka bir katın alanındaysa KARAR: KAT (iletisim.ps1; Comms iletir, sonucu getirir)
+    $istem += (Kat-Secenegi-Metni 'yonlendirme' $G)
     $r = Ajan-Cagir -Rol 'lider' -Istem $istem -Klasor $gk -KayitKlasoru (Kayit-Klasoru $G) -Etiket 'yonlendirme'
     if (-not $r.basarili) { Adim-Basarisiz $G "Engineering Manager işi yönlendiremedi: $($r.hata)"; return }
     Ayarla $G 'lider' ('{0}/{1}' -f $r.arac, $r.model)
     Metin-Yaz (Join-Path $gk 'yonlendirme.md') $r.metin
     $gerekce = Kirp (Bolum-Oku $r.metin 'Gerekçe') 1200
-    switch (Karar-Oku $r.metin) {
+    $karar = Karar-Oku $r.metin
+    # Fikir hattı olan katta (Creativity Office) kod yazan / sunucu kuran ekip yok: bu işler fikir hattından geçip onaylanınca ana kata gider
+    if ((Yaratici-Katta-mi) -and @('YAZILIM', 'ALTYAPI', 'FIKIR', 'POC') -contains $karar) { $karar = 'YARATICI' }
+    switch ($karar) {
+        'YARATICI' {
+            if (-not (Yaratici-Katta-mi)) { Metin-Yaz (Join-Path $gk 'plan-gecersiz.md') $r.metin; Adim-Basarisiz $G 'Bu katta fikir hattı yok (KARAR: YARATICI geçersiz)'; return }
+            $alan = Deger-Temizle (Alan-Oku $r.metin 'ALAN')
+            $proje = Deger-Temizle (Alan-Oku $r.metin 'PROJE')
+            if (-not $proje -and $G.ipucu) { $proje = [string]$G.ipucu }
+            Yaratici-Gorev-Hazirla $G $alan $proje
+            $hedef = '(teslim aşamasında varsayılan hedef)'; if ($G.proje) { $hedef = [string]$G.proje }
+            Yonlendirme-Bitir $G "$(Calisan-Adi 'lider') fikir hattına verdi" "alan: $($G.alan)" $r ("Fikir hattına verildi (fikir → eleştiri → POC planı → maliyet → karar → ana kat → puan). Alan: $($G.alan); POC hedefi: $hedef.`n`n$gerekce")
+        }
         'YAZILIM' {
             $p = $null
             $ad = Alan-Oku $r.metin 'PROJE'
@@ -166,6 +188,11 @@ function Yonetici-Yonlendir($G) {
             Yonlendirme-Bitir $G 'Engineering Manager İK''dan işe alım istedi' $aranan $r ("Kadroda bu işi yapabilecek kimse yok; HR Specialist işe alım yapacak. Aranan: $aranan`n`n$gerekce")
         }
         'SORU_VAR' { Altyapi-Soru $G $r.metin $r 'Engineering Manager soru sordu' }
+        'KAT' {
+            $h = Kat-Kararini-Uygula $G $r 'is'
+            if ($h) { Metin-Yaz (Join-Path $gk 'plan-gecersiz.md') $r.metin; Adim-Basarisiz $G "$(Calisan-Adi 'lider') işi başka bir kata vermek istedi ama iletilemedi: $h"; return }
+            if ($gerekce) { Gorev-Notu-Ekle $G "$(Calisan-Adi 'lider')ʼın yönlendirmesi" ("Başka kata verildi.`n`n$gerekce") }
+        }
         default {
             Metin-Yaz (Join-Path $gk 'plan-gecersiz.md') $r.metin
             Adim-Basarisiz $G "Yönlendirme çıktısında geçerli bir KARAR satırı yok ($($r.arac))"

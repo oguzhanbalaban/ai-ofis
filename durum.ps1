@@ -16,7 +16,7 @@ durum.ps1 - AI Ekip'in anlık durumu ve görev yönetimi.
   .\durum.ps1 -Duraklat / -Surdur   tüm ekibi duraklat / sürdür (DURDUR dosyası)
   .\durum.ps1 -KilitleriSifirla     araç kilitlerini kaldır (ör. "claude auth login" yaptıktan sonra)
 #>
-param([string]$Devam, [string]$Not, [string]$Iptal, [string]$Tasi, [string]$Asama, [string]$Komut, [string]$Kim, [string]$Emir = 'devam',
+param([string]$Id, [string]$Devam, [string]$Not, [string]$Iptal, [string]$Tasi, [string]$Asama, [string]$Komut, [string]$Kim, [string]$Emir = 'devam',
     [switch]$Baslatma, [string]$ParalelDurdur, [switch]$Ac, [switch]$Duraklat, [switch]$Surdur, [switch]$KilitleriSifirla, [switch]$Degerlendir)
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'ortak.ps1')
@@ -69,8 +69,10 @@ if ($ParalelDurdur) {
     $g = Gorev-Bul $ParalelDurdur
     Write-Host (Paralel-Durdur $g)
 }
+if ($Id) { Gorev-Bul $Id; return }
 if ($Iptal) {
     $g = Gorev-Bul $Iptal
+    if ([string]$g.tip -eq 'yaratici' -and @('tamam', 'reddedildi') -contains [string]$g.asama) { throw 'Kapanmış fikir hattı işi iptal edilemez.' }
     Gecmis-Ekle $g 'kullanıcı iptal etti'
     $g.asama = 'iptal'
     Gorev-Kaydet $g
@@ -90,7 +92,7 @@ if ($k -and $k.zaman) {
     $dongu = '{0} ({1} dk önce, PID {2}{3})' -f $k.durum, $dk, $k.pid, $(if ($canli) { '' } else { ', süreç yok' })
 }
 Write-Host ''
-Write-Host "AI Ekip - $((Get-Date).ToString('dd.MM.yyyy HH:mm'))"
+Write-Host "$(Ofis-Adi) - $((Get-Date).ToString('dd.MM.yyyy HH:mm'))"
 Write-Host "Döngü   : $dongu"
 if (Test-Path -LiteralPath $durdurDosyasi) { Write-Host 'DURUM   : DURAKLATILDI (durum.ps1 -Surdur ile sürdür)' }
 Write-Host "Ekip    : $(Ekip-Durumu-Kisa)"

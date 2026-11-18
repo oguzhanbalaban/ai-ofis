@@ -36,6 +36,14 @@ function Kurulum-Json-Oku([string]$Ad) {
     # Bozuk kişisel ayarı sessizce şablonla değiştirme.
     return (Get-Content -LiteralPath $yol -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop)
 }
+# Şirket binasının katları (katlar.json): katın şablonu ya da kişisel kopyası (<ad>.yerel.json)
+function Kat-Json-Oku([string]$Klasor, [string]$Ad) {
+    $y = Join-Path $Klasor "$Ad.yerel.json"; if (-not (Test-Path -LiteralPath $y)) { $y = Join-Path $Klasor "$Ad.json" }
+    return ([IO.File]::ReadAllText($y) | ConvertFrom-Json)
+}
+function Kat-Json-Yaz($Nesne, [string]$Klasor, [string]$Ad) {
+    [IO.File]::WriteAllText((Join-Path $Klasor "$Ad.yerel.json"), ($Nesne | ConvertTo-Json -Depth 30), (New-Object Text.UTF8Encoding $false))
+}
 function Kurulum-Json-Yaz($Nesne, [string]$Ad) {
     $yol = Join-Path $script:KurulumKok "$Ad.yerel.json"
     $tmp = "$yol.tmp"
@@ -286,6 +294,21 @@ function Kurulumu-Baslat {
     $kilit = Join-Path $script:KurulumKok 'durum\kilitler.json'
     if (-not (Test-Path -LiteralPath $kilit)) { [IO.File]::WriteAllText($kilit, '{}') }
     Kurulum-Json-Yaz $a 'ayarlar'; Kurulum-Json-Yaz $k 'kadro'; Kurulum-Json-Yaz $projeler 'projeler'
+    # Şirket binası: alt katların rol zincirleri de seçilen araçlara uyarlanır (katın *.yerel.json'u); bildirim, araç yolları gibi
+    # ortak ayarları ana kattan alırlar. Katlar kapalı başlar; panelde solda Kat seçiciden açılır.
+    $katlarYolu = Join-Path $script:KurulumKok 'katlar.json'
+    $katlarJ = $null; if (Test-Path -LiteralPath $katlarYolu) { $katlarJ = [IO.File]::ReadAllText($katlarYolu) | ConvertFrom-Json }
+    foreach ($kat in @($katlarJ.katlar | Where-Object { $_ -and [string]$_.id -ne 'ana' -and [string]$_.tur -ne 'uygulama' -and [string]$_.kok })) {
+        $katKoku = Join-Path $script:KurulumKok ([string]$kat.kok)
+        if (-not (Test-Path -LiteralPath (Join-Path $katKoku 'ayarlar.json')) -or -not (Test-Path -LiteralPath (Join-Path $katKoku 'kadro.json'))) { continue }
+        $katAyar = Kat-Json-Oku $katKoku 'ayarlar'; $katKadro = Kat-Json-Oku $katKoku 'kadro'
+        if ($katAyar.roller) { Araclari-Uyarla $katAyar $katKadro $modeller $secilen }
+        Kat-Json-Yaz $katAyar $katKoku 'ayarlar'; Kat-Json-Yaz $katKadro $katKoku 'kadro'
+        foreach ($dd in @('gorevler','durum','gunluk','raporlar','calisma')) { New-Item -ItemType Directory -Path (Join-Path $katKoku $dd) -Force | Out-Null }
+        $durdur = Join-Path $katKoku 'DURDUR'
+        if (-not (Test-Path -LiteralPath $durdur)) { [IO.File]::WriteAllText($durdur, "Ofis kapatıldı (kurulum). Kat, paneldeki bina görünümünden (solda Kat seçici) açılır.`n", (New-Object Text.UTF8Encoding $false)) }
+        Write-Host "Kat hazır: $($kat.ad) (kapalı; panelden açılır)"
+    }
     Write-Host 'Kişisel ayarlar *.yerel.json dosyalarına kaydedildi. Dağıtım şablonları değişmedi.'
     if ($girisHazir -and (Evet-Hayir 'Ekip oturum açılışında otomatik başlasın mı?')) {
         try { & (Join-Path $script:KurulumKok 'kur.ps1') } catch { Write-Warning "Otomatik başlatma kurulamadı: $($_.Exception.Message)" }

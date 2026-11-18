@@ -1,0 +1,111 @@
+{
+    "surum": 2,
+    "yaratici": {
+        "ana_ofis_yolu": "",
+        "varsayilan_proje": "",
+        "revizyon_siniri": 3,
+        "izleme_araligi_sn": 300,
+        "yardimlasma": false,
+        "aciklama": "ana_ofis_yolu: boşsa onaylı POC şirket binasının ana katına (AI Ekip Ofisi) Comms kaydıyla gider. varsayilan_proje: POC hedef projesi (ana kattaki bir git deposu). revizyon_siniri 0-3. yardimlasma: fikir hattı adımları ekipten yardım isteyebilsin mi."
+    },
+    "roller": {
+        "lider": [
+            {
+                "arac": "claude",
+                "model": "opus"
+            },
+            {
+                "arac": "claude",
+                "model": "sonnet"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            }
+        ],
+        "sorun-giderici": [
+            {
+                "arac": "claude",
+                "model": "sonnet"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            }
+        ],
+        "fikirci": [
+            {
+                "arac": "claude",
+                "model": "sonnet"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            }
+        ],
+        "elestirmen": [
+            {
+                "arac": "claude",
+                "model": "sonnet"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            }
+        ],
+        "planlamaci": [
+            {
+                "arac": "claude",
+                "model": "sonnet"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            }
+        ],
+        "maliyet": [
+            {
+                "arac": "claude",
+                "model": "sonnet"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            }
+        ],
+        "karar-verici": [
+            {
+                "arac": "claude",
+                "model": "sonnet"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            }
+        ],
+        "puanlayici": [
+            {
+                "arac": "claude",
+                "model": "sonnet"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            }
+        ]
+    },
+    "gunluk_sinir": {
+        "claude": 40,
+        "codex": 30,
+        "gemini": 0
+    },
+    "aciklama": "Creativity Office katının ayarları: yalnızca kata özgü bloklar; gerisi ana katın ayarlarından miras alınır."
+}

@@ -1,0 +1,176 @@
+{
+    "surum": 1,
+    "ofis": {
+        "ad": "Data and Analytics Office",
+        "kisa_ad": "D&A Office",
+        "aciklama": "SAP Data Services ile ETL, BusinessObjects UNX universe ve Web Intelligence raporu geliştiren yapay zeka veri ve analitik ekibi. AI Ekip ofis kodunun kopyasıdır; ajanlar farklıdır.",
+        "bilgi_dosyasi": "{KAT_KOKU}\\bilgi\\sap-ortami.md",
+        "arac_kiti": "{KAT_KOKU}\\araclar\\sap"
+    },
+    "roller": {
+        "lider": [
+            {
+                "arac": "claude",
+                "model": "claude-opus-5-5"
+            },
+            {
+                "arac": "claude",
+                "model": "claude-fable-5-2"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            }
+        ],
+        "gelistirici": [
+            {
+                "arac": "claude",
+                "model": "claude-opus-5-5"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6-astra",
+                "efor": "high"
+            }
+        ],
+        "denetci": [
+            {
+                "arac": "claude",
+                "model": "opus"
+            },
+            {
+                "arac": "claude",
+                "model": "sonnet"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6-astra",
+                "efor": "high"
+            }
+        ],
+        "sistem": [
+            {
+                "arac": "claude",
+                "model": "claude-opus-5-5"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6-astra",
+                "efor": "high"
+            }
+        ],
+        "ag": [
+            {
+                "arac": "claude",
+                "model": "sonnet"
+            },
+            {
+                "arac": "claude",
+                "model": "opus"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            }
+        ],
+        "sorun-giderici": [
+            {
+                "arac": "claude",
+                "model": "opus"
+            },
+            {
+                "arac": "claude",
+                "model": "sonnet"
+            },
+            {
+                "arac": "codex",
+                "model": "gpt-6.1-sol",
+                "efor": "high"
+            }
+        ]
+    },
+    "gunluk_sinir": {
+        "claude": 60,
+        "codex": 40,
+        "gemini": 0
+    },
+    "gorev": {
+        "max_tur": 3,
+        "max_degisen_dosya": 60,
+        "diff_karakter_siniri": 80000,
+        "lider_kabul": true,
+        "yeni_proje_kok": ""
+    },
+    "altyapi": {
+        "vmrun": "",
+        "baglanti_bilgileri": "H:\\VMs\\BAGLANTI-BILGILERI.md",
+        "makineler": [
+            {
+                "ad": "ANA-MAKINE",
+                "ip": "",
+                "isletim": "Windows 11 Home (i7-13700F, 80 GB RAM)",
+                "vmx": "",
+                "yonetim": "",
+                "aciklama": "VMware Workstation Player 17.5; NAT ağı VMnet8 192.168.1.0/24 (ağ geçidi ve DNS .2). Bu hesapta yönetici hakkı yok. Ofis klasörü {KAT_KOKU}."
+            },
+            {
+                "ad": "SAPBO-SRV",
+                "ip": "",
+                "isletim": "Windows Server 2025",
+                "vmx": "",
+                "yonetim": "H:\\VMs\\bovm.ps1",
+                "aciklama": "SAP BusinessObjects BI 2025 Patch 12 (CMS 6400, Tomcat 8080: CMC, BI Launchpad, /biprws REST) + BI 2025 Client Tools (IDT, WebI Rich Client, SL SDK java) + SQL Server 2022 (1433; BOE_CMS, BOE_AUDIT ve DS-SRV'nin IPS_CMS, IPS_AUDIT, DS_REPO veritabanları). SAP IQ ODBC DSN'leri IQDEMO/IQLAB. Diski yavaş HDD (H:)."
+            },
+            {
+                "ad": "DS-SRV",
+                "ip": "",
+                "isletim": "Windows Server 2025",
+                "vmx": "",
+                "yonetim": "C:\\VMs\\DSSRV\\dsvm.ps1",
+                "aciklama": "IPS 4.3 + SAP Data Services 4.3 SP1 (Designer, Job Server, Management Console http://192.168.1.52:8080/DataServices). Yerel repository DS_REPO SAPBO-SRV'deki SQL Server'da; bu yüzden SAPBO-SRV'den SONRA açılmalı."
+            },
+            {
+                "ad": "IQ-SRV",
+                "ip": "",
+                "isletim": "RHEL 9.9",
+                "vmx": "",
+                "yonetim": "",
+                "aciklama": "SAP IQ 16.2: iqlab (2638, dsadmin yazma alanı), iqdemo (2640, GROUPO örnek satış verisi). Belgeler: D:\\SapIqLab\\docs. Kapatırken önce systemctl stop sapiq-*."
+            }
+        ],
+        "kurallar": [
+            "Kullanıcı ana makinede ve SAP VM'lerinde (SAPBO-SRV, DS-SRV, IQ-SRV) tam yetki verdi: VM açabilir, yazılım kurabilir, konuk ayarlarını değiştirebilirsin; onay beklenmez. ERWIN-DEV, SRO-SRV ve listede olmayan diğer VM'lere dokunma.",
+            "Ana makinenin güvenlik ayarlarına (Defender ve istisnaları, güvenlik duvarı, UAC, VBS/HVCI, DEP, yürütme ilkesi, Windows Script Host) dokunma; gerekiyorsa raporla, kullanıcı kendisi yapar.",
+            "Ana makinede bu hesabın yönetici hakkı yok: UAC yükseltmesi isteyen adımı zorlama, raporla.",
+            "Bir VM'i başlatmadan ya da kapatmadan önce 'vmrun list' ile durumuna bak. Zaten açıksa onu kullanıcı açmıştır: kapatma, yeniden başlatma. Kapatman gerekiyorsa içinde etkin kullanıcı oturumu var mı bak (Windows: query user, Linux: who); varsa kapatma. Yalnızca bu işte kendi açtığın VM'i, işin bitince ve başka iş onu beklemiyorsa yumuşak kapatabilirsin (vmrun stop <vmx> soft); emin değilsen açık bırak.",
+            "Açılış sırası: SAPBO-SRV, DS-SRV'den önce açılmalı (DS-SRV'nin CMS ve repository veritabanları SAPBO-SRV'de). SAPBO-SRV açıldıktan sonra CMS'in (6400) ve Tomcat'in (8080) gerçekten dinlediğini doğrula.",
+            "Geri alınamaz işlemleri (VM ya da sanal disk silme, veritabanı ya da tablo silme, CMS'te kullanıcının oluşturduğu nesneleri silme, disk biçimlendirme) yalnızca iş açıkça istiyorsa yap ve öncesinde yedek al. Ekibin kendi oluşturduğu deneme nesnelerini silebilirsin.",
+            "Kullanıcının kendi CMS içeriğine (ekibin açmadığı klasör, evren, bağlantı ve raporlar) ve DS repository'sindeki ekibin oluşturmadığı nesnelere dokunma; ekip nesneleri 'DA Office' klasörlerinde ve DA_ önekiyle tutulur.",
+            "IQ-SRV'deki 2642 portlu örnek DWH kullanıcının müşteri şemasıdır: iş açıkça istemedikçe kullanma, içeriğini rapora, çıktıya ya da depoya kopyalama.",
+            "Parolaları raporlara, özetlere, bildirimlere ve kalıcı betiklere düz metin yazma; gerektiğinde bağlantı bilgileri dosyasından çalışma anında oku ve araçlara stdin ya da ortam değişkeniyle ver.",
+            "data-analytics-office, ai-ekip ve creativity-office klasörlerindeki betiklere, ayarlara ve başka görevlerin dosyalarına dokunma (kendi çalışma klasörün hariç).",
+            "İnternetten yalnızca resmi kaynaklardan indir; indirdiğin her dosyanın adını, kaynağını ve boyutunu raporla."
+        ],
+        "ipuclari": [
+            "Önce ortam ve araç bilgisini oku: {KAT_KOKU}\\bilgi\\sap-ortami.md ve araclar\\sap\\BENIOKU.md.",
+            "Hazır yönetim betiklerini tercih et: H:\\VMs\\bovm.ps1 (SAPBO-SRV) ve C:\\VMs\\DSSRV\\dsvm.ps1 (DS-SRV): start | status | run '<komut>' | script <x.ps1> | fetch. Kullanmadan önce içeriğini oku.",
+            "vmrun runProgramInGuest'e uzun 'cmd /c ...' yazma (sona fazladan tırnak ekliyor); konuk betiği yaz ve bovm.ps1/dsvm.ps1 script ile çalıştır. Konuğa giden .ps1 dosyalarında ASCII dışı karakter kullanma.",
+            "SAPBO ve DS: CMS 5 denemede pes ederse (servis Running ama 6400 dinlemiyor) veritabanı hazırken SIA servisini yeniden başlat (SAPBO: BOEXI40SIASAPBOSRV, DS-SRV: BOEXI40SIADSSRVSIA). CMC HTTP 500 verirse Tomcat'i durdur, tomcat\\work\\Catalina\\localhost içeriğini sil, başlat.",
+            "DS-SRV: DS\\bin\\BCM-4-0.dll'in SP hattı ile IPS'in SP hattı aynı olmalı.",
+            "vmrun runProgramInGuest bazen hiç dönmez: önce 'vmrun checkToolsState <vmx>' ile 'running' olduğunu doğrula; her vmrun konuk çağrısını zaman aşımıyla çalıştır. Birkaç dakikadan uzun sessiz bekleyen bir komutu durdur ve başka yol dene."
+        ]
+    },
+    "aciklama": "Data and Analytics Office katının ayarları: yalnızca kata özgü bloklar. Burada olmayanlar (araç yolları, bildirim, döngü, model kataloğu, yardımlaşma...) ana katın ayarlarından miras alınır. SAP sunucularınızı altyapi.makineler ve bilgi\\sap-ortami.md içine yazın."
+}

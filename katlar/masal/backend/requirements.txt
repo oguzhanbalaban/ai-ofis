@@ -1,0 +1,15 @@
+# Çekirdek bağımlılıklar — MOCK_MODE=true ile uçtan uca çalışmak için yeterli.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+langgraph>=0.2.60
+python-dotenv>=1.0
+pydantic>=2.7
+httpx>=0.27
+numpy>=1.26
+pillow>=10.4
+# Sistemde FFmpeg yoksa yedek olarak paketle gelen ffmpeg ikilisini kullanırız.
+imageio-ffmpeg>=0.5
+# Çevrimdışı Türkçe seslendirme (Piper) + fonem hizalaması (onnx) ile gerçek kelime zaman damgaları.
+# Ses modeli ayrıca indirilir: scripts/piper_ses_indir.py
+piper-tts[alignment]>=1.8
+pytest>=8.0

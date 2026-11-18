@@ -28,7 +28,10 @@ function Kalp-Yasi-Dk {
     return [pscustomobject]@{ dk = ((Get-Date) - [datetime]$k.zaman).TotalMinutes; pid = [int]$k.pid }
 }
 
-$mutex = New-Object Threading.Mutex($false, 'Local\AIEkipDongusu')
+# Şirket binası: ana kat (bu görev) açık alt katların döngülerini de ayakta tutar (ortak.ps1 > Bina-Bekcisi)
+if ($KatKimligi -eq 'ana') { try { Bina-Bekcisi } catch { Gunluk "Bina bekçisi hatası: $($_.Exception.Message)" 'UYARI' } }
+# Her katın kendi döngü kilidi var (ana: Local\AIEkipDongusu, diğerleri: Local\AIEkipDongusu_<kat>)
+$mutex = New-Object Threading.Mutex($false, (Kat-Dongu-Kilidi $KatKimligi))
 $sahip = $false
 try { $sahip = $mutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $sahip = $true }
 
@@ -46,7 +49,7 @@ if (-not $sahip) {
     }
     try { $sahip = $mutex.WaitOne(60000) } catch [Threading.AbandonedMutexException] { $sahip = $true }
     if (-not $sahip) { Gunluk 'Bekçi: döngü kilidi alınamadı; çıkılıyor' 'HATA'; exit 1 }
-    Bildir -Baslik 'AI Ekip yeniden başlatıldı' -Metin ('Döngü {0:N0} dakikadır yanıt vermiyordu; bekçi yeniden başlattı.' -f $kalp.dk) -Anahtar 'bekci' -Onem 'yuksek'
+    Bildir -Baslik "$(Ofis-Adi) yeniden başlatıldı" -Metin ('Döngü {0:N0} dakikadır yanıt vermiyordu; bekçi yeniden başlattı.' -f $kalp.dk) -Anahtar 'bekci' -Onem 'yuksek'
 }
 
 try {
