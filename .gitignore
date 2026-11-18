@@ -22,8 +22,8 @@ ofis/sunucu.json
 ofis/simge-*.png
 ofis/uzak.json
 DURDUR
-# Outsource Consultant masası: kişisel CLAUDE.md kuralları ve notlar (ilk çalışmada şablondan oluşur)
-danisman/
+# Outsource Consultant masası pakette gelir (CLAUDE.md, AGENTS.md, GEMINI.md); danışmanın kalıcı notları kişiseldir
+danisman/notlar/
 .test-calisma/
 dagitim/
 __pycache__/

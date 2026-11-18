@@ -509,15 +509,30 @@ $script:DanismanYasakVarsayilan = @('Bash(git push *)', 'Bash(git remote *)', 'B
     'PowerShell(Set-NetFirewallRule *)', 'PowerShell(New-NetFirewallRule *)', 'PowerShell(Set-ExecutionPolicy *)', 'PowerShell(Stop-Computer *)', 'PowerShell(Restart-Computer *)')
 function Danisman-Izinleri {
     $d = $Ayar.danisman
-    $izin = $DanismanIzinliVarsayilan; $yasak = $DanismanYasakVarsayilan; $zaman = 120
+    $izin = $DanismanIzinliVarsayilan; $yasak = $DanismanYasakVarsayilan; $zaman = 120; $ag = $true; $push = $true
     if ($d) {
         if ($d.izinli_araclar) { $izin = @($d.izinli_araclar) }
         if ($d.PSObject.Properties['yasak_araclar'] -and $null -ne $d.yasak_araclar) { $yasak = @($d.yasak_araclar) }
         if ([int]$d.zaman_asimi_dk -gt 0) { $zaman = [int]$d.zaman_asimi_dk }
+        if ($d.PSObject.Properties['ag_erisimi'] -and $null -ne $d.ag_erisimi) { $ag = [bool]$d.ag_erisimi }
+        if ($d.PSObject.Properties['push_engeli'] -and $null -ne $d.push_engeli) { $push = [bool]$d.push_engeli }
     }
     # cmd.exe komut satırına girer: tırnak, yüzde, satır sonu içeren kural atlanır
     $temiz = { param($l) , @($l | ForEach-Object { [string]$_ } | Where-Object { $_ -and $_ -notmatch '["%\r\n]' }) }
-    return [pscustomobject]@{ izinli = (& $temiz $izin); yasak = (& $temiz $yasak); zaman_asimi_dk = $zaman }
+    return [pscustomobject]@{ izinli = (& $temiz $izin); yasak = (& $temiz $yasak); zaman_asimi_dk = $zaman; ag = $ag; push_engeli = $push }
+}
+# Danışman çalışırken git push adresleri geçersiz bir yardımcıya yönlenir: push başarısız olur, fetch / commit / status etkilenmez.
+# Değişken süreç ortamıyla ajana ve onun komutlarına geçer (Claude Code, Codex, Gemini); çağrıdan sonra eski değer geri konur.
+$script:PushEngeliDegeri = "'url.ai-ekip-push-engeli://.pushinsteadof=https://' 'url.ai-ekip-push-engeli://.pushinsteadof=http://' 'url.ai-ekip-push-engeli://.pushinsteadof=git@' 'url.ai-ekip-push-engeli://.pushinsteadof=ssh://'"
+function Push-Engeli-Ac([string]$Profil) {
+    if ($Profil -ne 'danisman' -or -not (Danisman-Izinleri).push_engeli) { return $null }
+    $o = [pscustomobject]@{ deger = [string]$env:GIT_CONFIG_PARAMETERS }
+    $env:GIT_CONFIG_PARAMETERS = ($o.deger + ' ' + $PushEngeliDegeri).Trim()
+    return $o
+}
+function Push-Engeli-Kapat($O) {
+    if ($null -eq $O) { return }
+    if ($O.deger) { $env:GIT_CONFIG_PARAMETERS = $O.deger } else { Remove-Item -LiteralPath Env:GIT_CONFIG_PARAMETERS -ErrorAction SilentlyContinue }
 }
 function Claude-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [string]$Klasor, [bool]$Yazabilir, [bool]$TamYetki = $false, [string]$Profil = '', [string[]]$EkKlasorler = @()) {
     $araclar = 'Read,Glob,Grep'; $mod = 'dontAsk'
@@ -538,7 +553,9 @@ function Claude-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [st
         if ($Ayar.zaman_asimi_dk.altyapi) { $zaman = [int]$Ayar.zaman_asimi_dk.altyapi }
     } else { $komut += " --tools $araclar --allowedTools $araclar --permission-mode $mod" }
     if ($G.efor) { $komut += " --effort $($G.efor)" }
-    $s = Surec-Calistir -Komut $komut -Girdi $IstemYolu -Cikti $Out -Hata $Err -Klasor $Klasor -ZamanAsimiDk $zaman -Etiket 'claude'
+    $pe = Push-Engeli-Ac $Profil
+    try { $s = Surec-Calistir -Komut $komut -Girdi $IstemYolu -Cikti $Out -Hata $Err -Klasor $Klasor -ZamanAsimiDk $zaman -Etiket 'claude' }
+    finally { Push-Engeli-Kapat $pe }
     $ham = Metin-Oku $Out
     $c = $null
     try { $c = Claude-Cikti-Coz $ham } catch { $c = [pscustomobject]@{ sonuc = $null; kullanim = $null } }
@@ -559,7 +576,7 @@ function Claude-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [st
 }
 
 # ---------------------------------------------------------------- Codex (ChatGPT)
-function Codex-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [string]$SonMesaj, [string]$Klasor, [bool]$Yazabilir, [bool]$TamYetki = $false) {
+function Codex-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [string]$SonMesaj, [string]$Klasor, [bool]$Yazabilir, [bool]$TamYetki = $false, [string]$Profil = '', [string[]]$EkKlasorler = @()) {
     $exe = Codex-Exe
     $kum = 'read-only'; if ($Yazabilir) { $kum = 'workspace-write' }
     $zaman = [int]$Ayar.zaman_asimi_dk.codex
@@ -568,10 +585,21 @@ function Codex-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [str
         $kum = 'danger-full-access'
         if ($Ayar.zaman_asimi_dk.altyapi) { $zaman = [int]$Ayar.zaman_asimi_dk.altyapi }
     }
+    $ek = ''
+    if ($Profil -eq 'danisman') {
+        # Outsource Consultant (danisman.ps1): korumalı alanda (workspace-write) komut çalıştırır; yazma yalnızca masada (-C) ve işin
+        # klasöründe (--add-dir); ağ ayarla (danisman.ag_erisimi). exec kipi onay sormaz, arka planda kilitlenmez. Kurallar masadaki AGENTS.md
+        $iz = Danisman-Izinleri
+        $kum = 'workspace-write'; $zaman = $iz.zaman_asimi_dk
+        foreach ($k in @($EkKlasorler | Where-Object { $_ })) { $ek += ' --add-dir ' + (Q $k) }
+        if ($iz.ag) { $ek += ' -c sandbox_workspace_write.network_access=true' }
+    }
     $efor = 'high'; if ($G.efor) { $efor = $G.efor }
     if (Test-Path -LiteralPath $SonMesaj) { Remove-Item -LiteralPath $SonMesaj -Force }
-    $komut = (Q $exe) + " exec --skip-git-repo-check -s $kum -C $(Q $Klasor) -o $(Q $SonMesaj) -m $($G.model) -c model_reasoning_effort=$efor -"
-    $s = Surec-Calistir -Komut $komut -Girdi $IstemYolu -Cikti $Out -Hata $Err -Klasor $Klasor -ZamanAsimiDk $zaman -Etiket 'codex'
+    $komut = (Q $exe) + " exec --skip-git-repo-check -s $kum -C $(Q $Klasor)$ek -o $(Q $SonMesaj) -m $($G.model) -c model_reasoning_effort=$efor -"
+    $pe = Push-Engeli-Ac $Profil
+    try { $s = Surec-Calistir -Komut $komut -Girdi $IstemYolu -Cikti $Out -Hata $Err -Klasor $Klasor -ZamanAsimiDk $zaman -Etiket 'codex' }
+    finally { Push-Engeli-Kapat $pe }
     $kul = $null
     try { $kul = Codex-Kullanim $Err } catch {}
     if ($s.iptal) { return (Sonuc $false '' 'görev iptal edildi; ajan durduruldu' $s $kul) }
@@ -594,12 +622,23 @@ function Codex-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [str
 }
 
 # ---------------------------------------------------------------- Gemini (isteğe bağlı; GEMINI_API_KEY gerektirir)
-function Gemini-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [string]$Klasor, [bool]$Yazabilir, [bool]$TamYetki = $false) {
+function Gemini-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [string]$Klasor, [bool]$Yazabilir, [bool]$TamYetki = $false, [string]$Profil = '', [string[]]$EkKlasorler = @()) {
     $mod = 'plan'; if ($Yazabilir) { $mod = 'auto_edit' }
     if ($TamYetki) { $mod = 'yolo' }
-    $komut = (Q (Gemini-Exe)) + " -p `"`" --approval-mode $mod --skip-trust -o json"
+    $zaman = [int]$Ayar.zaman_asimi_dk.gemini
+    $ek = ''
+    if ($Profil -eq 'danisman') {
+        # Outsource Consultant: başsız kipte onay sorulamaz; araçlar onaysız (yolo), işin klasörü çalışma alanına eklenir. Araç bazında
+        # yasak listesi yok: kurallar masadaki GEMINI.md'de, git push ortam düzeyinde engelli
+        $mod = 'yolo'; $zaman = (Danisman-Izinleri).zaman_asimi_dk
+        $dirs = @($EkKlasorler | Where-Object { $_ })
+        if ($dirs.Count) { $ek = ' --include-directories ' + (Q ($dirs -join ',')) }
+    }
+    $komut = (Q (Gemini-Exe)) + " -p `"`" --approval-mode $mod --skip-trust$ek -o json"
     if ($G.model) { $komut += " -m $($G.model)" }
-    $s = Surec-Calistir -Komut $komut -Girdi $IstemYolu -Cikti $Out -Hata $Err -Klasor $Klasor -ZamanAsimiDk ([int]$Ayar.zaman_asimi_dk.gemini) -Etiket 'gemini'
+    $pe = Push-Engeli-Ac $Profil
+    try { $s = Surec-Calistir -Komut $komut -Girdi $IstemYolu -Cikti $Out -Hata $Err -Klasor $Klasor -ZamanAsimiDk $zaman -Etiket 'gemini' }
+    finally { Push-Engeli-Kapat $pe }
     if ($s.iptal) { return (Sonuc $false '' 'görev iptal edildi; ajan durduruldu' $s) }
     if ($s.zaman_asimi) { return (Sonuc $false '' 'zaman aşımı' $s) }
     $j = $null
@@ -826,8 +865,8 @@ function Ajan-Cagir {
         Gunluk "$kimAdi -> $kimlik başlıyor [$($script:AktifGorev) / $Etiket]"
         switch ($g.arac) {
             'claude' { $r = Claude-Calistir $g $istemYolu $out $err $Klasor ([bool]$Yazabilir) ([bool]$TamYetki) $IzinProfili $EkKlasorler }
-            'codex'  { $r = Codex-Calistir  $g $istemYolu $out $err $son $Klasor ([bool]$Yazabilir) ([bool]$TamYetki) }
-            'gemini' { $r = Gemini-Calistir $g $istemYolu $out $err $Klasor ([bool]$Yazabilir) ([bool]$TamYetki) }
+            'codex'  { $r = Codex-Calistir  $g $istemYolu $out $err $son $Klasor ([bool]$Yazabilir) ([bool]$TamYetki) $IzinProfili $EkKlasorler }
+            'gemini' { $r = Gemini-Calistir $g $istemYolu $out $err $Klasor ([bool]$Yazabilir) ([bool]$TamYetki) $IzinProfili $EkKlasorler }
         }
         Kullanim-Kaydet $kisi $Etiket $g $r $Istem.Length $Rol
         if ($r.basarili) {

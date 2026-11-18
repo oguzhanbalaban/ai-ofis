@@ -305,6 +305,8 @@
     "danisman": {
         "etkin": true,
         "zaman_asimi_dk": 120,
+        "ag_erisimi": true,
+        "push_engeli": true,
         "izinli_araclar": [
             "Read",
             "Glob",
@@ -345,7 +347,7 @@
             "PowerShell(Stop-Computer *)",
             "PowerShell(Restart-Computer *)"
         ],
-        "aciklama": "Outsource Consultant (danisman.ps1): tek parça işleri terminal yetkili Claude Code (claude -p) yapar. Çalışma dizini danisman\\ (CLAUDE.md: kurallar ve öncelikler); işin klasörü --add-dir ile açılır. --permission-mode dontAsk: izinli_araclar dışındaki her araç sormadan reddedilir (arka planda onay bekleyip kilitlenmez); yasak_araclar kuralları (ör. Bash(git push *)) izinlerden önce gelir. zaman_asimi_dk: tek çalışmanın süre sınırı."
+        "aciklama": "Outsource Consultant (danisman.ps1): tek parça işleri, zincirindeki ilk uygun yapay zekanın terminal ajanı yapar (kurulumda seçilen; panelde karakter kartından değiştirilir): Claude Code, Codex CLI ya da Gemini CLI, başsız. Çalışma dizini danisman\\ (CLAUDE.md ana kurallar; AGENTS.md ve GEMINI.md ondan kopyalanır), işin klasörü ayrıca açılır. Claude Code: --permission-mode dontAsk + izinli_araclar (--allowedTools) + yasak_araclar (--disallowedTools). Codex: -s workspace-write, yazma masada ve işin klasöründe, ağ ag_erisimi ile. Gemini: --approval-mode yolo + --include-directories. Hiçbiri arka planda onay bekleyip kilitlenmez. push_engeli: git push adresleri geçersiz bir yardımcıya yönlenir. zaman_asimi_dk: tek çalışmanın süre sınırı."
     },
     "korunan_desenler": [
         ".env",

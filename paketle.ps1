@@ -7,6 +7,7 @@ $dosyalar = @(
     'kur-ofis.ps1','yapilandirma.ps1','paketle.ps1',
     'ortak.ps1','ekip.ps1','altyapi.ps1','uzman.ps1','yonlendirme.ps1','cozucu.ps1','yardim.ps1','posta.ps1','baslat.ps1',
     'komut.ps1','paralel.ps1','planlama.ps1','yonetim.ps1','danisman.ps1',
+    'danisman/CLAUDE.md','danisman/AGENTS.md','danisman/GEMINI.md',
     'kur.ps1','kaldir.ps1','durum.ps1','rapor.ps1','is-ver.ps1','gorev-ekle.ps1','talep-ekle.ps1','uzman-ekle.ps1','eposta-kur.ps1',
     'ofis/ofis.ps1','ofis/kisayol-olustur.ps1','ofis/sohbet.ps1','ofis/telefon-kur.ps1','ofis/panel.html',
     'araclar/posta_oku.py','araclar/kullanim-gecmis.ps1',

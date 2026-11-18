@@ -54,7 +54,7 @@ Git-T -C $repo -c user.name=t -c user.email=t@t commit -q -m ilk
 [IO.File]::WriteAllText((Join-Path $kum 'projeler.json'), (([pscustomobject]@{ projeler = @([pscustomobject]@{ ad = 'test'; klasor = $repo; temel_dal = ''; dogrulama = @() }) }) | ConvertTo-Json -Depth 5), $bom)
 # Sahte ajan: argümanları ve çalışma dizinini kaydeder; --model değerine göre çıktı seçer
 [IO.File]::WriteAllText($sahteAjan, (@(
-    '@echo off', 'set D=%~dp0', '>> "%D%cagrilar.log" echo CD=%CD% ARG=%*', 'set MODEL=',
+    '@echo off', 'set D=%~dp0', '>> "%D%cagrilar.log" echo CD=%CD% GIT=%GIT_CONFIG_PARAMETERS% ARG=%*', 'set MODEL=',
     ':dongu', 'if "%~1"=="" goto bitti', 'if "%~1"=="--model" set MODEL=%~2', 'shift', 'goto dongu', ':bitti',
     'if defined MODEL if exist "%D%cikti-%MODEL%.txt" goto ozel', 'type "%D%sahte-cikti.txt"', 'exit /b 0',
     ':ozel', 'type "%D%cikti-%MODEL%.txt"', 'exit /b 0'
@@ -117,8 +117,8 @@ try {
     Cagrilari-Sil
     $d = Adim $id
     Dogrula 'git modu, görev dalı ve çalışma ağacı, aşama gelistirme; ajan çağrılmadı' ($d.danisman_mod -eq 'git' -and $d.dal -eq "ekip/$id" -and (Test-Path (Join-Path $d.calisma_klasoru '.git')) -and $d.asama -eq 'gelistirme' -and -not (Cagrilar)) "$($d.danisman_mod) $($d.dal)"
-    $cm = Metin-Oku (Join-Path $masa 'CLAUDE.md')
-    Dogrula 'masada CLAUDE.md şablondan oluştu (masa ve kök yolu dolu, yer tutucu kalmadı)' ($cm -match 'Outsource Consultant' -and $cm.Contains($masa) -and $cm -notmatch '\{(MASA|KOK|CODEX)\}')
+    $cm = Metin-Oku (Join-Path $masa 'CLAUDE.md'); $ag = Metin-Oku (Join-Path $masa 'AGENTS.md'); $gm = Metin-Oku (Join-Path $masa 'GEMINI.md')
+    Dogrula 'masada CLAUDE.md şablondan oluştu (yol içermez); AGENTS.md ve GEMINI.md onun kopyası' ($cm -match 'Outsource Consultant' -and -not $cm.Contains($kum) -and $ag.Contains($cm.Trim()) -and $gm.Contains($cm.Trim()) -and $ag -match 'kopyasıdır')
 
     Write-Host ''; Write-Host 'D3: Claude Code izin profili ve çalışma'
     [IO.File]::WriteAllText((Join-Path $d.calisma_klasoru 'betik.ps1'), "Write-Output 'merhaba'`n", $ascii)
@@ -128,6 +128,8 @@ try {
     Dogrula 'çalışma dizini masa (CLAUDE.md yüklenir)' ($log -match [regex]::Escape("CD=$masa")) ((($log -split "`n") | Select-Object -First 1))
     Dogrula 'dontAsk + izin listesi + yasak liste + --add-dir çalışma klasörü' ($log -match '--permission-mode dontAsk' -and $log -match '--allowedTools "Read,Edit,Bash"' -and $log -match '--disallowedTools "Bash\(git push \*\)"' -and $log -match ('--add-dir "' + [regex]::Escape($d.calisma_klasoru) + '"'))
     Dogrula 'yüzde içeren kural komut satırına girmedi; bypass yok' ($log -notmatch 'PATH' -and $log -notmatch 'bypassPermissions')
+    Dogrula 'çalışırken git push engeli ortamda, sonra kaldırıldı' ($log -match 'pushinsteadof=https://' -and -not $env:GIT_CONFIG_PARAMETERS)
+    Dogrula 'istemin ARAÇLAR bölümünde danışman zinciri' ((Son-Istem (Join-Path (Gorev-Klasoru $id) 'tur1') 'danisman-*.istem.md') -match 'Zincir: claude/sahte-danisman')
     $ist = Son-Istem (Join-Path (Gorev-Klasoru $id) 'tur1') 'danisman-*.istem.md'
     Dogrula 'istemde brif, çalışma klasörü, git kuralı, rapor biçimi; yardım talimatı yok' ($ist -match 'betik.ps1 ekle' -and $ist.Contains($d.calisma_klasoru) -and $ist -match 'commit / push / dal değiştirme YAPMA' -and $ist -match 'KARAR: TAMAM' -and $ist -notmatch 'EKİPTEN YARDIM İSTEME')
     Dogrula 'aşama kontrol; rapor, özet, commit mesajı kaydedildi' ($d.asama -eq 'kontrol' -and (Test-Path (Join-Path (Join-Path (Gorev-Klasoru $id) 'tur1') 'danisman-rapor.md')) -and $d.ozet -match 'betik.ps1 eklendi' -and $d.commit_mesaji -eq 'Merhaba betiği eklendi') $d.asama
@@ -137,7 +139,7 @@ try {
     Dogrula 'kontrol geçti, aşama tamamla' ($d.asama -eq 'tamamla' -and $d.son_kontrol -eq 'GEÇTİ') $d.asama
     $d = Adim $id
     $mesaj = (Git-T -C $repo log -1 --format=%B "ekip/$id") -join "`n"
-    Dogrula 'tamam; dala commit (mesajda danışman ve iç inceleme yapılmadı notu); çalışma ağacı kaldırıldı' ($d.asama -eq 'tamam' -and $d.commit -and $mesaj -match '^Merhaba betiği eklendi' -and $mesaj -match 'Outsource Consultant \(Claude Code' -and $mesaj -match 'iç ekip incelemesi yapılmadı' -and -not (Test-Path $d.calisma_klasoru)) ((($mesaj -split "`n") | Select-Object -First 1))
+    Dogrula 'tamam; dala commit (mesajda danışman ve iç inceleme yapılmadı notu); çalışma ağacı kaldırıldı' ($d.asama -eq 'tamam' -and $d.commit -and $mesaj -match '^Merhaba betiği eklendi' -and $mesaj -match 'Outsource Consultant \(terminal ajanı, headless\): claude/sahte-danisman' -and $mesaj -match 'iç ekip incelemesi yapılmadı' -and -not (Test-Path $d.calisma_klasoru)) ((($mesaj -split "`n") | Select-Object -First 1))
     Dogrula 'danışmanın sohbetine rapor: işin numarası ve özet' ((Sohbet) -match '#0801' -and (Sohbet) -match 'betik.ps1 eklendi ve çalıştırıldı')
 
     Write-Host ''; Write-Host 'D5: ATAMA: ekip -> iş iç ekipte kalır'
@@ -203,10 +205,37 @@ try {
     $Ayar.danisman.etkin = $false
     Dogrula 'danisman.etkin false: Danisman-Hazir-mi false' (-not (Danisman-Hazir-mi))
     $Ayar.danisman.etkin = $true
+
+    Write-Host ''; Write-Host 'D11: kurulumda seçilen yapay zeka danışman olur: Codex ve Gemini izin profilleri'
     $zincir = $Ayar.roller.danisman
     $Ayar.roller.danisman = @([pscustomobject]@{ arac = 'codex'; model = 'sahte-codex' })
-    Dogrula 'zincirde Claude yoksa (yalnız Codex kurulumu) danışman katmanı atlanır' (-not (Danisman-Hazir-mi))
+    Dogrula 'yalnız Codex zinciri: danışman hazır' (Danisman-Hazir-mi)
+    $script:CodexYolu = $sahteAjan
+    $ekk = Join-Path $kum 'ek-klasor'; New-Item -ItemType Directory -Force $ekk | Out-Null
+    $istY = Join-Path $kum 'istem.txt'; [IO.File]::WriteAllText($istY, 'x', $utf8)
+    Cagrilari-Sil
+    [void](Codex-Calistir ([pscustomobject]@{ arac = 'codex'; model = 'sahte-codex' }) $istY (Join-Path $kum 'c.out') (Join-Path $kum 'c.err') (Join-Path $kum 'c.son') $masa $false $false 'danisman' @($ekk))
+    $log = Cagrilar
+    Dogrula 'Codex: workspace-write, -C masa, --add-dir işin klasörü, ağ açık, push engeli' ($log -match 'exec --skip-git-repo-check -s workspace-write' -and $log -match ('-C "' + [regex]::Escape($masa) + '" --add-dir "' + [regex]::Escape($ekk) + '"') -and $log -match 'network_access=true' -and $log -match 'pushinsteadof') ((($log -split "`n") | Select-Object -First 1))
+    Cagrilari-Sil
+    [void](Codex-Calistir ([pscustomobject]@{ arac = 'codex'; model = 'sahte-codex' }) $istY (Join-Path $kum 'c.out') (Join-Path $kum 'c.err') (Join-Path $kum 'c.son') $masa $false $false)
+    Dogrula 'Codex profilsiz çağrı değişmedi (read-only, ağ / push engeli yok)' ((Cagrilar) -match '-s read-only' -and (Cagrilar) -notmatch 'network_access|--add-dir|pushinsteadof')
+    function Gemini-Exe { return $sahteAjan }
+    Cagrilari-Sil
+    [void](Gemini-Calistir ([pscustomobject]@{ arac = 'gemini'; model = 'sahte-gemini' }) $istY (Join-Path $kum 'g.out') (Join-Path $kum 'g.err') $masa $false $false 'danisman' @($ekk))
+    $log = Cagrilar
+    Dogrula 'Gemini: yolo (başsızda onay sorulmaz), --include-directories, çalışma dizini masa, push engeli' ($log -match '--approval-mode yolo --skip-trust --include-directories "' -and $log -match [regex]::Escape($ekk) -and $log -match [regex]::Escape("CD=$masa") -and $log -match 'pushinsteadof') ((($log -split "`n") | Select-Object -First 1))
+    $Ayar.danisman | Add-Member -Force -NotePropertyName ag_erisimi -NotePropertyValue $false
+    $Ayar.danisman | Add-Member -Force -NotePropertyName push_engeli -NotePropertyValue $false
+    Cagrilari-Sil
+    [void](Codex-Calistir ([pscustomobject]@{ arac = 'codex'; model = 'sahte-codex' }) $istY (Join-Path $kum 'c.out') (Join-Path $kum 'c.err') (Join-Path $kum 'c.son') $masa $false $false 'danisman' @($ekk))
+    Dogrula 'ag_erisimi / push_engeli false: ağ bayrağı ve push engeli yok' ((Cagrilar) -notmatch 'network_access|pushinsteadof' -and (Cagrilar) -match 'workspace-write')
     $Ayar.roller.danisman = $zincir
+
+    Write-Host ''; Write-Host 'D12: masa: kullanıcının CLAUDE.md düzenlemesi korunur, AGENTS.md / GEMINI.md onu izler'
+    Metin-Yaz (Join-Path $masa 'CLAUDE.md') "# Kendi kurallarım`n`n- Her raporu 'ÖZEL-KURAL' ile başlat.`n"
+    [void](Danisman-Masasi)
+    Dogrula 'CLAUDE.md değişmedi; aynalar güncellendi' ((Metin-Oku (Join-Path $masa 'CLAUDE.md')) -match 'ÖZEL-KURAL' -and (Metin-Oku (Join-Path $masa 'AGENTS.md')) -match 'ÖZEL-KURAL' -and (Metin-Oku (Join-Path $masa 'GEMINI.md')) -match 'ÖZEL-KURAL')
 } catch {
     $script:Kalan++
     Write-Host ("BEKLENMEYEN HATA: {0} @ {1}" -f $_.Exception.Message, ($_.InvocationInfo.PositionMessage -replace '\s+', ' '))

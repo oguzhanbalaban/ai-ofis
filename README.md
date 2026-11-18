@@ -68,11 +68,15 @@ Yazılım işleri katmanlı yürür (`planlama.ps1`; ayarlar `ayarlar.json > pla
 
 **Onay kapısı:** commit'ten önce bu turda Code Reviewer'ın (QA testi yapıldıysa QA Engineer'ın ve ek incelemelerin de) onayı aranır; yoksa iş incelemeye döner. Panoda işi kendiniz Tamamlandı'ya taşırsanız commit edilir ve mesaja not düşülür. Ekip push / merge yapmaz. Katmanlar `ayarlar.yerel.json > planlama` ile kapatılabilir (`analiz`, `kesif`, `qa_testi`, `onay_kapisi`); bir rol kadroda ya da model zincirinde yoksa o katman kendiliğinden atlanır.
 
-## Outsource Consultant: tek parça işler Claude Code'a
+## Outsource Consultant: tek parça işler kendi yapay zekanıza
 
 Paralel ekip çalışması gerektirmeyen, tek bağlam penceresinde baştan sona çözülebilecek işler iç ekibe dağıtılmaz (`danisman.ps1`, ayarlar `ayarlar.json > danisman`). "İş ver" ile gelen işi Product Manager analiz eder ve `ATAMA: danisman | ekip` kararı verir; danışmansa işi `## Danışman brifi` bölümünde tek, net bir isteme çevirir (panelde **Brif** sekmesi). İşi doğrudan danışmana verirseniz (karakter kartında **Bu çalışana iş ver**, sohbetteki iş önerisi ya da `is-ver.ps1 -Rol danisman`) yönlendirme zorunludur.
 
-Outsource Consultant terminal yetkili **Claude Code** olarak (`claude -p`, headless) kendi masasında, `danisman\` klasöründe çalışır; masadaki `CLAUDE.md` kuralları ve öncelikleri her oturumda yüklenir (çalışma alanı, terminalden Codex / Python / git kullanımı, yasaklar). Dosya ilk çalışmada `istemler\danisman-claude.md` şablonundan oluşur; sonra kendinize göre düzenleyin (Git'e eklenmez). İşin klasörü `--add-dir` ile açılır: proje bir git deposuysa görev dalı (`ekip/<no>`), değilse `calisma\<no>` (teslimler `cikti\`). İzinler `--permission-mode dontAsk` + `--allowedTools` (`izinli_araclar`) + `--disallowedTools` (`yasak_araclar`: `git push`, remote, `vmrun`, güvenlik duvarı / Defender / yürütme ilkesi, kapatma…): listede olmayan her şey sormadan reddedilir, arka planda onay bekleyip kilitlenmez. Sonuç otomatik kontrolden geçer (değişen / korunan dosyalar, gizli bilgi, doğrulama komutları), git'te görev dalına "iç ekip incelemesi yapılmadı" notuyla commit edilir ya da `sonuc.md` yazılır; özet görevin kartına, bildirime ve Outsource Consultant'ın sohbetine gider. Danışmanın zincirinde Claude yoksa (yalnız Codex kurulumu) bu katman atlanır.
+**Danışman sizin seçtiğiniz yapay zekadır.** Kurulumda seçtiğiniz araç danışman olur (birden çok araç seçerseniz sihirbaz hangisinin danışman olacağını sorar; sonra panelde karakter kartından değiştirebilirsiniz). Danışman o yapay zekanın terminal ajanı olarak başsız (headless) çalışır: Claude Code (`claude -p`), Codex CLI (`codex exec`) ya da Gemini CLI (`gemini -p`).
+
+**Masa pakette gelir:** `danisman\` klasöründe çalışır ve kendi kural dosyasını yükler: Claude Code `CLAUDE.md`, Codex `AGENTS.md`, Gemini `GEMINI.md`. Ana dosya `CLAUDE.md`'dir (rol, öncelikler, çalışma alanı, terminalden diğer araç ve modellerin kullanımı, yasaklar); diğer ikisi her çalışmadan önce ondan kopyalanır, kuralları değiştirmek için yalnızca `CLAUDE.md`'yi düzenleyin. Danışmanın kalıcı notları `danisman\notlar\` (Git'e eklenmez). Bilgisayarınızda kurulu yapay zeka CLI'larının yolları her istemin ARAÇLAR bölümünde verilir; danışman gerektiğinde onları ikinci görüş için çağırabilir. İşin klasörü ayrıca açılır: proje bir git deposuysa görev dalı (`ekip/<no>`), değilse `calisma\<no>` (teslimler `cikti\`).
+
+**İzinler (hiçbiri arka planda onay bekleyip kilitlenmez):** Claude Code: `--permission-mode dontAsk` + `--allowedTools` (`izinli_araclar`) + `--disallowedTools` (`yasak_araclar`: `git push`, remote, `vmrun`, güvenlik duvarı / Defender / yürütme ilkesi, kapatma…) + `--add-dir`. Codex: `-s workspace-write` (komutlar korumalı alanda; yazma yalnızca masada ve işin klasöründe), ağ `ag_erisimi` ile. Gemini: `--approval-mode yolo` + `--include-directories` (araç bazında yasak listesi yok; kurallar `GEMINI.md`'de). Hepsinde `push_engeli`: danışman çalışırken git push adresleri geçersiz bir yardımcıya yönlenir. Sonuç otomatik kontrolden geçer (değişen / korunan dosyalar, gizli bilgi, doğrulama komutları), git'te görev dalına "iç ekip incelemesi yapılmadı" notuyla commit edilir ya da `sonuc.md` yazılır; özet görevin kartına, bildirime ve Outsource Consultant'ın sohbetine gider.
 
 ## Yönetim: CTO
 
@@ -155,7 +159,7 @@ Bu sürümden önceki bir kurulumdan yükseltiyorsanız: `ayarlar.json` içindek
 | `planlama.ps1` | Product Manager, Codebase Explorer, iş dağılımı (Frontend / Backend), QA test aşaması, onay kapısı |
 | `yonetim.ps1` | CTO: yönetim değerlendirmesi, ekip ilkeleri, önceliklendirme, iş önerisi |
 | `komut.ps1`, `paralel.ps1` | Çalışana doğrudan komut (Devam et / Devral) ve paralel çalışma hatları |
-| `danisman.ps1`, `danisman/CLAUDE.md` | Outsource Consultant: tek parça işler terminal yetkili Claude Code'a; masadaki kurallar (ilk çalışmada oluşur) |
+| `danisman.ps1`, `danisman/` | Outsource Consultant: tek parça işler seçilen yapay zekanın terminal ajanına; masa (`CLAUDE.md` ana kurallar, `AGENTS.md` / `GEMINI.md` kopyaları) |
 | `gorev-ekle.ps1`, `talep-ekle.ps1`, `uzman-ekle.ps1` | Yazılım, altyapı ve uzman işini doğrudan ekleme |
 | `ayarlar.json`, `kadro.json`, `projeler.json` | Anonim ayar, kadro ve proje şablonları |
 | `istemler/` | Rol ve uzman talimatları |

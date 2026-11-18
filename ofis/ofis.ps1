@@ -96,8 +96,8 @@ $script:UzmanAsamaAdlari = @{ gelistirme = 'Çalışılıyor'; denetim = 'İncel
 # Kalp atışındaki adım etiketi -> görev aşaması
 $script:EtiketAsama = @{ uygulama = 'gelistirme'; dogrulama = 'denetim'; calisma = 'gelistirme'; inceleme = 'denetim'; ise_alim = 'plan'; danisman = 'gelistirme' }
 # Outsource Consultant işleri (tip = danisman; danisman.ps1): her aşama danışmanda
-$script:DanismanAsamaAdlari = @{ yeni = 'Danışmana veriliyor'; gelistirme = 'Danışmanda (Claude Code)'; kontrol = 'Kontrol ediliyor'; tamamla = 'Kapatılıyor' }
-$script:DanismanMetni = @{ yeni = 'Çalışma klasörünü hazırlıyor'; gelistirme = 'Claude Code ile işi baştan sona yapıyor'; kontrol = 'Sonucu otomatik kontrolden geçiriyor'; tamamla = 'Sonucu teslim ediyor' }
+$script:DanismanAsamaAdlari = @{ yeni = 'Danışmana veriliyor'; gelistirme = 'Danışmanda'; kontrol = 'Kontrol ediliyor'; tamamla = 'Kapatılıyor' }
+$script:DanismanMetni = @{ yeni = 'Çalışma klasörünü hazırlıyor'; gelistirme = 'Terminalde işi baştan sona yapıyor'; kontrol = 'Sonucu otomatik kontrolden geçiriyor'; tamamla = 'Sonucu teslim ediyor' }
 function Gorev-Tipi($G) {
     $t = [string](Ozellik $G 'tip')
     if ($t -eq 'altyapi' -or $t -eq 'uzman' -or $t -eq 'genel' -or $t -eq 'danisman') { return $t }
@@ -791,7 +791,7 @@ function Durum-Uret {
                 if ($asama -eq 'gelistirme' -and $rol -eq 'ag') { $metin = 'Ağ işini yapıyor' }
             } elseif ($aktifTip -eq 'danisman') {
                 $faaliyet = $(if ($asama -eq 'kontrol') { 'kontrol' } else { 'calisma' }); $metin = $DanismanMetni[$asama]
-                if (-not $metin) { $metin = 'Claude Code ile çalışıyor' }
+                if (-not $metin) { $metin = 'Terminalde çalışıyor' }
             } elseif ($aktifTip -eq 'uzman') {
                 $faaliyet = $UzmanFaaliyet[$asama]; $metin = $UzmanMetni[$asama]
                 if ($asama -eq 'gelistirme' -and $uye.faaliyet_metni) { $metin = [string]$uye.faaliyet_metni }
@@ -1467,7 +1467,7 @@ $script:RolAdimlari = @{
     tester = @('Yazılım işinde test (birim / entegrasyon)', 'Ek inceleme (test)', 'Uzman işi inceleme', 'Test işi'); ik = @('İşe alım')
     urun = @('Gereksinim analizi (kabul ölçütleri)'); kasif = @('Kod tabanı keşfi'); frontend = @('Önyüz geliştirme parçası'); backend = @('Arka uç geliştirme parçası')
     cto = @('Yönetim değerlendirmesi (ofis boştayken)', 'Ekip ilkeleri', 'Önceliklendirme', 'İş önerisi')
-    danisman = @('Tek parça iş: terminal yetkili Claude Code (claude -p, CLAUDE.md kuralları)', 'Sonucu ve özeti ofise / sohbete raporlama')
+    danisman = @('Tek parça iş: terminal ajanı (Claude Code / Codex / Gemini, masadaki kural dosyası)', 'Sonucu ve özeti ofise / sohbete raporlama')
 }
 function Karakter-Bilgisi([string]$Rol) {
     $Rol = Sohbet-Rolu $Rol
@@ -1599,7 +1599,7 @@ function Kaynak-Listesi {
         @('Adım istemleri', '*.md', 'istemler'), @('Rol talimatları (yetenekler)', '*.md', 'istemler\kadro'),
         @('Ayarlar', 'ayarlar.json', ''), @('Ayarlar', 'ayarlar.yerel.json', ''), @('Ayarlar', 'kadro.json', ''), @('Ayarlar', 'kadro.yerel.json', ''),
         @('Ayarlar', 'projeler.json', ''), @('Ayarlar', 'projeler.yerel.json', ''),
-        @('Araçlar', '*.ps1', 'araclar'), @('Araçlar', '*.py', 'araclar'), @('Testler', '*.ps1', 'testler'), @('Outsource Consultant masası', 'CLAUDE.md', 'danisman'), @('Belgeler', 'README.md', '')
+        @('Araçlar', '*.ps1', 'araclar'), @('Araçlar', '*.py', 'araclar'), @('Testler', '*.ps1', 'testler'), @('Outsource Consultant masası', '*.md', 'danisman'), @('Belgeler', 'README.md', '')
     )
     $l = New-Object Collections.Generic.List[object]
     foreach ($g in $gruplar) {

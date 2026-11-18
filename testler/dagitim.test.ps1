@@ -41,6 +41,9 @@ try {
     Dogrula ($a.puanlama.etkin -and $yardimIstemi -match 'KARAR: BIRLIKTE' -and (Test-Path -LiteralPath (Join-Path $kaynak 'istemler\yardim-birlikte.md'))) 'Fibonacci puanlama açık; Engineering Manager birlikte çalışma kararı ve istemi var'
     $istemler = @(Get-ChildItem -LiteralPath (Join-Path $kaynak 'istemler') -Filter '*.md' -File -Recurse)
     Dogrula ($istemler.Count -eq 42) '26 akış ve 16 kadro istemi'
+    $masaMd = Join-Path $kaynak 'danisman\CLAUDE.md'
+    $masaAna = [IO.File]::ReadAllText($masaMd).Replace("`r`n", "`n").Trim()
+    Dogrula ((@('AGENTS.md', 'GEMINI.md') | Where-Object { [IO.File]::ReadAllText((Join-Path $kaynak "danisman\$_")).Replace("`r`n", "`n").Contains($masaAna) }).Count -eq 2 -and $masaAna -notmatch '(?i)C:\\Users') 'Danışman masası: CLAUDE.md yol içermez; AGENTS.md ve GEMINI.md onun kopyası'
     $dn = @($k.uyeler | Where-Object { $_.anahtar -eq 'danisman' })[0]
     Dogrula ($dn -and $dn.dogrudan_is -and $dn.departman -eq 'Dış danışmanlık' -and $a.danisman.etkin -and @($a.roller.danisman)[0].arac -eq 'claude' -and (@($a.danisman.izinli_araclar) -contains 'Bash') -and (@($a.danisman.yasak_araclar) -contains 'Bash(git push *)') -and (Test-Path -LiteralPath (Join-Path $kaynak 'istemler\danisman-claude.md'))) 'Outsource Consultant: Claude Code zinciri, izin / yasak listeleri, CLAUDE.md şablonu'
     foreach ($uye in $k.uyeler) {
@@ -98,7 +101,7 @@ try {
     New-Item -ItemType Directory -Path $paket -Force | Out-Null
     foreach ($f in @(Get-ChildItem -LiteralPath $kaynak -File -Filter '*.ps1')) { Copy-Item -LiteralPath $f.FullName -Destination $paket }
     foreach ($f in @('ayarlar.json','kadro.json','projeler.json','.gitignore','README.md','LICENSE')) { Copy-Item -LiteralPath (Join-Path $kaynak $f) -Destination $paket }
-    foreach ($d in @('istemler','ofis','araclar','testler')) {
+    foreach ($d in @('istemler','ofis','araclar','testler','danisman')) {
         $hedef = Join-Path $paket $d; New-Item -ItemType Directory -Path $hedef -Force | Out-Null
         Get-ChildItem -LiteralPath (Join-Path $kaynak $d) -Recurse -File | Where-Object { $_.Extension -in @('.ps1','.md','.html','.py') } | ForEach-Object {
             $goreli = $_.FullName.Substring((Join-Path $kaynak $d).Length).TrimStart('\')
@@ -146,6 +149,7 @@ try {
         '','',               # Claude tespit edilen exe ve modelleri; anonim yol hata vermemeli
         '',                  # Codex tespit edilen exe
         'tek-model','',       # İki model şartı, ardından varsayılanlar
+        'gemini','codex',     # Danışman yapay zekası: seçilmeyen araç reddedilir, sonra Codex
         'h',                 # Giriş hazır değil -> görev kurma sorusu yok
         'e','','e',$vmKok,    # Altyapı, vmrun, tara, klasör
         'e','','hatalı-ip','192.0.2.10','','açık VM kaydı',
@@ -159,6 +163,7 @@ try {
     Kurulumu-Baslat
     Dogrula ($script:yanitlar.Count -eq 0) 'Etkileşimli kurulum tüm yanıtları tüketti'
     $yerel = Json (Join-Path $paket 'ayarlar.yerel.json')
+    Dogrula ((@($yerel.roller.danisman)[0].arac -eq 'codex') -and (@($yerel.roller.danisman | Where-Object { $_.arac -eq 'claude' }).Count -ge 1) -and (@($yerel.roller.lider)[0].arac -eq 'claude')) 'Kurulumda seçilen yapay zeka (Codex) danışman oldu; diğer roller ve yedek zincir korunur'
     Dogrula ($script:listeCagrildi -and $yerel.altyapi.makineler.Count -eq 3) 'vmrun list ve VMX birleşimi, tekilleştirme, kapalı VM ve ana makine'
     Dogrula ($yerel.altyapi.makineler[1].ip -eq '192.0.2.10' -and $yerel.altyapi.makineler[2].ip -eq '') 'IP doğrulama ve bilinmeyen IP'
     Dogrula ($yerel.dongu.calisma_saatleri -eq '22:00-06:00' -and $yerel.bildirim.ozet_saatleri.Count -eq 2) 'Gece mesaisi ve özet saatleri doğrulandı'
@@ -211,7 +216,7 @@ try {
     & git init -q -- $ignoreDepo | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Geçici depo oluşturulamadı (git init).' }
     Copy-Item -LiteralPath (Join-Path $kaynak '.gitignore') -Destination $ignoreDepo
-    $izin = @('durum/a.json','gunluk/a.log','raporlar/a.html','calisma/a','gorevler/0001/gorev.md','ayarlar.yerel.json','kadro.yerel.json','projeler.yerel.json','ayarlar.yerel.json.bak','eposta.json','BAGLANTI-BILGILERI.md','ofis/uzak.json','ofis/sunucu.json','danisman/CLAUDE.md')
+    $izin = @('durum/a.json','gunluk/a.log','raporlar/a.html','calisma/a','gorevler/0001/gorev.md','ayarlar.yerel.json','kadro.yerel.json','projeler.yerel.json','ayarlar.yerel.json.bak','eposta.json','BAGLANTI-BILGILERI.md','ofis/uzak.json','ofis/sunucu.json','danisman/notlar/a.md')
     foreach ($yol in $izin) {
         $null = & git -C $ignoreDepo check-ignore --quiet -- $yol
         Dogrula ($LASTEXITCODE -eq 0) "$yol Git dışında"
@@ -224,7 +229,8 @@ try {
     $arsiv = [IO.Compression.ZipFile]::OpenRead((Join-Path $paket 'dagitim\ai-ofis.zip'))
     try {
         $adlar = @($arsiv.Entries | ForEach-Object { $_.FullName })
-        Dogrula ($adlar.Count -eq 90) 'ZIP 90 dağıtım dosyası içeriyor'
+        Dogrula ($adlar.Count -eq 93) 'ZIP 93 dağıtım dosyası içeriyor (danışman masası dahil)'
+        Dogrula (@($adlar | Where-Object { $_ -in @('danisman/CLAUDE.md', 'danisman/AGENTS.md', 'danisman/GEMINI.md') }).Count -eq 3) 'ZIP danışman masasını (CLAUDE.md, AGENTS.md, GEMINI.md) içeriyor'
         Dogrula (@($adlar | Where-Object { $_ -match '\.yerel\.|ozel-not|^durum/|^gorevler/|^raporlar/' }).Count -eq 0) 'ZIP kişisel ayarları ve ek kullanıcı dosyalarını dışlıyor'
     } finally { $arsiv.Dispose() }
     Write-Host "TAMAM: $script:kontrol kontrol geçti. Gerçek ağ/VM/masaüstü/zamanlanmış görev işlemi yapılmadı."

@@ -2162,7 +2162,7 @@ const DOSYA_ADI = {
   'calisma-ozet.md': 'Çalışanın raporu', 'inceleme.md': 'İnceleme raporu',
 };
 const ROL_ADI = { sistem: 'System Administrator', ag: 'Network Engineer', yok: 'yok', lider: 'Engineering Manager', 'sorun-giderici': 'Incident Manager' };
-const KARAR_ADI = { DANISMAN: 'Outsource Consultantʼa (Claude Code) verdi', YAZILIM: 'yazılım ekibine verdi', ALTYAPI: 'System Administrator + Network Engineer ekibine verdi', UZMAN: 'uzmana verdi', ISE_ALIM: 'İK işe alım yapacak', SORU_VAR: 'sana soru sordu' };
+const KARAR_ADI = { DANISMAN: 'Outsource Consultantʼa verdi', YAZILIM: 'yazılım ekibine verdi', ALTYAPI: 'System Administrator + Network Engineer ekibine verdi', UZMAN: 'uzmana verdi', ISE_ALIM: 'İK işe alım yapacak', SORU_VAR: 'sana soru sordu' };
 function rolAdi(k) {
   if (!k) return '';
   const r = veri && (veri.roller || []).find(x => x.anahtar === k);
@@ -3879,7 +3879,7 @@ function ozetSekmesi(d, g) {
       ...satir('Sorumlu', g.sorumlu ? rolAdi(g.sorumlu) : null), ...satir('İnceleyen', g.inceleyen ? (g.inceleyen === 'yok' ? 'yalnızca Engineering Manager' : rolAdi(g.inceleyen)) : null),
       ...satir('İlgili klasör', g.kaynak_klasor ? E('code', { text: g.kaynak_klasor }) : null),
       ...satir('Çıktı klasörü', g.calisma_klasoru ? E('code', { text: g.calisma_klasoru + '\\cikti' }) : null)]
-    : [...satir('Tür', d.tip === 'danisman' ? 'Outsource Consultant: tek parça iş, terminal yetkili Claude Code (iç ekibe dağıtılmadı)' : null),
+    : [...satir('Tür', d.tip === 'danisman' ? 'Outsource Consultant: tek parça iş, terminal yetkili yapay zeka ajanı (iç ekibe dağıtılmadı)' : null),
       ...satir('Proje', g.klasor ? `${g.proje} (${g.klasor})` : (d.tip === 'danisman' ? null : g.proje)),
       ...satir('Çalışma klasörü', d.tip === 'danisman' && g.calisma_klasoru ? E('code', { text: g.calisma_klasoru }) : null),
       ...satir('Danışman', d.tip === 'danisman' && g.danisman ? aracMetni(g.danisman) : null),

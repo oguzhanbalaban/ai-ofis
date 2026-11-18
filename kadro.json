@@ -387,7 +387,7 @@
         {
             "anahtar": "danisman",
             "ad": "Outsource Consultant",
-            "rol_tr": "Dış danışman (Claude Code)",
+            "rol_tr": "Dış danışman (terminal yapay zeka ajanı)",
             "departman": "Dış danışmanlık",
             "yerlesik": true,
             "uzman_isi": false,
@@ -395,9 +395,9 @@
             "yetki": "tam",
             "renk": "#be123c",
             "renk_koyu": "#fb7185",
-            "uzmanlik": "Paralel ekip çalışması gerektirmeyen, tek bağlam penceresinde baştan sona çözülebilecek işleri iç ekibe dağıtılmadan tek başına yapar: terminal yetkili Claude Code (claude -p) olarak kendi masasındaki CLAUDE.md kurallarıyla çalışır, gerektiğinde diğer araçları ve modelleri terminalden kullanır, sonucu ve özetini ofise raporlar.",
+            "uzmanlik": "Paralel ekip çalışması gerektirmeyen, tek bağlam penceresinde baştan sona çözülebilecek işleri iç ekibe dağıtılmadan tek başına yapar: ofisi kuranın seçtiği yapay zekanın terminal ajanı olarak (Claude Code, Codex CLI ya da Gemini CLI, başsız) kendi masasındaki kural dosyasıyla çalışır, gerektiğinde diğer araçları ve modelleri terminalden kullanır, sonucu ve özetini ofise raporlar.",
             "istem": "istemler\\kadro\\danisman.md",
-            "faaliyet_metni": "Claude Code ile çalışıyor"
+            "faaliyet_metni": "Terminalde çalışıyor"
         }
     ]
 }

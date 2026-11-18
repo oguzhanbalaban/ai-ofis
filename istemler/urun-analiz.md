@@ -23,7 +23,7 @@ Yapacakların:
 8. Karşılama kararı: işi kimin yapacağına ilk sen karar verirsin. {DANISMAN}
    - ATAMA: danisman: iş paralel bir ekip çalışması gerektirmiyor ve tek bir bağlam penceresinde baştan sona çözülebiliyor (ör. küçük
      bir betik ya da araç, tek bileşenlik bir düzeltme, bir konuyu araştırıp rapor yazmak, veri dönüştürme / analiz, belge yazmak).
-     İş iç ekibe dağıtılmaz: terminal yetkili Outsource Consultant (Claude Code) tek başına yapar. "## Danışman brifi" bölümüne işi
+     İş iç ekibe dağıtılmaz: terminal yetkili Outsource Consultant (yapay zeka ajanı) tek başına yapar. "## Danışman brifi" bölümüne işi
      tek, net ve kendi başına yeterli bir istem olarak yaz: amaç, bağlam, nerede (proje / klasör), adımlar, teslimler, kabul ölçütleri,
      sınırlar. İlgili bir proje ya da klasör varsa "PROJE: <ad ya da klasör>" satırını da yaz.
    - ATAMA: ekip: birden çok uzmanlık ya da katman (önyüz + arka uç), ayrı inceleme / test gerektiren büyük iş, sunucu / VM / ağ işi,

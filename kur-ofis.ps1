@@ -212,6 +212,19 @@ function Kurulumu-Baslat {
         $modeller[$arac] = @($m.Split(',') | ForEach-Object { $_.Trim() } | Select-Object -Unique)
     }
     Araclari-Uyarla $a $k $modeller $secilen
+    # Outsource Consultant, seçilen yapay zekanın terminal ajanıdır (Claude Code / Codex / Gemini); birden çok araç seçildiyse sor
+    $danismanArac = $secilen[0]
+    if ($secilen.Count -gt 1) {
+        $secenekler = $secilen
+        $danismanArac = (Yanit-Al ("Outsource Consultant (tek parça işleri terminalde kendi başına yapan dış danışman) hangi yapay zekayla çalışsın? ({0})" -f ($secilen -join ', ')) $secilen[0] {
+            param($s) $s.Trim().ToLowerInvariant() -in $secenekler
+        }.GetNewClosure()).Trim().ToLowerInvariant()
+    }
+    if ($a.roller.PSObject.Properties['danisman']) {
+        $dz = @($a.roller.danisman)
+        $a.roller.danisman = @(@($dz | Where-Object { $_.arac -eq $danismanArac }) + @($dz | Where-Object { $_.arac -ne $danismanArac }))
+    }
+    Write-Host "Outsource Consultant: $danismanArac (masa: danisman\CLAUDE.md; Codex AGENTS.md, Gemini GEMINI.md kopyasını okur)"
     $girisHazir = Evet-Hayir 'Seçtiğiniz araçlarda giriş ve model/abonelik erişimi hazır mı? (Çevrimiçi doğrulanmaz)'
     if (-not $girisHazir) { Write-Warning 'Yeni otomatik başlatma görevi kurulmayacak. CLI girişlerini tamamlayın; kurulumunuz yine kaydedilecek.' }
 

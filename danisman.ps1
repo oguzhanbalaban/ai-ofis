@@ -2,18 +2,23 @@
 danisman.ps1 - Outsource Consultant (anahtar danisman; durum.json > tip = "danisman"). ekip.ps1 dot-source eder.
 
 Paralel ekip çalışması gerektirmeyen, tek bağlam penceresinde baştan sona çözülebilecek işleri iç ekibe dağıtmak yerine tek parça olarak
-terminal yetkili Claude Code'a (claude -p, headless) verir:
+terminal yetkili bir yapay zeka ajanına verir. Danışman, ofisi kuranın seçtiği yapay zekadır (kur-ofis.ps1; panelde karakter kartından
+değiştirilebilir): Claude Code (claude -p), Codex CLI (codex exec) ya da Gemini CLI (gemini -p), hepsi başsız (headless):
   - Yönlendirme: Product Manager analizde "ATAMA: danisman" der ve "## Danışman brifi" bölümüne tek, net bir istem yazar
     (planlama.ps1 > Adim-Analiz). Kullanıcı işi doğrudan Outsource Consultant'a verdiyse (is-ver.ps1 -Rol danisman, panelde
     "Bu çalışana iş ver") yönlendirme zorunludur; Product Manager kapalıysa iş görev metniyle doğrudan devredilir (Genel-Adim).
-  - Masa: ai-ekip\danisman\ (CLAUDE.md: danışmanın kuralları ve öncelikleri; yoksa istemler\danisman-claude.md şablonundan oluşur,
-    sonra kullanıcı düzenleyebilir). Claude Code bu klasörde çalışır, CLAUDE.md'yi kendisi yükler; işin klasörü --add-dir ile açılır.
-  - İzinler (ayarlar.json > danisman): --permission-mode dontAsk + --allowedTools (terminal dahil) + --disallowedTools; izin listesinde
-    olmayan her şey sormadan reddedilir, arka planda onay bekleyip kilitlenmez (ortak.ps1 > Claude-Calistir, profil "danisman").
+  - Masa: danisman\ (pakette gelir). CLAUDE.md danışmanın kuralları ve öncelikleri (ana dosya; kullanıcı düzenler, yoksa
+    istemler\danisman-claude.md şablonundan oluşur); AGENTS.md (Codex) ve GEMINI.md (Gemini) her çalışmadan önce ondan kopyalanır.
+    Ajan bu klasörde çalışır ve kendi kural dosyasını yükler; işin klasörü ona ayrıca açılır.
+  - İzinler (ayarlar.json > danisman; ortak.ps1 > Claude-Calistir / Codex-Calistir / Gemini-Calistir, profil "danisman"):
+      Claude Code  --permission-mode dontAsk + --allowedTools + --disallowedTools (listede olmayan araç sormadan reddedilir) + --add-dir
+      Codex        -s workspace-write (yazma yalnızca masada ve --add-dir klasöründe), ağ ayarla (ag_erisimi); exec onay sormaz
+      Gemini       --approval-mode yolo + --include-directories (araç bazında yasak listesi yok; kurallar GEMINI.md'de)
+    Hepsinde arka planda onay bekleyip kilitlenme olmaz; push_engeli açıkken git push adresleri geçersiz bir yardımcıya yönlendirilir.
 
 Aşamalar (adları diğer akışlarla aynı):
   yeni        çalışma klasörü: proje bir git deposuysa görev dalı (ekip/<no>, calisma\<no>), değilse calisma\<no> (+ cikti\)  [betik]
-  gelistirme  Outsource Consultant işi baştan sona yapar; KARAR: TAMAM | SORU_VAR | YAPILAMADI                       [Claude Code]
+  gelistirme  Outsource Consultant işi baştan sona yapar; KARAR: TAMAM | SORU_VAR | YAPILAMADI                       [yapay zeka]
   kontrol     değişen dosyalar, korunan dosyalar, gizli bilgi taraması, doğrulama komutları; kalırsa yeni tur           [betik]
   tamamla     git'te dala commit (iç ekip incelemesi yapılmadığı commit'e yazılır), değilse sonuc.md; bildirim ve
               Outsource Consultant'ın sohbetine rapor                                                                    [betik]
@@ -26,21 +31,37 @@ function Danisman-Ayari {
     $o.etkin = [bool]$o.etkin
     return [pscustomobject]$o
 }
-# Danışman Claude Code'dur: zincirinde Claude yoksa (ör. yalnız Codex seçilen kurulum) katman atlanır, işler iç ekipte kalır
-function Danisman-Hazir-mi {
-    if (-not (Danisman-Ayari).etkin -or -not (Rol-Hazir-mi 'danisman')) { return $false }
-    return (@($Ayar.roller.danisman | Where-Object { $_ -and [string]$_.arac -eq 'claude' }).Count -gt 0)
-}
+# Danışman, zincirindeki ilk uygun yapay zekadır (Claude Code, Codex ya da Gemini; kurulumda seçilen)
+function Danisman-Hazir-mi { return ((Danisman-Ayari).etkin -and (Rol-Hazir-mi 'danisman')) }
+$script:DanismanAynaBasligi = "<!-- Bu dosya danisman\CLAUDE.md'nin kopyasıdır (Codex AGENTS.md'yi, Gemini GEMINI.md'yi okur). Ofis her danışman çalışmasından önce günceller; kuralları CLAUDE.md'de değiştir. -->`n`n"
+# Masa: CLAUDE.md (ana kurallar) yoksa şablondan oluşur; AGENTS.md ve GEMINI.md ondan kopyalanır (her yapay zeka kendi dosyasını okur)
 function Danisman-Masasi {
     $m = Join-Path $Kok 'danisman'
     if (-not (Test-Path -LiteralPath $m)) { New-Item -ItemType Directory -Force $m | Out-Null }
-    $f = Join-Path $m 'CLAUDE.md'
-    if (-not (Test-Path -LiteralPath $f)) {
-        $codex = Codex-Exe; if (-not $codex) { $codex = '(bu makinede bulunamadı)' }
-        Metin-Yaz $f (Sablon-Doldur 'danisman-claude.md' @{ KOK = $Kok; MASA = $m; CODEX = $codex })
-        Gunluk "Outsource Consultant masası hazırlandı: $f"
+    $ana = Join-Path $m 'CLAUDE.md'
+    if (-not (Test-Path -LiteralPath $ana)) {
+        Metin-Yaz $ana (Metin-Oku (Join-Path $YolIstem 'danisman-claude.md'))
+        Gunluk "Outsource Consultant masası hazırlandı: $ana"
+    }
+    $icerik = Metin-Oku $ana
+    foreach ($ad in @('AGENTS.md', 'GEMINI.md')) {
+        $f = Join-Path $m $ad
+        $ayna = $DanismanAynaBasligi + $icerik
+        if (((Metin-Oku $f) -replace "`r`n", "`n") -ne ($ayna -replace "`r`n", "`n")) { Metin-Yaz $f $ayna }
     }
     return $m
+}
+# İstemin ARAÇLAR bölümü: bu bilgisayarda kurulu yapay zeka CLI'ları (danışman ikinci görüş ya da eksik yetenek için çağırabilir)
+function Danisman-Araclari-Metni {
+    $l = @()
+    $c = [string]$Ayar.claude.exe
+    if ($c -and (Test-Path -LiteralPath $c)) { $l += ('- Claude Code: `"{0}" -p "<istem>"` (salt okunur ikinci görüş için `--permission-mode plan`)' -f $c) }
+    $x = Codex-Exe
+    if ($x) { $l += ('- Codex CLI: `"{0}" exec --skip-git-repo-check -s workspace-write -C "<işin klasörü>" "<istem>"` (görsel üretimi de yapabilir)' -f $x) }
+    $gm = Gemini-Exe
+    if ($gm) { $l += ('- Gemini CLI: `"{0}" -p "<istem>"`' -f $gm) }
+    if (-not $l.Count) { return '(Başka yapay zeka CLI''ı bulunamadı.)' }
+    return (($l -join "`n") + "`nZincir: " + ((@($Ayar.roller.danisman | Where-Object { $_ }) | ForEach-Object { '{0}/{1}' -f $_.arac, $_.model }) -join ' → ') + ' (ilk uygun olan sensin).')
 }
 # Danışmanın sohbetine (panelde çalışanla yazışma penceresi) rapor satırı
 function Danisman-Sohbete-Yaz($G, [string]$Metin) {
@@ -69,7 +90,7 @@ function Danismana-Aktar($G, [string]$Metin, $Sonuc, [string]$Kaynak) {
     Ayarla $G 'yonlendirme_karari' 'DANISMAN'
     Ayarla $G 'yonlendiren' $Kaynak
     $nerede = 'ayrı çalışma klasöründe'; if ($p) { $nerede = "proje: $($p.ad) (``$($p.klasor)``)" }
-    Gorev-Notu-Ekle $G "$Kaynak yönlendirmesi" "İş tek parça olarak Outsource Consultantʼa (terminal yetkili Claude Code) verildi; $nerede. Brif: plan.md."
+    Gorev-Notu-Ekle $G "$Kaynak yönlendirmesi" "İş tek parça olarak Outsource Consultantʼa (terminal yetkili yapay zeka ajanı) verildi; $nerede. Brif: plan.md."
     Asama-Gec $G 'yeni' 'Outsource Consultantʼa verildi' "$Kaynak; $nerede" $Sonuc
 }
 
@@ -107,13 +128,12 @@ function Danisman-Calis($G) {
         if ($G.kaynak_klasor) { $not += " İlgili klasör: $($G.kaynak_klasor) (okuyabilirsin; iş açıkça istemedikçe değiştirme)." }
     }
     $istem = Sablon-Doldur 'danisman-gorev.md' @{
-        CALISMA = $wt; KLASOR_NOTU = $not; TUR = [string]$G.tur; MASA = $masa
+        CALISMA = $wt; KLASOR_NOTU = $not; TUR = [string]$G.tur; MASA = $masa; ARACLAR = (Danisman-Araclari-Metni)
         BRIF = (Plan-Metni $G); GOREV = (Gorev-Metni $G); GERI_BILDIRIM = $gb
     }
     $ek = @($wt); if ($G.kaynak_klasor -and (Test-Path -LiteralPath ([string]$G.kaynak_klasor))) { $ek += [string]$G.kaynak_klasor }
-    # Claude dışı yedeklere düşme: izin profili ve CLAUDE.md yalnızca Claude Code'da geçerli
-    $haric = @($Ayar.roller.danisman | Where-Object { $_ -and [string]$_.arac -ne 'claude' } | ForEach-Object { '{0}/{1}' -f $_.arac, $_.model })
-    $r = Ajan-Cagir -Rol 'danisman' -Istem $istem -Klasor $masa -KayitKlasoru $tk -Etiket 'danisman' -IzinProfili 'danisman' -EkKlasorler $ek -Haric $haric
+    # Zincirdeki ilk uygun yapay zeka (Claude Code / Codex / Gemini) danışman izin profiliyle çalışır
+    $r = Ajan-Cagir -Rol 'danisman' -Istem $istem -Klasor $masa -KayitKlasoru $tk -Etiket 'danisman' -IzinProfili 'danisman' -EkKlasorler $ek
     if (-not $r.basarili) { Adim-Basarisiz $G "Outsource Consultant çalışamadı: $($r.hata)"; return }
     Metin-Yaz (Join-Path $tk 'danisman-rapor.md') $r.metin
     Ayarla $G 'danisman' ('{0}/{1}' -f $r.arac, $r.model)
@@ -201,7 +221,7 @@ function Danisman-Tamamla($G) {
             $baslik = [string]$G.commit_mesaji; if (-not $baslik) { $baslik = [string]$G.baslik }
             if ($baslik.Length -gt 72) { $baslik = $baslik.Substring(0, 72) }
             $govde = @($baslik, '', "AI Ekip görevi: $($G.id)",
-                "Outsource Consultant (Claude Code, headless): $($G.danisman) | Tur: $($G.tur)",
+                "Outsource Consultant (terminal ajanı, headless): $($G.danisman) | Tur: $($G.tur)",
                 'Onay: dış danışman akışı; iç ekip incelemesi yapılmadı (otomatik kontrol geçti). Birleştirmeden önce inceleyin.',
                 '', 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>') -join "`n"
             $mf = Join-Path $gk 'commit-mesaji.txt'
@@ -217,7 +237,7 @@ function Danisman-Tamamla($G) {
         Ayarla $G 'calisma_klasoru_kaldirildi' ($script:GitKod -eq 0)
     } else {
         $t = Teslim-Listesi $G 200
-        $md = @("# Sonuç: $($G.baslik)", '', $ozet, '', "- Outsource Consultant (Claude Code): $($G.danisman) | Tur: $($G.tur)",
+        $md = @("# Sonuç: $($G.baslik)", '', $ozet, '', "- Outsource Consultant: $($G.danisman) | Tur: $($G.tur)",
             "- Çıktı klasörü: $(Uzman-Cikti $G)", '', "## Teslimler ($($t.adet))", '', $(if ($t.adet) { $t.metin } else { '(dosya yok; sonuç danışman raporunda)' })) -join "`n"
         Metin-Yaz (Join-Path $gk 'sonuc.md') $md
         if ($t.adet) { $dalNotu = " $($t.adet) dosya; panelde Çıktılar sekmesinde." }
