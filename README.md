@@ -145,6 +145,11 @@ aşama kontrolden geçince açılır.
 
 - Çevrimdışı sınama: `powershell -NoProfile -ExecutionPolicy Bypass -File testler\ortak-klasor.test.ps1`.
 
+## Günlük hak sıfırlama (19.11.2026)
+
+Ofis her araç için kendi günlük çağrı sınırını tutar (`ayarlar.json > gunluk_sinir`, ör. Claude 100). Sınır dolunca o aracın işleri zincirdeki sonraki modele geçer; zincirin tamamı doluysa iş takılır. Panelde **Günlük hak** çubuklarının yanındaki **↺** düğmesi (ya da **Bugün** kartındaki **↺ Sıfırla**) o aracın bugünkü sayacını sıfırlar ve aracın kullanım / kota sınırı kilitlerini kaldırır. Yalnızca bu sınır yüzünden takılmış işler takıldıkları aşamadan sürer, aynı nedenle yeniden denemeyi bekleyenler de beklemeden denenir. Onay penceresi hangi işlerin süreceğini gösterir. Giriş ve model kilitleri kalkmaz. Başka nedenle takılan işlere ve biten işlere dokunulmaz.
+
+Bu düğme hesaptaki gerçek kotayı (Anthropic, OpenAI, Google) **değiştirmez**. O kota da dolmuşsa araç yine sınır hatası verir ve ofis onu sıfırlanma saatine kadar yeniden kilitler. Komut satırından: `.\durum.ps1 -KotaSifirla claude` (`claude | codex | gemini | hepsi`). Test: `testler\kota-sifirla.test.ps1`.
 ## Ekip içi yardımlaşma
 
 Bir çalışan iş sırasında kendi yapamayacağı ama ekipte başkasının yapabileceği bir şeyle karşılaşırsa (yazılım/SDK kurulumu, emülatör, ağ ayarı, uygulamayı çalıştırıp test etmek, tasarım varlığı, güvenlik görüşü, yalnızca sizin verebileceğiniz bir bilgi) işi başarısız saymaz: çıktısının sonuna bir ```` ```yardim {json} ```` bloğu ekler (talimat her uygun istemin sonuna kendiliğinden eklenir). Akış `yardim.ps1` içindedir:

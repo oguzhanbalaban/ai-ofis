@@ -275,6 +275,50 @@ function Kilitli([string]$Anahtar) {
     return $null
 }
 
+# ---------------------------------------------------------------- günlük hak sıfırlama (panel ↺ düğmesi, durum.ps1 -KotaSifirla)
+# Ofisin kendi günlük çağrı sayacını (ayarlar.json > gunluk_sinir) sıfırlar ve aracın kullanım / kota sınırı kilitlerini kaldırır.
+# Hesaptaki gerçek kota (Anthropic, OpenAI, Google) değişmez; giriş ve model kilitleri kalır, onlar sıfırlamayla düzelmez.
+$script:KotaAraclari = @('claude', 'codex', 'gemini')
+function Kota-Araclari([string]$Arac) {
+    $a = ([string]$Arac).Trim().ToLowerInvariant()
+    if ($a -eq 'hepsi') { return $KotaAraclari }
+    if ($KotaAraclari -contains $a) { return @($a) }
+    throw "Bilinmeyen araç: '$Arac' (claude | codex | gemini | hepsi)"
+}
+function Kota-Sifirla([string]$Arac) {
+    $hedef = @(Kota-Araclari $Arac)
+    $s = Sayac-Oku
+    $onceki = [ordered]@{}
+    foreach ($a in $hedef) {
+        $v = 0; if ($s.PSObject.Properties[$a]) { $v = [int]$s.$a }
+        $onceki[$a] = $v
+        Ayarla $s $a 0
+    }
+    Json-Yaz $s (Join-Path $YolDurum 'sayaclar.json')
+    $k = Kilit-Oku
+    $kalkan = @(@($k.PSObject.Properties) | Where-Object { ($hedef -contains ([string]$_.Name -split ':')[0]) -and ([string]$_.Value.neden -match '(?i)sınır|kota') } | ForEach-Object { [string]$_.Name })
+    foreach ($ad in $kalkan) { $k.PSObject.Properties.Remove($ad) }
+    if ($kalkan.Count) { Json-Yaz $k (Join-Path $YolDurum 'kilitler.json') }
+    $ozet = @($hedef | ForEach-Object { '{0} {1} -> 0' -f $_, $onceki[$_] }) -join ', '
+    $ek = ''; if ($kalkan.Count) { $ek = '; kaldırılan kilitler: ' + ($kalkan -join ', ') }
+    Gunluk "Günlük hak sıfırlandı (kullanıcı): $ozet$ek"
+    return [pscustomobject]@{ araclar = $hedef; onceki = [pscustomobject]$onceki; kilitler = $kalkan }
+}
+# Bu araçların günlük sınırı ya da kullanım / kota sınırı yüzünden takılan ya da yeniden denemeyi bekleyen işler
+function Sinirdan-Duran-Gorevler([string[]]$Araclar) {
+    $desen = '(?i)\b(' + (@($Araclar | ForEach-Object { [regex]::Escape($_) }) -join '|') + ')/[^|]*?(günlük sınır doldu|kullanım sınırı|kota sınırı)'
+    $l = @()
+    foreach ($g in @(Gorevleri-Listele)) {
+        $asama = [string]$g.asama
+        if ($asama -eq 'takildi') {
+            $son = @(@($g.gecmis) | Where-Object { $_ -and [string]$_.olay -eq 'takıldı' } | Select-Object -Last 1)
+            $metin = [string]$g.son_hata; if ($son.Count) { $metin += ' | ' + [string]$son[0].ayrinti }
+            if ($metin -match $desen) { $l += $g }
+        } elseif ((@('tamam', 'iptal', 'bekliyor_kullanici') -notcontains $asama) -and $g.sonraki_deneme -and ([string]$g.son_hata -match $desen)) { $l += $g }
+    }
+    return $l
+}
+
 # ---------------------------------------------------------------- araç yolları
 function Codex-Exe {
     if ($Ayar.codex.exe -and (Test-Path -LiteralPath $Ayar.codex.exe -PathType Leaf)) { return [string]$Ayar.codex.exe }

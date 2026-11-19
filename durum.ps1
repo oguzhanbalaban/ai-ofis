@@ -15,9 +15,11 @@ durum.ps1 - AI Ekip'in anlık durumu ve görev yönetimi.
   .\durum.ps1 -Degerlendir          CTOʼdan yönetim değerlendirmesi iste (ofis boşalınca yapılır; rapor durum\yonetim\)
   .\durum.ps1 -Duraklat / -Surdur   tüm ekibi duraklat / sürdür (DURDUR dosyası)
   .\durum.ps1 -KilitleriSifirla     araç kilitlerini kaldır (ör. "claude auth login" yaptıktan sonra)
+  .\durum.ps1 -KotaSifirla claude   ofisin günlük Claude hakkını sıfırla (claude | codex | gemini | hepsi): sayaç ve sınır kilitleri
+                                    kalkar, sınır yüzünden takılan işler sürer; hesaptaki gerçek kota değişmez
 #>
 param([string]$GeriAl, [string]$CanliyaAl, [string]$Id, [string]$Devam, [string]$Not, [string]$Iptal, [string]$Tasi, [string]$Asama, [string]$Komut, [string]$Kim, [string]$Emir = 'devam',
-    [switch]$Baslatma, [string]$ParalelDurdur, [switch]$Ac, [switch]$Duraklat, [switch]$Surdur, [switch]$KilitleriSifirla, [switch]$Degerlendir)
+    [switch]$Baslatma, [string]$ParalelDurdur, [switch]$Ac, [switch]$Duraklat, [switch]$Surdur, [switch]$KilitleriSifirla, [switch]$Degerlendir, [string]$KotaSifirla)
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'ortak.ps1')
 . (Join-Path $PSScriptRoot 'rapor.ps1')
@@ -39,6 +41,33 @@ if ($Degerlendir) {
     Write-Host 'CTO değerlendirmesi istendi: ofis boşalınca (sırada iş yokken) yapılır.'
 }
 if ($KilitleriSifirla) { Json-Yaz (New-Object psobject) (Join-Path $YolDurum 'kilitler.json'); Write-Host 'Araç kilitleri kaldırıldı; ekip bir sonraki adımda tüm araçları yeniden dener.' }
+if ($KotaSifirla) {
+    # Ofisin günlük hakkı (panel ↺): sayaç ve sınır kilitleri sıfırlanır, sınır yüzünden takılan işler sürer, yeniden denemeyi
+    # bekleyenler beklemez (ortak.ps1 > Kota-Sifirla, Sinirdan-Duran-Gorevler)
+    $r = Kota-Sifirla $KotaSifirla
+    $adlar = @{ claude = 'Claude'; codex = 'Codex'; gemini = 'Gemini' }
+    foreach ($a in $r.araclar) {
+        $sinir = 0; if ($Ayar.gunluk_sinir -and $Ayar.gunluk_sinir.PSObject.Properties[$a]) { $sinir = [int]$Ayar.gunluk_sinir.$a }
+        Write-Host ("{0} günlük hakkı sıfırlandı: bugün {1} çağrı yapılmıştı, şimdi 0/{2}." -f $adlar[$a], $r.onceki.$a, $(if ($sinir -gt 0) { $sinir } else { 'sınırsız' }))
+    }
+    if ($r.kilitler.Count) { Write-Host ('Kaldırılan sınır kilitleri: ' + ($r.kilitler -join ', ')) }
+    $hakAdi = @($r.araclar | ForEach-Object { $adlar[$_] }) -join ', '
+    $duran = @(Sinirdan-Duran-Gorevler $r.araclar)
+    foreach ($g in $duran) {
+        if ([string]$g.asama -eq 'takildi') {
+            Gecmis-Ekle $g 'günlük hak sıfırlandı' "$hakAdi hakkı sıfırlandı; iş sınır yüzünden takıldığı yerden sürüyor"
+            Gorev-Surdur $g '' 'kullanıcı'
+            Gorev-Kaydet $g
+            Write-Host "Sürdürülüyor: #$(No-Kisa $g.id) $($g.baslik) ($(Asama-Adi $g.asama))"
+        } else {
+            Gecmis-Ekle $g 'günlük hak sıfırlandı' "$hakAdi hakkı sıfırlandı; beklemeden yeniden denenecek"
+            Ayarla $g 'sonraki_deneme' $null
+            Gorev-Kaydet $g
+            Write-Host "Beklemeden yeniden denenecek: #$(No-Kisa $g.id) $($g.baslik)"
+        }
+    }
+    if (-not $duran.Count) { Write-Host 'Sınır yüzünden duran iş yok.' }
+}
 
 if ($Devam) {
     $g = Gorev-Bul $Devam

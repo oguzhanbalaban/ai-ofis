@@ -14,7 +14,7 @@ $dosyalar = @(
     'araclar/posta_oku.py','araclar/kullanim-gecmis.ps1',
     'testler/dagitim.test.ps1','testler/yonetici-cozucu.test.ps1','testler/iptal-yarisi.test.ps1','testler/yardimlasma.test.ps1','testler/birlikte-puan-tasima.test.ps1',
     'testler/komut-paralel.test.ps1','testler/planlama-katmani.test.ps1','testler/yonetim-cto.test.ps1','testler/danisman.test.ps1',
-    'testler/ortak-klasor.test.ps1'
+    'testler/ortak-klasor.test.ps1','testler/kota-sifirla.test.ps1'
 )
 foreach ($ad in @('lider-plan','gelistirici','denetci','lider-kabul','altyapi-uygulama','altyapi-dogrulama','lider-altyapi-plan','lider-altyapi-kabul','lider-uzman-plan','uzman-calisma','uzman-inceleme','lider-uzman-kabul','ek-inceleme','ik-ise-alim','yonetici-yonlendirme','sorun-giderici','yonetici-yardim','tester-inceleme','sorun-kategori','yardim-birlikte','urun-analiz','kasif-kesif','qa-test','cto-degerlendirme','danisman-gorev','danisman-claude',
         'ofis-gelistirme','iletisim-gonder','iletisim-rapor','fikirci','elestirmen','planlamaci','maliyet','karar-verici','teslim','puanlayici')) {

@@ -1737,6 +1737,13 @@ function Eylem-Devam($Veri) {
     if ($not) { $a += ' -Not ' + (Ps-Tirnak $not) }
     return (Betik-Calistir 'durum.ps1' $a)
 }
+# Günlük hak sıfırlama (panel: "Günlük hak" çubukları ve "Bugün" kartındaki ↺): durum.ps1 -KotaSifirla ofisin kendi günlük çağrı
+# sayacını ve aracın sınır kilitlerini sıfırlar, sınır yüzünden duran işleri sürdürür. Hesaptaki gerçek kota değişmez.
+function Eylem-KotaSifirla($Veri) {
+    $arac = (Metin-Alani $Veri 'arac' 10 -Zorunlu).ToLowerInvariant()
+    if (@('claude', 'codex', 'gemini', 'hepsi') -notcontains $arac) { throw 'HTTP:400:Bilinmeyen araç (claude | codex | gemini | hepsi)' }
+    return (Betik-Calistir 'durum.ps1' "-KotaSifirla $arac")
+}
 # Panoda sürükle-bırak: görevi başka aşamaya taşır (durum.ps1 -Tasi > cozucu.ps1 Gorev-Asamaya-Tasi)
 function Eylem-Tasi($Veri) {
     $id = Metin-Alani $Veri 'id' 80 -Zorunlu
@@ -2266,6 +2273,7 @@ function Istek-Isle($Akis, $I) {
                 '/api/paralel-durdur' { $r = Eylem-ParalelDurdur $v }
                 '/api/yonetim-iste' { $r = Eylem-YonetimIste }
                 '/api/yanit' { $r = Eylem-Yanit $v }
+                '/api/kota-sifirla' { $r = Eylem-KotaSifirla $v }
             }
             if ($null -eq $r) { Yanit-Json $Akis 404 @{ hata = 'Bulunamadı' }; return }
             $kod = 200; if (-not $r.basarili) { $kod = 400 }
