@@ -69,6 +69,11 @@ try {
         Invoke-Expression $gizliAdimi.Extent.Text
         $desenAtamasi = $ekipAst.Find({ param($n) $n -is [Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq '$script:GizliDesenler' }, $true)
         Invoke-Expression $desenAtamasi.Extent.Text
+        # Değişen dosya sınırı ortak.ps1'de (kod / kanıt ayrımı; yazılım ekibi ve Outsource Consultant ortak kullanır)
+        $ortakAst = [Management.Automation.Language.Parser]::ParseFile((Join-Path $kaynak 'ortak.ps1'), [ref]$null, [ref]$null)
+        foreach ($fn in @('Kanit-Klasorleri', 'Kanit-Dosyasi-mi', 'Dosya-Siniri-Denetle')) {
+            Invoke-Expression ($ortakAst.Find({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $fn }, $true)).Extent.Text
+        }
         function QA-Testi-Var($G) { return $false }
         $Ayar = [pscustomobject]@{ gorev = @{ max_degisen_dosya = 60 }; korunan_desenler = @() }
         function Tur-Klasoru($G) { return $calisma }
@@ -247,7 +252,7 @@ try {
     $arsiv = [IO.Compression.ZipFile]::OpenRead((Join-Path $paket 'dagitim\ai-ofis.zip'))
     try {
         $adlar = @($arsiv.Entries | ForEach-Object { $_.FullName })
-        Dogrula ($adlar.Count -eq 244) 'ZIP 244 dağıtım dosyası içeriyor (danışman masası, şirket binasının katları, Creative Studio sohbeti, kendi kendini geliştirme, ortak klasör ve günlük hak sıfırlama testleri dahil)'
+        Dogrula ($adlar.Count -eq 245) 'ZIP 245 dağıtım dosyası içeriyor (danışman masası, şirket binasının katları, Creative Studio sohbeti, kendi kendini geliştirme, ortak klasör, günlük hak sıfırlama ve kanıt sınırı testleri dahil)'
         Dogrula (@($adlar | Where-Object { $_ -in @('kendini.ps1', 'istemler/ofis-gelistirme.md', 'testler/ofis-duman.test.ps1', 'testler/kendini-gelistirme.test.ps1') }).Count -eq 4) 'ZIP kendi kendini geliştirmeyi içeriyor (ayna, canlıya alma, rehber, testler)'
         Dogrula (@($adlar | Where-Object { $_ -in @('katlar.json', 'katlar/data-analytics/kadro.json', 'katlar/innovation-lab/kadro.json', 'katlar/creative-studio/backend/app/main.py', 'katlar/creative-studio/.env.example', 'katlar/creative-studio/backend/app/sohbet.py', 'katlar/creative-studio/frontend/src/components/AjanPenceresi.jsx', 'ofis/bina.html', 'iletisim.ps1') }).Count -eq 9) 'ZIP şirket binasını içeriyor (katlar, bina paneli, Comms, Creative Studio kaynağı ve ajan sohbeti)'
         Dogrula (@($adlar | Where-Object { $_ -match '^katlar/.*(\.yerel\.|/DURDUR$|/\.env$|/durum/|/gorevler/|node_modules|\.venv)' }).Count -eq 0) 'ZIP katların kişisel / çalışma dosyalarını dışlıyor'

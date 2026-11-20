@@ -130,7 +130,7 @@ function Diff-Hazirla($G) {
     $tk = Tur-Klasoru $G
     Git-Calistir $wt @('add', '-A') | Out-Null
     $stat = Git-Calistir $wt @('diff', '--cached', '--stat')
-    $diff = Git-Dosyaya $wt 'diff --cached --no-color' (Join-Path $tk 'degisiklik.diff')
+    $diff = Diff-Kod-Once (Git-Dosyaya $wt 'diff --cached --no-color' (Join-Path $tk 'degisiklik.diff'))
     $sinir = [int]$Ayar.gorev.diff_karakter_siniri
     if ($diff.Length -gt $sinir) { $diff = $diff.Substring(0, $sinir) + "`n... (diff $sinir karakterde kesildi; tamamı için dosyaları oku)" }
     return @{ stat = $stat; diff = $diff }
@@ -303,11 +303,12 @@ function Adim-Kontrol($G) {
     $rapor = New-Object Text.StringBuilder
 
     Git-Calistir $wt @('add', '-A') | Out-Null
-    $dosyalar = @((Git-Calistir $wt @('diff', '--cached', '--name-only')) -split "`n" | Where-Object { $_.Trim() })
-    [void]$rapor.AppendLine("### Değişen dosyalar ($($dosyalar.Count))")
-    foreach ($f in ($dosyalar | Select-Object -First 40)) { [void]$rapor.AppendLine("- $f") }
+    # --no-renames: kanıt klasörüne taşınan kod dosyası, eski yolundan da sayılır
+    $dosyalar = @((Git-Calistir $wt @('diff', '--cached', '--name-only', '--no-renames')) -split "`n" | Where-Object { $_.Trim() })
+    $sinir = Dosya-Siniri-Denetle $dosyalar
+    [void]$rapor.AppendLine($sinir.rapor)
     if ($dosyalar.Count -eq 0) { $sorunlar.Add('Hiçbir dosya değişmemiş; görev uygulanmamış görünüyor.') }
-    if ($dosyalar.Count -gt [int]$Ayar.gorev.max_degisen_dosya) { $sorunlar.Add("Çok fazla dosya değişmiş ($($dosyalar.Count)); kapsam taşmış olabilir.") }
+    foreach ($s in $sinir.sorunlar) { $sorunlar.Add($s) }
 
     foreach ($f in $dosyalar) {
         $ad = Split-Path $f -Leaf

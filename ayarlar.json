@@ -262,6 +262,10 @@
     "gorev": {
         "max_tur": 3,
         "max_degisen_dosya": 60,
+        "max_kanit_dosya": 300,
+        "kanit_klasorleri": [
+            "cikti/"
+        ],
         "diff_karakter_siniri": 80000,
         "lider_kabul": true,
         "yeni_proje_kok": ""

@@ -402,6 +402,57 @@ function Git-Dosyaya([string]$Klasor, [string]$ArgMetni, [string]$Dosya) {
     return (Metin-Oku $Dosya)
 }
 
+# ---------------------------------------------------------------- değişen dosya sınırı (otomatik kontrol)
+# Kanıt klasörlerindeki dosyalar (ayarlar.json > gorev.kanit_klasorleri; ayar yoksa cikti/) ayrı sayılır. Kapsam taşması sınırı
+# (gorev.max_degisen_dosya) yalnızca kod ve öbür dosyalara uygulanır; kanıtlar kendi sınırına (gorev.max_kanit_dosya; ayar yoksa 300,
+# 0 = sınırsız) bağlıdır. Klasör yolu depo kökünden başlar: cikti/ kanıttır, host/cikti/ değildir.
+function Kanit-Klasorleri {
+    $k = @('cikti/')
+    if ($Ayar -and $Ayar.gorev -and $Ayar.gorev.PSObject.Properties['kanit_klasorleri']) { $k = @($Ayar.gorev.kanit_klasorleri | Where-Object { $_ }) }
+    return @($k | ForEach-Object { ([string]$_).Trim().Replace('\', '/').Trim('/') } | Where-Object { $_ } | ForEach-Object { $_ + '/' })
+}
+function Kanit-Dosyasi-mi([string]$Yol, [string[]]$Klasorler) {
+    $y = $Yol.Trim().Trim('"').Replace('\', '/').TrimStart('/')
+    foreach ($k in @($Klasorler | Where-Object { $_ })) { if ($y.StartsWith($k, [StringComparison]::OrdinalIgnoreCase)) { return $true } }
+    return $false
+}
+# Değişen dosyaları kod / kanıt diye ayırır, sınırları denetler; rapor satırları önce kod ve öbür dosyaları gösterir (en çok 40 satır)
+function Dosya-Siniri-Denetle([string[]]$Dosyalar) {
+    $klasorler = @(Kanit-Klasorleri)
+    $kod = New-Object 'Collections.Generic.List[string]'
+    $kanit = New-Object 'Collections.Generic.List[string]'
+    foreach ($f in @($Dosyalar | Where-Object { $_ -and $_.Trim() })) { if (Kanit-Dosyasi-mi $f $klasorler) { $kanit.Add($f) } else { $kod.Add($f) } }
+    $maxKod = [int]$Ayar.gorev.max_degisen_dosya
+    $maxKanit = 300; if ($Ayar.gorev.PSObject.Properties['max_kanit_dosya']) { $maxKanit = [int]$Ayar.gorev.max_kanit_dosya }
+    $sorunlar = @()
+    if ($kod.Count -gt $maxKod) { $sorunlar += "Çok fazla dosya değişmiş ($($kod.Count) kod ve öbür dosya, sınır $maxKod); kapsam taşmış olabilir." }
+    if ($maxKanit -gt 0 -and $kanit.Count -gt $maxKanit) { $sorunlar += "Çok fazla kanıt dosyası değişmiş ($($kanit.Count), sınır $maxKanit; $($klasorler -join ', ')); kanıtlar birleştirilmeli ya da azaltılmalı." }
+    $toplam = $kod.Count + $kanit.Count
+    $sb = New-Object Text.StringBuilder
+    [void]$sb.AppendLine("### Değişen dosyalar ($toplam)")
+    $kanitSiniri = "$maxKanit"; if ($maxKanit -le 0) { $kanitSiniri = 'sınırsız' }
+    if ($klasorler.Count) { [void]$sb.AppendLine("Kod ve öbür dosyalar: $($kod.Count) / $maxKod · kanıt ($($klasorler -join ', ')): $($kanit.Count) / $kanitSiniri") }
+    else { [void]$sb.AppendLine("Kod ve öbür dosyalar: $($kod.Count) / $maxKod (kanıt klasörü tanımlı değil)") }
+    $liste = @($kod) + @($kanit)
+    foreach ($f in ($liste | Select-Object -First 40)) { [void]$sb.AppendLine("- $f") }
+    if ($liste.Count -gt 40) { [void]$sb.AppendLine("- … ve $($liste.Count - 40) dosya daha") }
+    return [pscustomobject]@{ kod = @($kod); kanit = @($kanit); toplam = $toplam; sorunlar = @($sorunlar); rapor = $sb.ToString().TrimEnd() }
+}
+# İnceleme istemlerindeki diff'te kanıt dosyaları sona alınır: diff karakter sınırında kesilince kod değişiklikleri görünür kalır
+function Diff-Kod-Once([string]$Diff) {
+    $klasorler = @(Kanit-Klasorleri)
+    if (-not $Diff -or -not $klasorler.Count) { return $Diff }
+    $kod = New-Object Text.StringBuilder
+    $kanit = New-Object Text.StringBuilder
+    foreach ($p in [regex]::Split($Diff, '(?m)^(?=diff --git )')) {
+        if (-not $p) { continue }
+        $bas = ($p -split "`n", 2)[0]
+        $yol = $bas -replace '^diff --git "?a/', ''
+        if ($bas -ne $yol -and (Kanit-Dosyasi-mi $yol $klasorler)) { [void]$kanit.Append($p) } else { [void]$kod.Append($p) }
+    }
+    return ($kod.ToString() + $kanit.ToString())
+}
+
 # ---------------------------------------------------------------- şablon doldurma
 function Sablon-Doldur([string]$SablonAdi, [hashtable]$Degerler) {
     $s = ''

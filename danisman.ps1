@@ -170,11 +170,11 @@ function Danisman-Kontrol($G) {
     $rapor = New-Object Text.StringBuilder
     if ([string]$G.danisman_mod -eq 'git') {
         Git-Calistir $wt @('add', '-A') | Out-Null
-        $dosyalar = @((Git-Calistir $wt @('diff', '--cached', '--name-only')) -split "`n" | Where-Object { $_.Trim() -and $_ -notmatch '^(warning|hint):' })
-        [void]$rapor.AppendLine("### Değişen dosyalar ($($dosyalar.Count))")
-        foreach ($f in ($dosyalar | Select-Object -First 40)) { [void]$rapor.AppendLine("- $f") }
+        $dosyalar = @((Git-Calistir $wt @('diff', '--cached', '--name-only', '--no-renames')) -split "`n" | Where-Object { $_.Trim() -and $_ -notmatch '^(warning|hint):' })
+        $sinir = Dosya-Siniri-Denetle $dosyalar
+        [void]$rapor.AppendLine($sinir.rapor)
         if (-not $dosyalar.Count) { [void]$rapor.AppendLine('- (değişiklik yok: iş inceleme / rapor niteliğinde)') }
-        if ($dosyalar.Count -gt [int]$Ayar.gorev.max_degisen_dosya) { $sorunlar.Add("Çok fazla dosya değişmiş ($($dosyalar.Count)); kapsam taşmış olabilir.") }
+        foreach ($s in $sinir.sorunlar) { $sorunlar.Add($s) }
         foreach ($f in $dosyalar) { $ad = Split-Path $f -Leaf; foreach ($d in @($Ayar.korunan_desenler)) { if ($ad -like $d) { $sorunlar.Add("Korunan dosya değişmiş: $f"); break } } }
         $supheli = Gizli-Satir-Sayisi (Git-Dosyaya $wt 'diff --cached -U0 --no-color' (Join-Path $tk 'degisiklik-u0.diff'))
         if ($supheli -gt 0) { $sorunlar.Add("Eklenen satırlarda $supheli olası gizli bilgi (parola/anahtar) var; kaldırılmalı ya da yapılandırmaya taşınmalı.") }
