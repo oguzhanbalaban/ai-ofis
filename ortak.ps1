@@ -1017,12 +1017,40 @@ function Talimat-Istem-Metni([string]$Etiket) {
     return "`n`n---`n`n# KULLANICININ TALİMATLARI (panelden doğrudan verdi; işini bunlara göre yap, görev metniyle çelişirse bunlar geçerli)`n`n" + $t.Trim()
 }
 # CTOʼnun ekip ilkeleri (yonetim.ps1; durum\yonetim\ekip-ilkeleri.md): ekibin önceki işlerden öğrendikleri, her iş isteminde
+# İsteme en fazla ayarlar.json > yonetim.ilke_karakter_siniri karakter girer (varsayılan 6000, en az 500); kesim madde sınırında yapılır.
+function Ilke-Karakter-Siniri {
+    $s = 6000
+    if ($Ayar -and $Ayar.yonetim -and $Ayar.yonetim.PSObject.Properties['ilke_karakter_siniri'] -and $null -ne $Ayar.yonetim.ilke_karakter_siniri) {
+        try { $s = [int]$Ayar.yonetim.ilke_karakter_siniri } catch { }
+    }
+    return [Math]::Max(500, $s)
+}
+# Ilke listesini sınıra sığdırır: yarım madde bırakmaz, sığmayan maddeleri sayar. Döner: { metin; kesilen }
+function Ilkeler-Sigdir([string]$Metin, [int]$Sinir) {
+    $t = ([string]$Metin).Trim()
+    if ($t.Length -le $Sinir) { return [pscustomobject]@{ metin = $t; kesilen = 0 } }
+    $maddeler = New-Object System.Collections.Generic.List[string]
+    foreach ($sat in @($t -split "`r?`n")) {
+        if ($maddeler.Count -eq 0 -or $sat -match '^\s*([-*]|\d+[.)])\s+') { $maddeler.Add($sat) }
+        else { $maddeler[$maddeler.Count - 1] = $maddeler[$maddeler.Count - 1] + "`n" + $sat }
+    }
+    $sb = New-Object Text.StringBuilder; $alinan = 0
+    foreach ($md in $maddeler) {
+        $ek = $md; if ($sb.Length) { $ek = "`n" + $md }
+        if ($sb.Length + $ek.Length -gt $Sinir) { break }
+        [void]$sb.Append($ek); $alinan++
+    }
+    $sonuc = $sb.ToString(); $kesilen = $maddeler.Count - $alinan
+    if (-not $sonuc) { $sonuc = $t.Substring(0, $Sinir) + '…'; $kesilen = [Math]::Max(0, $maddeler.Count - 1) }   # tek madde bile sığmıyorsa
+    return [pscustomobject]@{ metin = $sonuc; kesilen = $kesilen }
+}
 function Ilkeler-Istem-Metni([string]$Etiket) {
     if (-not $script:AktifGorev -or $Etiket -like 'sohbet*' -or $Etiket -eq 'yonetim') { return '' }
     $t = Metin-Oku (Join-Path (Join-Path $YolDurum 'yonetim') 'ekip-ilkeleri.md')
     if (-not $t.Trim()) { return '' }
-    if ($t.Length -gt 3000) { $t = $t.Substring(0, 3000) + '…' }
-    return "`n`n---`n`n# EKİP İLKELERİ (CTO; ekibin önceki işlerden öğrendikleri, işini yaparken bunlara uy)`n`n" + $t.Trim()
+    $sg = Ilkeler-Sigdir $t (Ilke-Karakter-Siniri)
+    $not = ''; if ($sg.kesilen -gt 0) { $not = "`n`n(Karakter sınırı nedeniyle $($sg.kesilen) ilke daha bu isteme sığmadı.)" }
+    return "`n`n---`n`n# EKİP İLKELERİ (CTO; ekibin önceki işlerden öğrendikleri, işini yaparken bunlara uy)`n`n" + $sg.metin + $not
 }
 function Devralma-Notu([string]$Rol, [string]$Kisi) {
     return ("`n`n---`n`n# DEVRALMA (kullanıcının komutu)`n`nBu adım normalde {0} rolünün işi; kullanıcı panelden bu işte o rolü sana ({1}) devretti. " +

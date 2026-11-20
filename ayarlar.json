@@ -310,7 +310,8 @@
         "aralik_saat": 24,
         "en_az_biten": 1,
         "ilke_siniri": 15,
-        "aciklama": "Yönetim katmanı (yonetim.ps1): CTO ofis boştayken aralik_saat saatte bir, son değerlendirmeden beri en az en_az_biten iş bittiyse / takıldıysa / iptal edildiyse (ya da panelden istenince) yönetim değerlendirmesi yapar; ekip ilkelerini (en fazla ilke_siniri madde, her iş istemine gider) günceller, başlamamış işleri önceliklendirir, iş önerir."
+        "ilke_karakter_siniri": 6000,
+        "aciklama": "Yönetim katmanı (yonetim.ps1): CTO ofis boştayken aralik_saat saatte bir, son değerlendirmeden beri en az en_az_biten iş bittiyse / takıldıysa / iptal edildiyse (ya da panelden istenince) yönetim değerlendirmesi yapar; ekip ilkelerini (en fazla ilke_siniri madde, her iş istemine gider; istemlere en fazla ilke_karakter_siniri karakter, madde sınırında kesilerek) günceller, başlamamış işleri önceliklendirir, iş önerir."
     },
     "danisman": {
         "etkin": true,

@@ -232,6 +232,7 @@ function Yonetim-Degerlendir {
         $istem = Sablon-Doldur 'cto-degerlendirme.md' @{
             METRIKLER = (Yonetim-Metrikleri $bas); KUYRUK = (Yonetim-Kuyrugu); KULLANIM = (Yonetim-Kullanim $bas); DALLAR = (Yonetim-Dallari)
             ILKELER = $ilkeler; ONCEKI = $onceki; KADRO = (Kadro-Metni); ILKE_SINIRI = [string]$ay.ilke_siniri
+            ILKE_KARAKTER_SINIRI = [string](Ilke-Karakter-Siniri)
         }
         $r = Ajan-Cagir -Rol 'cto' -Istem $istem -Klasor $Kok -KayitKlasoru (Join-Path $kl 'kayitlar') -Etiket 'yonetim'
         if (-not $r.basarili -or (Karar-Oku $r.metin) -ne 'HAZIR') {
@@ -249,7 +250,13 @@ function Yonetim-Degerlendir {
         if ($degisen.Count) { $ek = "`n`n## Uygulanan öncelik değişiklikleri`n`n" + (($degisen | ForEach-Object { '- #{0}: {1} -> {2}' -f (No-Kisa $_.gorev), $_.onceki, $_.yeni }) -join "`n") }
         Metin-Yaz (Join-Path $kl $ad) ("# Yönetim değerlendirmesi (CTO) · $($zaman.ToString('dd.MM.yyyy HH:mm'))`n`n" + $rapor + $ek + "`n")
         $il = Yonetim-Ilkeleri $r.metin $ay.ilke_siniri
-        if ($il.Count) { Metin-Yaz (Join-Path $kl 'ekip-ilkeleri.md') (($il -join "`n") + "`n") }
+        if ($il.Count) {
+            $ilMetin = ($il -join "`n") + "`n"
+            Metin-Yaz (Join-Path $kl 'ekip-ilkeleri.md') $ilMetin
+            # İstemlere sığmayan madde varsa bir kez uyar (Ilkeler-Istem-Metni madde sınırında keser)
+            $sg = Ilkeler-Sigdir $ilMetin (Ilke-Karakter-Siniri)
+            if ($sg.kesilen -gt 0) { Gunluk ("Ekip ilkeleri {0} karakter, sınır {1}: son {2} ilke iş istemlerine girmeyecek (ayarlar.json > yonetim.ilke_karakter_siniri)" -f $ilMetin.Trim().Length, (Ilke-Karakter-Siniri), $sg.kesilen) 'UYARI' }
+        }
         $oneriler = Yonetim-Onerileri $r.metin
         $ozet = Kisalt ((Bolum-Oku $r.metin 'Özet') -replace '\s+', ' ') 600
         Json-Yaz ([pscustomobject][ordered]@{ zaman = $zaman.ToString('o'); durum = 'tamam'; dosya = $ad; ozet = $ozet; ilke_sayisi = $il.Count

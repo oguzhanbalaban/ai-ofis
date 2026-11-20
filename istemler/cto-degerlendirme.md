@@ -12,7 +12,8 @@ Yapacakların:
 1. Durumu değerlendir: ne iyi gitti; işler neden yeni tura döndü, takıldı ya da iptal edildi; hangi aksaklıklar tekrar ediyor
    (kök nedenler); kaynak kullanımı ve birleştirilmeyi bekleyen dallar bir risk mi?
 2. Ekip ilkelerini güncelle. Bu liste her iş isteminde bütün çalışanlara gider ("öğrenen organizasyon"): ekibin önceki işlerden
-   öğrendiği, bundan sonraki işlerde uyması gereken kısa, somut ilkeler. En fazla {ILKE_SINIRI} madde, her biri tek cümle.
+   öğrendiği, bundan sonraki işlerde uyması gereken kısa, somut ilkeler. En fazla {ILKE_SINIRI} madde, her biri tek cümle;
+   listenin tamamı {ILKE_KARAKTER_SINIRI} karakteri geçmesin (sığmayan son maddeler istemlere girmez, gerekirse maddeleri birleştir).
    İşe yaramayanı çıkar, tekrarlayan bir sorun için yenisini ekle, iyi çalışanları koru. Genel iyi uygulama tekrarı yazma
    (çalışanlar zaten biliyor); yalnızca bu ekibe, bu makineye, bu projelere özgü dersleri yaz (ör. "Flutter işlerinde geliştirmeden
    önce System Administrator'a `flutter doctor` çıktısını doğrulat"). Kullanıcının kararlarına ve güvenlik kurallarına aykırı ilke yazma.

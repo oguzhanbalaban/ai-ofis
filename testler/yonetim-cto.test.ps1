@@ -130,6 +130,7 @@ try {
     Dogrula 'istek dosyası silindi' (-not (Test-Path (Yonetim-Istek-Yolu)))
     $ist = Son-Istem (Join-Path $yk 'kayitlar') 'yonetim-*.istem.md'
     Dogrula 'CTO isteminde metrikler, kuyruk, birleştirilmemiş dal, önceki özet, kadro' ($ist -match 'null kontrolü eksik' -and $ist -match '#0702 Test 0702-sirada .*BAŞLAMADI' -and $ist -match 'ekip/0700-bekleyen' -and $ist -match 'bir iş iki turda bitti' -and $ist -match 'Chief Technology Officer' -and $ist -match 'En fazla 3 madde')
+    Dogrula 'CTO istemi karakter sınırını söyler (varsayılan 6000), yer tutucu kalmaz' ($ist -match 'tamamı 6000 karakteri geçmesin' -and $ist -notmatch '\{ILKE_KARAKTER_SINIRI\}')
     Dogrula 'CTO çağrısı salt okunur' ((Metin-Oku (Join-Path $kum 'cagrilar.log')) -match 'sahte-cto' -and (Metin-Oku (Join-Path $kum 'cagrilar.log')) -match '--tools Read,Glob,Grep ')
     Dogrula 'aralık dolmadan yeniden gerekmez' (-not (Yonetim-Degerlendirmesi-Gerekli))
 
@@ -146,6 +147,37 @@ try {
     $a2 = Ilkeler-Istem-Metni 'yonetim'; $a3 = Ilkeler-Istem-Metni 'sohbet'; $a4 = Ilkeler-Istem-Metni 'plan'
     $script:AktifGorev = ''
     Dogrula 'görevsiz çağrıda ve yönetim / sohbet etiketinde eklenmez, görev adımında eklenir' (-not $a1 -and -not $a2 -and -not $a3 -and $a4)
+
+    Write-Host ''; Write-Host 'Y3b: ilkeler istemlere ayarlı karakter sınırıyla ve madde sınırında girer'
+    Dogrula 'karakter sınırı: varsayılan 6000' ((Ilke-Karakter-Siniri) -eq 6000) "$(Ilke-Karakter-Siniri)"
+    $Ayar.yonetim | Add-Member -Force -NotePropertyName ilke_karakter_siniri -NotePropertyValue 3000
+    $k1 = Ilke-Karakter-Siniri
+    $Ayar.yonetim.ilke_karakter_siniri = 100; $k2 = Ilke-Karakter-Siniri
+    $Ayar.yonetim.ilke_karakter_siniri = 'abc'; $k3 = Ilke-Karakter-Siniri
+    $Ayar.yonetim.ilke_karakter_siniri = 3000
+    Dogrula 'ayar okunur; en az 500; geçersiz değer varsayılana düşer' ($k1 -eq 3000 -and $k2 -eq 500 -and $k3 -eq 6000) "$k1 / $k2 / $k3"
+    $kisa = Ilkeler-Sigdir "- tek ilke`n" 3000
+    Dogrula 'sınırın altındaki liste olduğu gibi kalır' ($kisa.metin -eq '- tek ilke' -and $kisa.kesilen -eq 0)
+    # 20 madde: 1-9 290, 10-20 291 karakter; 10 madde 2910 karakter, 11. madde 3000'i aşar
+    $uzun = ((1..20 | ForEach-Object { '- İlke {0}: {1}' -f $_, ('x' * 280) }) -join "`n") + "`n"
+    $sg = Ilkeler-Sigdir $uzun 3000
+    $sgSat = @($sg.metin -split "`n")
+    Dogrula 'madde sınırında keser: 10 madde tam, 10 madde sayılır, yarım madde yok' ($sg.kesilen -eq 10 -and $sgSat.Count -eq 10 -and $sg.metin.Length -le 3000 -and $sgSat[-1] -match '^- İlke 10: x{280}$' -and $sg.metin -notmatch '…') "kesilen $($sg.kesilen), satır $($sgSat.Count), uzunluk $($sg.metin.Length)"
+    $cok = Ilkeler-Sigdir ("- ilk madde`n  devam satırı`n- ikinci " + ('y' * 50)) 30
+    Dogrula 'devam satırı maddesiyle birlikte taşınır' ($cok.metin -eq "- ilk madde`n  devam satırı" -and $cok.kesilen -eq 1) ($cok.metin.Replace("`n", ' | '))
+    $tek = Ilkeler-Sigdir ('- ' + ('z' * 700)) 500
+    Dogrula 'tek madde bile sığmıyorsa sınırda keser (eski davranış)' ($tek.metin.Length -eq 501 -and $tek.metin.EndsWith('…') -and $tek.kesilen -eq 0)
+    $ilEski = Metin-Oku (Join-Path $yk 'ekip-ilkeleri.md')
+    Metin-Yaz (Join-Path $yk 'ekip-ilkeleri.md') $uzun
+    $script:AktifGorev = $g4.id
+    $b1 = Ilkeler-Istem-Metni 'plan'
+    $Ayar.yonetim.PSObject.Properties.Remove('ilke_karakter_siniri')
+    $b2 = Ilkeler-Istem-Metni 'plan'
+    $script:AktifGorev = ''
+    Dogrula 'istemde sınır 3000: İlke 10 tam, İlke 11 yok, "10 ilke daha" notu var' ($b1 -match '- İlke 10: x{280}' -and $b1 -notmatch 'İlke 11:' -and $b1 -match '10 ilke daha bu isteme sığmadı' -and $b1 -notmatch '…')
+    Dogrula 'varsayılan 6000 ile 20 maddenin hepsi girer, not yok' ($b2 -match '- İlke 20: x{280}' -and $b2 -notmatch 'sığmadı')
+    Metin-Yaz (Join-Path $yk 'ekip-ilkeleri.md') $ilEski
+    Dogrula 'eski sabit 3000 kesimi kalmadı' ((Metin-Oku (Join-Path $Kaynak 'ortak.ps1')) -notmatch 'Substring\(0, 3000\)')
 
     Write-Host ''; Write-Host 'Y4: başarısız değerlendirme döngüyü durdurmaz, 2 saat sonra yeniden denenir'
     Metin-Yaz (Yonetim-Istek-Yolu) 'istek'
