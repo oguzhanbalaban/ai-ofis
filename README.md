@@ -151,6 +151,8 @@ Ofis her araç için kendi günlük çağrı sınırını tutar (`ayarlar.json >
 
 Bu düğme hesaptaki gerçek kotayı (Anthropic, OpenAI, Google) **değiştirmez**. O kota da dolmuşsa araç yine sınır hatası verir ve ofis onu sıfırlanma saatine kadar yeniden kilitler. Komut satırından: `.\durum.ps1 -KotaSifirla claude` (`claude | codex | gemini | hepsi`). Test: `testler\kota-sifirla.test.ps1`.
 
+Codex sınır hatası açılış saatini verirse (`try again at Nov 21st, 2026 2:36 AM` ya da `try again in 2 hours`), kilit o saate (+2 dk) kadar sürer. Böylece Codex erken denenip işin deneme hakkı boşa gitmez. Saat yoksa, geçmişteyse ya da 8 günden uzaksa kilit 60 dakikadır. Test: `testler\codex-kilit.test.ps1`.
+
 ## Kanıt dosyaları ve değişen dosya sınırı (20.11.2026)
 
 Otomatik kontrol, bir işte çok fazla dosya değişince işi "kapsam taşmış olabilir" diye durdurur. Bu sınır (`ayarlar.json > gorev.max_degisen_dosya`, 60) yalnızca kod ve öbür dosyalara uygulanır. Kanıt klasörlerindeki dosyalar (`gorev.kanit_klasorleri`, varsayılan `cikti/`, depo kökünden) ayrı sayılır ve kendi sınırına bağlıdır (`gorev.max_kanit_dosya`, varsayılan 300; 0 = sınırsız). Kontrol raporu iki sayımı ayrı gösterir (ör. `Kod ve öbür dosyalar: 1 / 60 · kanıt (cikti/): 150 / 300`), listede önce kod dosyaları gelir. Kanıt klasörüne taşınan kod dosyası eski yolundan da sayılır; kodu `cikti/` altına taşıyarak sınır aşılamaz. Code Reviewer'a ve ek incelemelere giden diff'te kanıt dosyaları sona alınır, böylece diff karakter sınırında kesilse bile kod değişiklikleri görünür kalır (`degisiklik.diff` dosyası olduğu gibi kalır). Yazılım ekibi ve Outsource Consultant aynı kuralı kullanır. Test: `testler\kanit-siniri.test.ps1`.

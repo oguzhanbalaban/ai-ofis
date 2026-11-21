@@ -784,6 +784,44 @@ function Claude-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [st
 }
 
 # ---------------------------------------------------------------- Codex (ChatGPT)
+# Codex kullanım sınırı hatasındaki açılış saati: "try again at Nov 21st, 2026 2:36 AM" (Codex yerel saatle yazar; aynı günse yalnız
+# "2:36 AM") ya da "try again in 2 hours 5 minutes". 2 dk pay eklenir. Bulunamazsa, geçmişteyse ya da 8 günden uzaksa $null döner
+# (çağıran varsayılan 60 dk kilitler).
+function Codex-Limit-Bitis([string]$Metin, [datetime]$Simdi = (Get-Date)) {
+    if (-not $Metin) { return $null }
+    $bitis = $null
+    $m = [regex]::Match($Metin, '(?i)try again at\s+(?:(?<ay>[a-z]{3,9})\.?\s+(?<gun>\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(?<yil>\d{4}))?,?\s+)?(?<sa>\d{1,2}):(?<dk>\d{2})(?:\s*(?<ap>[ap])\.?m\b\.?)?')
+    if ($m.Success) {
+        $sa = [int]$m.Groups['sa'].Value; $dk = [int]$m.Groups['dk'].Value
+        $ap = $m.Groups['ap'].Value.ToLowerInvariant()
+        if ($ap -eq 'p' -and $sa -lt 12) { $sa += 12 } elseif ($ap -eq 'a' -and $sa -eq 12) { $sa = 0 }
+        if ($sa -le 23 -and $dk -le 59) {
+            if ($m.Groups['ay'].Success) {
+                $ay = [array]::IndexOf(@('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'), $m.Groups['ay'].Value.Substring(0, 3).ToLowerInvariant()) + 1
+                $yil = $Simdi.Year; if ($m.Groups['yil'].Success) { $yil = [int]$m.Groups['yil'].Value }
+                if ($ay -gt 0) {
+                    try { $bitis = [datetime]::new($yil, $ay, [int]$m.Groups['gun'].Value, $sa, $dk, 0) } catch { $bitis = $null }
+                    if ($bitis -and -not $m.Groups['yil'].Success -and $bitis -le $Simdi) { $bitis = $bitis.AddYears(1) }
+                }
+            } else {
+                $bitis = $Simdi.Date.AddHours($sa).AddMinutes($dk)
+                if ($bitis -le $Simdi) { $bitis = $bitis.AddDays(1) }
+            }
+        }
+    } else {
+        $m = [regex]::Match($Metin, '(?i)try again in\s+~?(?<sure>[^.\r\n]{1,60})')
+        if ($m.Success) {
+            $ek = [TimeSpan]::Zero
+            foreach ($p in [regex]::Matches($m.Groups['sure'].Value, '(?i)(\d+)\s*(d(?:ays?)?|h(?:ours?|rs?)?|m(?:in(?:ute)?s?)?|s(?:ec(?:ond)?s?)?)\b')) {
+                $n = [int]$p.Groups[1].Value
+                switch ($p.Groups[2].Value.Substring(0, 1).ToLowerInvariant()) { 'd' { $ek += [TimeSpan]::FromDays($n) } 'h' { $ek += [TimeSpan]::FromHours($n) } 'm' { $ek += [TimeSpan]::FromMinutes($n) } 's' { $ek += [TimeSpan]::FromSeconds($n) } }
+            }
+            if ($ek -gt [TimeSpan]::Zero) { $bitis = $Simdi.Add($ek) }
+        }
+    }
+    if (-not $bitis -or $bitis -le $Simdi -or $bitis -gt $Simdi.AddDays(8)) { return $null }
+    return $bitis.AddMinutes(2)
+}
 function Codex-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [string]$SonMesaj, [string]$Klasor, [bool]$Yazabilir, [bool]$TamYetki = $false, [string]$Profil = '', [string[]]$EkKlasorler = @()) {
     $exe = Codex-Exe
     $kum = 'read-only'; if ($Yazabilir) { $kum = 'workspace-write' }
@@ -820,7 +858,10 @@ function Codex-Calistir($G, [string]$IstemYolu, [string]$Out, [string]$Err, [str
         # stderr tüm oturumu (istem dahil) içerir; sınıflandırma için yalnızca kuyruğa bak
         $kuyruk = Son-Satirlar ((Metin-Oku $Err) + "`n" + (Metin-Oku $Out)) 25
         if ($kuyruk -match '(?i)usage limit|rate.?limit|\b429\b|quota|exceeded your') {
-            Kilit-Koy ("codex:{0}" -f $G.model) (Get-Date).AddMinutes(60) 'Codex kullanım sınırı'
+            # Hata "try again at …" saatini veriyorsa kilit o saate kadar sürer (sabit 60 dk erken açılıp deneme hakkı yakıyordu)
+            $bitis = Codex-Limit-Bitis $kuyruk
+            if (-not $bitis) { $bitis = (Get-Date).AddMinutes(60) }
+            Kilit-Koy ("codex:{0}" -f $G.model) $bitis 'Codex kullanım sınırı'
         } elseif ($kuyruk -match '(?i)model.{0,40}(not found|does not exist|not supported|unsupported|invalid)') {
             Kilit-Koy ("codex:{0}" -f $G.model) (Get-Date).AddHours(6) 'model kullanılamıyor'
         } elseif ($kuyruk -match '(?i)\b401\b|unauthorized|not logged in|please log ?in') {
