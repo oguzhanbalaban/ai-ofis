@@ -319,6 +319,71 @@ function Sinirdan-Duran-Gorevler([string[]]$Araclar) {
     return $l
 }
 
+# ---------------------------------------------------------------- sınır beklemesi (deneme hakkı yakmadan)
+# Araç yalnız sınır yüzünden kapalıysa (günlük sınır, kullanım / kota sınırı kilidi, Claude kullanım hakkı az) en erken açılış saatini
+# döner; açıksa ya da başka bir nedenle kapalıysa (giriş, model kilidi, çalıştırılabilir dosya yok) $null. -YalnizKilit: yalnız
+# kullanım / kota sınırı kilidine bakar (araç çalışıp sınır hatası verince Claude / Codex / Gemini kilidi koyar).
+function Sinir-Acilisi($Giris, [string]$Neden = '', [switch]$YalnizKilit) {
+    $simdi = Get-Date
+    $arac = [string]$Giris.arac
+    $acilis = $null
+    foreach ($ad in @($arac, ('{0}:{1}' -f $arac, $Giris.model))) {
+        $kl = Kilitli $ad
+        if (-not $kl) { continue }
+        if ([string]$kl.neden -notmatch '(?i)sınır|kota') { return $null }
+        $b = [datetime]$kl.bitis
+        if (-not $acilis -or $b -gt $acilis) { $acilis = $b }
+    }
+    if ($YalnizKilit) { return $acilis }
+    $sinir = 0
+    if ($Ayar.gunluk_sinir -and $Ayar.gunluk_sinir.PSObject.Properties[$arac]) { $sinir = [int]$Ayar.gunluk_sinir.$arac }
+    $s = Sayac-Oku
+    $kullanilan = 0; if ($s.PSObject.Properties[$arac]) { $kullanilan = [int]$s.$arac }
+    if ($sinir -gt 0 -and $kullanilan -ge $sinir) {
+        $gece = $simdi.Date.AddDays(1).AddMinutes(1)   # sayaç gün değişince sıfırlanır (Sayac-Oku)
+        if (-not $acilis -or $gece -gt $acilis) { $acilis = $gece }
+    }
+    # Etkileşimli Claude hakkı az: açılış saati bilinmez, yarım saatte bir yeniden bakılır
+    if (-not $acilis -and [string]$Neden -match '(?i)kullanım hakkı az') { $acilis = $simdi.AddMinutes(30) }
+    return $acilis
+}
+# Hata metni yalnız sınır kaynaklı mı: "<çalışan> çalışamadı: arac/model: neden | arac/model: neden" parçalarının hepsi sınır, kota ya
+# da "atlandı", en az biri sınır. Geçmiş kayıtları 400 karakterde kesilir; yarım kalan parça sınır sözcüğü içermiyorsa $false.
+$script:SinirHataDeseni = '(?i)günlük sınır doldu|kullanım sınırı|kota sınırı|kullanım hakkı az|usage limit|rate.?limit|\b429\b|quota|exceeded your'
+function Sinir-Hatasi-mi([string]$Metin) {
+    if (-not $Metin) { return $false }
+    $m = [regex]::Match($Metin, '(?i)\b(claude|codex|gemini)/')
+    if (-not $m.Success) { return $false }
+    $sinirVar = $false
+    foreach ($p in @($Metin.Substring($m.Index) -split '\s\|\s')) {
+        $p = $p.Trim(); if (-not $p) { continue }
+        $pm = [regex]::Match($p, '(?i)^(claude|codex|gemini)/[^:\s]*:\s*(?<neden>.*)$')
+        if (-not $pm.Success) { return $false }
+        $neden = $pm.Groups['neden'].Value
+        if ($neden -match '^atlandı') { continue }
+        if ($neden -match $SinirHataDeseni) { $sinirVar = $true; continue }
+        return $false
+    }
+    return $sinirVar
+}
+# Günlük hak sıfırlanınca bu aşamada yalnız sınır yüzünden yanan deneme haklarını geri verir (son $G.deneme başarısız denemeye
+# bakar; başka nedenle başarısız olanlar sayılı kalır). Geri verilen hak sayısını döner.
+function Sinir-Denemelerini-Geri-Ver($G) {
+    $n = [int]$G.deneme
+    if ($n -le 0) { return 0 }
+    $liste = @(@($G.gecmis) | Where-Object { $_ })
+    $geri = 0; $bakilan = 0
+    for ($i = $liste.Count - 1; $i -ge 0 -and $bakilan -lt $n; $i--) {
+        $o = $liste[$i]
+        if ([string]$o.olay -ne 'deneme başarısız') { continue }
+        if ([string]$o.asama -ne [string]$G.asama) { break }
+        $bakilan++
+        if (Sinir-Hatasi-mi ([string]$o.ayrinti)) { $geri++ }
+    }
+    if ($geri) { $G.deneme = [Math]::Max(0, $n - $geri) }
+    return $geri
+}
+
 # ---------------------------------------------------------------- araç yolları
 function Codex-Exe {
     if ($Ayar.codex.exe -and (Test-Path -LiteralPath $Ayar.codex.exe -PathType Leaf)) { return [string]$Ayar.codex.exe }
@@ -1160,6 +1225,9 @@ function Ajan-Cagir {
     $Istem = (Unvan-Uyarla $Istem).Replace('{KAT_KOKU}', $Kok).Replace('{OFIS_KOKU}', $KodKok)
     $notlar = @()
     $gorevId = [string]$script:AktifGorev
+    # Zincirdeki her araç yalnız sınır yüzünden kapalıysa Adim-Basarisiz deneme hakkı harcamaz, iş en erken açılışı bekler (ekip.ps1)
+    $script:SinirBeklemesi = $null
+    $acilislar = @(); $sinirDisi = $false
     $iptalHata = 'görev kullanıcı tarafından iptal edildi'
     foreach ($g in @($Ayar.roller.$kisi)) {
         # İptal edilen görevde yedek zincirdeki sonraki araca geçme
@@ -1170,7 +1238,12 @@ function Ajan-Cagir {
         $kimlik = "{0}/{1}" -f $g.arac, $g.model
         if ($Haric -contains $kimlik) { $notlar += "${kimlik}: atlandı"; continue }
         $neden = Arac-Uygun $g
-        if ($neden) { $notlar += "${kimlik}: $neden"; continue }
+        if ($neden) {
+            $notlar += "${kimlik}: $neden"
+            $ac = Sinir-Acilisi $g $neden
+            if ($ac) { $acilislar += $ac } else { $sinirDisi = $true }
+            continue
+        }
         $ad = '{0}-{1}-{2}' -f $Etiket, $g.arac, ([string]$g.model -replace '[^A-Za-z0-9._-]', '_')
         $istemYolu = Join-Path $KayitKlasoru "$ad.istem.md"
         $out = Join-Path $KayitKlasoru "$ad.out.txt"
@@ -1214,8 +1287,17 @@ function Ajan-Cagir {
         }
         Gunluk "$kimAdi -> $kimlik başarısız: $($r.hata)" 'UYARI'
         $notlar += "${kimlik}: $($r.hata)"
+        # Araç çalışıp sınır hatası verdiyse kendi kilidini koymuştur; başka hata sınır beklemesini bozar
+        $ac = Sinir-Acilisi $g -YalnizKilit
+        if ($ac) { $acilislar += $ac } else { $sinirDisi = $true }
     }
-    return [pscustomobject]@{ basarili = $false; metin = ''; hata = ($notlar -join ' | '); sure_sn = 0; arac = ''; model = '' }
+    $hata = ($notlar -join ' | ')
+    $sinirAcilis = $null
+    if ($acilislar.Count -and -not $sinirDisi) {
+        $sinirAcilis = @($acilislar | Sort-Object)[0]
+        if ($gorevId) { $script:SinirBeklemesi = [pscustomobject]@{ gorev = $gorevId; acilis = $sinirAcilis; hata = $hata } }
+    }
+    return [pscustomobject]@{ basarili = $false; metin = ''; hata = $hata; sure_sn = 0; arac = ''; model = ''; sinir_acilis = $sinirAcilis }
 }
 
 # ---------------------------------------------------------------- bildirimler

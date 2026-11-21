@@ -97,6 +97,19 @@ function Adim-Basarisiz($G, [string]$Hata) {
         if (Yardim-Istegi-Kaydet $G $y) { return }
         $Hata = "$Hata (ekip içi yardım hakkı doldu)"
     }
+    # Zincirdeki araçların hepsi yalnız sınır yüzünden kapalıysa (günlük sınır, kullanım / kota sınırı) deneme hakkı harcanmaz: iş en
+    # erken açılışta yeniden denenir (ortak.ps1 > Ajan-Cagir, Sinir-Acilisi). Kullanıcı günlük hakkı sıfırlarsa beklemez (durum.ps1).
+    $sb = $script:SinirBeklemesi; $script:SinirBeklemesi = $null
+    if ($sb -and [string]$sb.gorev -eq [string]$G.id -and [string]$sb.hata -and $Hata.Contains([string]$sb.hata)) {
+        $acilis = [datetime]$sb.acilis
+        $saat = $acilis.ToString('dd.MM HH:mm')
+        Ayarla $G 'son_hata' (Kisalt $Hata 500)
+        Ayarla $G 'sonraki_deneme' ($acilis.ToString('o'))
+        $son = @(@($G.gecmis) | Where-Object { $_ } | Select-Object -Last 1)
+        if (-not ($son.Count -and [string]$son[0].olay -eq 'sınır bekleniyor')) { Gecmis-Ekle $G 'sınır bekleniyor' "Deneme hakkı harcanmadı; $saat'de yeniden denenecek. $Hata" }
+        Gunluk ("Görev {0}: '{1}' için bütün araçlar sınırda; deneme hakkı harcanmadı ({2}/{3}), {4}'de yeniden denenecek" -f $G.id, $G.asama, [int]$G.deneme, [int]$Ayar.dongu.max_adim_denemesi, $saat) 'UYARI'
+        return
+    }
     $G.deneme = [int]$G.deneme + 1
     Ayarla $G 'son_hata' (Kisalt $Hata 500)
     Gecmis-Ekle $G 'deneme başarısız' $Hata
@@ -509,6 +522,7 @@ function Gorev-Ilerlet-Adim($G) {
     $basAsama = [string]$G.asama
     $basTur = $G.tur
     $script:YardimIstegi = $null
+    $script:SinirBeklemesi = $null
     $script:BekleyenPuan = $null
     $script:AdimBaslangic = Get-Date
     if ($G.one_al) { Ayarla $G 'one_al' $false }

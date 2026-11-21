@@ -60,10 +60,14 @@ if ($KotaSifirla) {
             Gorev-Kaydet $g
             Write-Host "Sürdürülüyor: #$(No-Kisa $g.id) $($g.baslik) ($(Asama-Adi $g.asama))"
         } else {
-            Gecmis-Ekle $g 'günlük hak sıfırlandı' "$hakAdi hakkı sıfırlandı; beklemeden yeniden denenecek"
+            # Bu aşamada yalnız sınır yüzünden yanan deneme hakları geri verilir (ortak.ps1 > Sinir-Denemelerini-Geri-Ver)
+            $geri = Sinir-Denemelerini-Geri-Ver $g
+            $hakNotu = ''; if ($geri) { $hakNotu = "; sınır yüzünden yanan $geri deneme hakkı geri verildi" }
+            Gecmis-Ekle $g 'günlük hak sıfırlandı' "$hakAdi hakkı sıfırlandı; beklemeden yeniden denenecek$hakNotu"
             Ayarla $g 'sonraki_deneme' $null
             Gorev-Kaydet $g
-            Write-Host "Beklemeden yeniden denenecek: #$(No-Kisa $g.id) $($g.baslik)"
+            $ekNot = ''; if ($geri) { $ekNot = " ($geri deneme hakkı geri verildi, deneme $($g.deneme)/$($Ayar.dongu.max_adim_denemesi))" }
+            Write-Host "Beklemeden yeniden denenecek: #$(No-Kisa $g.id) $($g.baslik)$ekNot"
         }
     }
     if (-not $duran.Count) { Write-Host 'Sınır yüzünden duran iş yok.' }
